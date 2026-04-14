@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: jp-vocab-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: jp_vocab
+      POSTGRES_USER: jp
+      POSTGRES_PASSWORD: jp
+    ports:
+      - "5432:5432"
+    volumes:
+      - jp_vocab_pgdata:/var/lib/postgresql/data
+
+volumes:
+  jp_vocab_pgdata:

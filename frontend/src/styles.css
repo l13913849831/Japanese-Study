@@ -1,0 +1,48 @@
+:root {
+  color: #18222f;
+  background:
+    radial-gradient(circle at top left, rgba(228, 201, 140, 0.28), transparent 32%),
+    linear-gradient(180deg, #f6f1e8 0%, #f8f8f4 100%);
+  font-family: "Segoe UI", "Noto Sans JP", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-content {
+  padding: 24px;
+}
+
+.page-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .app-content {
+    padding: 16px;
+  }
+}
