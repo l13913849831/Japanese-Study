@@ -29,6 +29,8 @@ app:
   cors:
     allowed-origins:
       - ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  export:
+    base-dir: ${APP_EXPORT_BASE_DIR:exports}
 
 logging:
   level:

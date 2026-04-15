@@ -1,4 +1,4 @@
-import { getJson } from "@/shared/api/http";
+import { downloadFile, getJson, postJson } from "@/shared/api/http";
 import type { PageResponse } from "@/shared/api/types";
 
 export interface ExportJob {
@@ -15,4 +15,18 @@ export interface ExportJob {
 
 export function listExportJobs() {
   return getJson<PageResponse<ExportJob>>("/export-jobs");
+}
+
+export interface CreateExportJobPayload {
+  planId: number;
+  exportType: string;
+  targetDate: string;
+}
+
+export function createExportJob(payload: CreateExportJobPayload) {
+  return postJson<ExportJob, CreateExportJobPayload>("/export-jobs", payload);
+}
+
+export function downloadExportJob(id: number) {
+  return downloadFile(`/export-jobs/${id}/download`);
 }

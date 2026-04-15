@@ -3,7 +3,10 @@ package com.jp.vocab.wordset.controller;
 import com.jp.vocab.shared.api.ApiResponse;
 import com.jp.vocab.shared.api.PageResponse;
 import com.jp.vocab.wordset.dto.CreateWordSetRequest;
+import com.jp.vocab.wordset.dto.WordEntryImportResponse;
+import com.jp.vocab.wordset.dto.WordEntryResponse;
 import com.jp.vocab.wordset.dto.WordSetResponse;
+import com.jp.vocab.wordset.service.WordEntryService;
 import com.jp.vocab.wordset.service.WordSetService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -15,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 @Validated
 @RestController
@@ -22,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class WordSetController {
 
     private final WordSetService wordSetService;
+    private final WordEntryService wordEntryService;
 
-    public WordSetController(WordSetService wordSetService) {
+    public WordSetController(WordSetService wordSetService, WordEntryService wordEntryService) {
         this.wordSetService = wordSetService;
+        this.wordEntryService = wordEntryService;
     }
 
     @PostMapping
@@ -38,5 +46,22 @@ public class WordSetController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int pageSize
     ) {
         return ApiResponse.success(wordSetService.list(page, pageSize));
+    }
+
+    @GetMapping("/{wordSetId}/words")
+    public ApiResponse<PageResponse<WordEntryResponse>> listWordEntries(
+            @PathVariable Long wordSetId,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int pageSize
+    ) {
+        return ApiResponse.success(wordEntryService.list(wordSetId, page, pageSize));
+    }
+
+    @PostMapping(path = "/{wordSetId}/import", consumes = "multipart/form-data")
+    public ApiResponse<WordEntryImportResponse> importWordEntries(
+            @PathVariable Long wordSetId,
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ApiResponse.success(wordEntryService.importCsv(wordSetId, file));
     }
 }

@@ -44,3 +44,43 @@ export async function postJson<TResponse, TRequest>(path: string, body: TRequest
 
   return unwrapResponse<TResponse>(response);
 }
+
+export async function putJson<TResponse, TRequest>(path: string, body: TRequest): Promise<TResponse> {
+  const response = await fetch(buildUrl(path), {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  return unwrapResponse<TResponse>(response);
+}
+
+export async function postFormData<TResponse>(path: string, formData: FormData): Promise<TResponse> {
+  const response = await fetch(buildUrl(path), {
+    method: "POST",
+    body: formData
+  });
+
+  return unwrapResponse<TResponse>(response);
+}
+
+export async function downloadFile(path: string): Promise<Blob> {
+  const response = await fetch(buildUrl(path), {
+    method: "GET"
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiEnvelope<null>;
+    throw new ApiClientError(
+      payload.error?.message ?? `Request failed with status ${response.status}`,
+      response.status,
+      payload.error?.code,
+      payload.error?.details ?? []
+    );
+  }
+
+  return response.blob();
+}

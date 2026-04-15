@@ -41,4 +41,24 @@ public class CardInstanceEntity extends AuditableEntity {
 
     protected CardInstanceEntity() {
     }
+
+    public static CardInstanceEntity create(
+            Long planId,
+            Long wordEntryId,
+            String cardType,
+            Integer sequenceNo,
+            Integer stageNo,
+            LocalDate dueDate,
+            String status
+    ) {
+        CardInstanceEntity entity = new CardInstanceEntity();
+        entity.planId = planId;
+        entity.wordEntryId = wordEntryId;
+        entity.cardType = cardType;
+        entity.sequenceNo = sequenceNo;
+        entity.stageNo = stageNo;
+        entity.dueDate = dueDate;
+        entity.status = status;
+        return entity;
+    }
 }

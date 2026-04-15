@@ -49,6 +49,48 @@ public class StudyPlanEntity extends AuditableEntity {
     protected StudyPlanEntity() {
     }
 
+    public static StudyPlanEntity create(
+            String name,
+            Long wordSetId,
+            LocalDate startDate,
+            Integer dailyNewCount,
+            List<Integer> reviewOffsets,
+            Long ankiTemplateId,
+            Long mdTemplateId,
+            String status
+    ) {
+        StudyPlanEntity entity = new StudyPlanEntity();
+        entity.name = name;
+        entity.wordSetId = wordSetId;
+        entity.startDate = startDate;
+        entity.dailyNewCount = dailyNewCount;
+        entity.reviewOffsets = reviewOffsets;
+        entity.ankiTemplateId = ankiTemplateId;
+        entity.mdTemplateId = mdTemplateId;
+        entity.status = status;
+        return entity;
+    }
+
+    public void update(
+            String name,
+            Long wordSetId,
+            LocalDate startDate,
+            Integer dailyNewCount,
+            List<Integer> reviewOffsets,
+            Long ankiTemplateId,
+            Long mdTemplateId,
+            String status
+    ) {
+        this.name = name;
+        this.wordSetId = wordSetId;
+        this.startDate = startDate;
+        this.dailyNewCount = dailyNewCount;
+        this.reviewOffsets = reviewOffsets;
+        this.ankiTemplateId = ankiTemplateId;
+        this.mdTemplateId = mdTemplateId;
+        this.status = status;
+    }
+
     public Long getId() {
         return id;
     }

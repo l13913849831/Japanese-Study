@@ -39,6 +39,30 @@ public class ExportJobEntity extends AuditableEntity {
     protected ExportJobEntity() {
     }
 
+    public static ExportJobEntity create(
+            Long planId,
+            String exportType,
+            LocalDate targetDate,
+            String fileName,
+            String filePath,
+            String status
+    ) {
+        ExportJobEntity entity = new ExportJobEntity();
+        entity.planId = planId;
+        entity.exportType = exportType;
+        entity.targetDate = targetDate;
+        entity.fileName = fileName;
+        entity.filePath = filePath;
+        entity.status = status;
+        return entity;
+    }
+
+    public void updateResult(String fileName, String filePath, String status) {
+        this.fileName = fileName;
+        this.filePath = filePath;
+        this.status = status;
+    }
+
     public Long getId() {
         return id;
     }

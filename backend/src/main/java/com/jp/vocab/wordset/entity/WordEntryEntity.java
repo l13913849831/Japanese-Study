@@ -53,4 +53,98 @@ public class WordEntryEntity extends AuditableEntity {
 
     protected WordEntryEntity() {
     }
+
+    private WordEntryEntity(
+            Long wordSetId,
+            String expression,
+            String reading,
+            String meaning,
+            String partOfSpeech,
+            String exampleJp,
+            String exampleZh,
+            String level,
+            List<String> tags,
+            Integer sourceOrder
+    ) {
+        this.wordSetId = wordSetId;
+        this.expression = expression;
+        this.reading = reading;
+        this.meaning = meaning;
+        this.partOfSpeech = partOfSpeech;
+        this.exampleJp = exampleJp;
+        this.exampleZh = exampleZh;
+        this.level = level;
+        this.tags = tags;
+        this.sourceOrder = sourceOrder;
+    }
+
+    public static WordEntryEntity create(
+            Long wordSetId,
+            String expression,
+            String reading,
+            String meaning,
+            String partOfSpeech,
+            String exampleJp,
+            String exampleZh,
+            String level,
+            List<String> tags,
+            Integer sourceOrder
+    ) {
+        return new WordEntryEntity(
+                wordSetId,
+                expression,
+                reading,
+                meaning,
+                partOfSpeech,
+                exampleJp,
+                exampleZh,
+                level,
+                tags,
+                sourceOrder
+        );
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Long getWordSetId() {
+        return wordSetId;
+    }
+
+    public String getExpression() {
+        return expression;
+    }
+
+    public String getReading() {
+        return reading;
+    }
+
+    public String getMeaning() {
+        return meaning;
+    }
+
+    public String getPartOfSpeech() {
+        return partOfSpeech;
+    }
+
+    public String getExampleJp() {
+        return exampleJp;
+    }
+
+    public String getExampleZh() {
+        return exampleZh;
+    }
+
+    public String getLevel() {
+        return level;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public Integer getSourceOrder() {
+        return sourceOrder;
+    }
 }
