@@ -60,12 +60,19 @@ export function WordSetPage() {
   });
 
   const uploadProps: UploadProps = {
+    accept: ".csv,.apkg",
     showUploadList: false,
     beforeUpload: (file) => {
       if (!selectedWordSet) {
         message.warning("请先选择一个词库");
         return Upload.LIST_IGNORE;
       }
+
+      if (!/\.(csv|apkg)$/i.test(file.name)) {
+        message.error("仅支持 .csv 或 .apkg 文件");
+        return Upload.LIST_IGNORE;
+      }
+
       importMutation.mutate({ wordSetId: selectedWordSet.id, file });
       return false;
     }
@@ -75,7 +82,7 @@ export function WordSetPage() {
     <div className="page-stack">
       <PageHeader
         title="词库"
-        description="提供词库列表、创建入口与后续 CSV 导入扩展点。"
+        description="提供词库列表、创建入口与 CSV / APKG 导入能力。"
         extra={<Tag color="gold">word_set / word_entry</Tag>}
       />
 
@@ -86,10 +93,10 @@ export function WordSetPage() {
           onFinish={(values) => createMutation.mutate(values)}
         >
           <Form.Item label="名称" name="name" rules={[{ required: true, message: "请输入词库名称" }]}>
-            <Input placeholder="例如：N4 核心词汇" />
+            <Input placeholder="例如：N4 高频词汇" />
           </Form.Item>
           <Form.Item label="描述" name="description">
-            <Input.TextArea rows={3} placeholder="例如：N4 高频日语词汇" />
+            <Input.TextArea rows={3} placeholder="例如：日语能力考 N4 词库" />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={createMutation.isPending}>
             创建
@@ -99,7 +106,7 @@ export function WordSetPage() {
 
       <PageSection
         title="词库列表"
-        extra={<Typography.Text type="secondary">对接 GET /api/word-sets</Typography.Text>}
+        extra={<Typography.Text type="secondary">来源：GET /api/word-sets</Typography.Text>}
       >
         {wordSetsQuery.isLoading ? (
           <StatusState mode="loading" />
@@ -140,7 +147,7 @@ export function WordSetPage() {
         extra={
           <Upload {...uploadProps}>
             <Button loading={importMutation.isPending} disabled={!selectedWordSet}>
-              导入 CSV
+              导入 CSV / APKG
             </Button>
           </Upload>
         }
@@ -167,7 +174,7 @@ export function WordSetPage() {
         ) : null}
 
         {!selectedWordSet ? (
-          <StatusState mode="empty" description="先在上方选择一个词库" />
+          <StatusState mode="empty" description="请选择一个词库后再查看词条" />
         ) : wordEntriesQuery.isLoading ? (
           <StatusState mode="loading" />
         ) : wordEntriesQuery.isError ? (
@@ -179,9 +186,9 @@ export function WordSetPage() {
             dataSource={wordEntriesQuery.data?.items ?? []}
             columns={[
               { title: "顺序", dataIndex: "sourceOrder", width: 80 },
-              { title: "表达", dataIndex: "expression", width: 140 },
+              { title: "词条", dataIndex: "expression", width: 140 },
               { title: "读音", dataIndex: "reading", render: (value?: string) => value || "-" },
-              { title: "含义", dataIndex: "meaning" },
+              { title: "释义", dataIndex: "meaning" },
               {
                 title: "标签",
                 dataIndex: "tags",

@@ -389,14 +389,16 @@ multipart/form-data
 
 表单字段：
 
-- `file`: CSV 文件
+- `file`: CSV 或 `.apkg` 文件
 - `overwriteDuplicates`: `true/false`，可选，默认 `false`
 
-CSV 标题建议：
+上传 CSV 时标题建议：
 
 ```text
 expression,reading,meaning,partOfSpeech,exampleJp,exampleZh,level,tags
 ```
+
+`.apkg` 导入会从包内 note 字段推断 `expression`、`reading`、`meaning` 等词条字段；当前不导入复习历史、牌组层级和媒体文件。
 
 响应：
 

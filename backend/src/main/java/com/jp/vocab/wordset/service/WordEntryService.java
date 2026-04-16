@@ -21,8 +21,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -33,15 +36,18 @@ public class WordEntryService {
     private final WordEntryRepository wordEntryRepository;
     private final WordSetRepository wordSetRepository;
     private final SimpleCsvParser csvParser;
+    private final AnkiApkgImportService ankiApkgImportService;
 
     public WordEntryService(
             WordEntryRepository wordEntryRepository,
             WordSetRepository wordSetRepository,
-            SimpleCsvParser csvParser
+            SimpleCsvParser csvParser,
+            AnkiApkgImportService ankiApkgImportService
     ) {
         this.wordEntryRepository = wordEntryRepository;
         this.wordSetRepository = wordSetRepository;
         this.csvParser = csvParser;
+        this.ankiApkgImportService = ankiApkgImportService;
     }
 
     @Transactional(readOnly = true)
@@ -56,12 +62,18 @@ public class WordEntryService {
     }
 
     @Transactional
-    public WordEntryImportResponse importCsv(Long wordSetId, MultipartFile file) {
+    public WordEntryImportResponse importEntries(Long wordSetId, MultipartFile file) {
         ensureWordSetExists(wordSetId);
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException(ErrorCode.IMPORT_ERROR, "CSV file must not be empty");
-        }
+        validateUpload(file);
 
+        List<ParsedWordEntryRow> rows = isApkg(file)
+                ? ankiApkgImportService.parse(file)
+                : parseCsvRows(file);
+
+        return persistRows(wordSetId, rows);
+    }
+
+    private List<ParsedWordEntryRow> parseCsvRows(MultipartFile file) {
         String content;
         try {
             content = new String(file.getBytes(), StandardCharsets.UTF_8);
@@ -71,10 +83,19 @@ public class WordEntryService {
 
         List<CsvRow> rows = csvParser.parse(content);
         if (rows.isEmpty()) {
-            return new WordEntryImportResponse(0, 0, List.of());
+            return List.of();
         }
 
         validateHeaders(rows.getFirst().values().keySet().stream().toList());
+        return rows.stream()
+                .map(row -> new ParsedWordEntryRow(row.lineNumber(), normalizeKeys(row.values())))
+                .toList();
+    }
+
+    private WordEntryImportResponse persistRows(Long wordSetId, List<ParsedWordEntryRow> rows) {
+        if (rows.isEmpty()) {
+            return new WordEntryImportResponse(0, 0, List.of());
+        }
 
         List<WordEntryEntity> existingEntries = wordEntryRepository.findByWordSetIdOrderBySourceOrderAsc(wordSetId);
         Set<String> knownKeys = new HashSet<>();
@@ -89,7 +110,7 @@ public class WordEntryService {
         int skippedCount = 0;
         int nextSourceOrder = maxSourceOrder + 1;
 
-        for (CsvRow row : rows) {
+        for (ParsedWordEntryRow row : rows) {
             String expression = normalize(row.values().get("expression"));
             String meaning = normalize(row.values().get("meaning"));
 
@@ -134,15 +155,38 @@ public class WordEntryService {
         }
     }
 
+    private void validateUpload(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.IMPORT_ERROR, "Import file must not be empty");
+        }
+    }
+
     private void validateHeaders(List<String> headers) {
         List<String> normalized = headers.stream()
-                .map(header -> normalize(header).toLowerCase(Locale.ROOT))
+                .map(this::normalizeHeader)
                 .toList();
         for (String requiredHeader : REQUIRED_HEADERS) {
             if (!normalized.contains(requiredHeader)) {
                 throw new BusinessException(ErrorCode.IMPORT_ERROR, "Missing CSV header: " + requiredHeader);
             }
         }
+    }
+
+    private Map<String, String> normalizeKeys(Map<String, String> values) {
+        Map<String, String> normalized = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            normalized.put(normalizeHeader(entry.getKey()), entry.getValue());
+        }
+        return normalized;
+    }
+
+    private String normalizeHeader(String value) {
+        return normalize(value).toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isApkg(MultipartFile file) {
+        String fileName = file.getOriginalFilename();
+        return fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".apkg");
     }
 
     private String normalize(String value) {
@@ -160,11 +204,17 @@ public class WordEntryService {
             return List.of();
         }
 
-        return List.of(normalized.split("[,;|，、]"))
-                .stream()
-                .map(String::trim)
-                .filter(tag -> !tag.isBlank())
-                .toList();
+        String normalizedSeparators = normalized
+                .replace('\u3001', ',')
+                .replace('\uFF0C', ',');
+
+        return new ArrayList<>(new LinkedHashSet<>(
+                List.of(normalizedSeparators.split("[,;|/\\s]+"))
+                        .stream()
+                        .map(String::trim)
+                        .filter(tag -> !tag.isBlank())
+                        .toList()
+        ));
     }
 
     private String buildDedupKey(String expression, String reading) {

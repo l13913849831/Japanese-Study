@@ -62,6 +62,6 @@ public class WordSetController {
             @PathVariable Long wordSetId,
             @RequestPart("file") MultipartFile file
     ) {
-        return ApiResponse.success(wordEntryService.importCsv(wordSetId, file));
+        return ApiResponse.success(wordEntryService.importEntries(wordSetId, file));
     }
 }
