@@ -340,13 +340,19 @@
 
 查询参数：
 
-- `page`
-- `pageSize`
-- `keyword`
-- `level`
-- `tag`
+- `page`：默认 `1`
+- `pageSize`：默认 `20`
+- `keyword`：按词条、读音、释义、词性、例句、标签做关键字匹配
+- `level`：按等级精确过滤，例如 `N4`
+- `tag`：按标签精确过滤，例如 `工作`
 
 响应中的 `items` 为 `WordEntry[]`
+
+说明：
+
+- 当前按 `sourceOrder` 升序返回
+- 过滤条件可组合使用
+- `wordSetId` 不存在时返回 `NOT_FOUND`
 
 ## 4.7 创建词条
 
@@ -367,15 +373,47 @@
 }
 ```
 
+说明：
+
+- `expression` 和 `meaning` 必填
+- `reading`、`partOfSpeech`、`exampleJp`、`exampleZh`、`level` 可为空
+- `tags` 为字符串数组，允许为空数组
+- 同一词库下若 `(expression, reading)` 语义重复，返回 `CONFLICT`
+- 创建成功后系统会自动分配新的 `sourceOrder`
+
 ## 4.8 更新词条
 
 ### `PUT /api/words/{wordId}`
 
 请求体同创建词条。
 
+说明：
+
+- 更新不会修改词条所属词库
+- 若更新后与同词库内其他词条形成重复，返回 `CONFLICT`
+- `wordId` 不存在时返回 `NOT_FOUND`
+
 ## 4.9 删除词条
 
 ### `DELETE /api/words/{wordId}`
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "deleted": true
+  },
+  "error": null,
+  "timestamp": "2026-04-13T10:15:30+09:00"
+}
+```
+
+说明：
+
+- 删除词条会级联删除关联的 `card_instance` 与 `review_log`
+- `wordId` 不存在时返回 `NOT_FOUND`
 
 ## 4.10 导入词条
 
@@ -424,11 +462,9 @@ expression,reading,meaning,partOfSpeech,exampleJp,exampleZh,level,tags
 ## 5. 学习计划接口
 
 ## 5.1 创建学习计划
-
 ### `POST /api/study-plans`
 
-请求：
-
+请求体：
 ```json
 {
   "name": "N4 每日 20 词",
@@ -441,40 +477,12 @@ expression,reading,meaning,partOfSpeech,exampleJp,exampleZh,level,tags
 }
 ```
 
-响应：
+说明：
+- 创建接口不接受 `status` 字段
+- 服务端创建后默认将学习计划状态设置为 `DRAFT`
+- 创建成功后会为该计划生成初始卡片排程
 
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "name": "N4 每日 20 词",
-    "status": "DRAFT"
-  },
-  "error": null,
-  "timestamp": "2026-04-13T10:15:30+09:00"
-}
-```
-
-校验规则：
-
-- `wordSetId` 必须存在
-- `startDate` 不能为空
-- `dailyNewCount > 0`
-- `reviewOffsets` 必须包含 `0`
-
-## 5.2 查询学习计划列表
-
-### `GET /api/study-plans?page=1&pageSize=20&status=ACTIVE`
-
-响应中的 `items` 为 `StudyPlan[]`
-
-## 5.3 查询学习计划详情
-
-### `GET /api/study-plans/{planId}`
-
-扩展返回建议：
-
+响应示例：
 ```json
 {
   "success": true,
@@ -482,15 +490,54 @@ expression,reading,meaning,partOfSpeech,exampleJp,exampleZh,level,tags
     "id": 1,
     "name": "N4 每日 20 词",
     "wordSetId": 1,
-    "wordSetName": "N4 核心词汇",
+    "startDate": "2026-04-20",
+    "dailyNewCount": 20,
+    "reviewOffsets": [0, 1, 3, 7, 14, 30],
+    "ankiTemplateId": 1,
+    "mdTemplateId": 1,
+    "status": "DRAFT",
+    "createdAt": "2026-04-13T10:15:30+09:00",
+    "updatedAt": "2026-04-13T10:15:30+09:00"
+  },
+  "error": null,
+  "timestamp": "2026-04-13T10:15:30+09:00"
+}
+```
+
+校验规则：
+- `wordSetId` 必须存在
+- `dailyNewCount > 0`
+- `reviewOffsets` 不能为空
+- `reviewOffsets` 第一个值必须为 `0`
+- `reviewOffsets` 必须按升序排列
+
+## 5.2 查询学习计划列表
+
+### `GET /api/study-plans?page=1&pageSize=20`
+
+说明：
+- 当前实现返回全部学习计划
+- 响应中的 `items` 为 `StudyPlan[]`
+
+## 5.3 查询学习计划详情
+### `GET /api/study-plans/{planId}`
+
+成功响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "N4 每日 20 词",
+    "wordSetId": 1,
     "startDate": "2026-04-20",
     "dailyNewCount": 20,
     "reviewOffsets": [0, 1, 3, 7, 14, 30],
     "ankiTemplateId": 1,
     "mdTemplateId": 1,
     "status": "ACTIVE",
-    "totalWords": 1800,
-    "totalCards": 10800
+    "createdAt": "2026-04-13T10:15:30+09:00",
+    "updatedAt": "2026-04-13T10:15:30+09:00"
   },
   "error": null,
   "timestamp": "2026-04-13T10:15:30+09:00"
@@ -498,14 +545,13 @@ expression,reading,meaning,partOfSpeech,exampleJp,exampleZh,level,tags
 ```
 
 ## 5.4 更新学习计划
-
 ### `PUT /api/study-plans/{planId}`
 
-请求：
-
+请求体：
 ```json
 {
   "name": "N4 每日 25 词",
+  "wordSetId": 1,
   "startDate": "2026-04-22",
   "dailyNewCount": 25,
   "reviewOffsets": [0, 1, 3, 7, 14, 30],
@@ -515,40 +561,110 @@ expression,reading,meaning,partOfSpeech,exampleJp,exampleZh,level,tags
 ```
 
 说明：
+- 更新接口不接受 `status` 字段
+- 仅 `DRAFT` 和 `PAUSED` 状态的计划允许更新
+- 更新成功后会重新生成该计划下的卡片排程
 
-- 如果计划已生成卡片，修改 `startDate` 或 `dailyNewCount` 时，后端需要决定是否重建卡片
-- 第一阶段建议：更新此类核心配置时直接重建该计划的卡片实例
+错误场景：
+- 当计划处于 `ACTIVE` 或 `ARCHIVED` 状态时，返回 `CONFLICT`
 
 ## 5.5 激活学习计划
-
 ### `POST /api/study-plans/{planId}/activate`
 
-行为：
+说明：
+- 显式生命周期动作，将计划状态变更为 `ACTIVE`
+- 仅允许 `DRAFT` 或 `PAUSED` 状态的计划执行该操作
+- 该操作只更新计划状态，不重新生成卡片排程
 
-- 将计划状态改为 `ACTIVE`
-- 如果当前没有卡片实例，则生成卡片实例
-
-响应：
-
+响应示例：
 ```json
 {
   "success": true,
   "data": {
     "id": 1,
-    "status": "ACTIVE"
+    "name": "N4 每日 20 词",
+    "wordSetId": 1,
+    "startDate": "2026-04-20",
+    "dailyNewCount": 20,
+    "reviewOffsets": [0, 1, 3, 7, 14, 30],
+    "ankiTemplateId": 1,
+    "mdTemplateId": 1,
+    "status": "ACTIVE",
+    "createdAt": "2026-04-13T10:15:30+09:00",
+    "updatedAt": "2026-04-13T10:20:00+09:00"
   },
   "error": null,
-  "timestamp": "2026-04-13T10:15:30+09:00"
+  "timestamp": "2026-04-13T10:20:00+09:00"
 }
 ```
 
-## 5.6 暂停学习计划
+错误场景：
+- 当前状态不是 `DRAFT` 或 `PAUSED` 时，返回 `CONFLICT`
 
+## 5.6 暂停学习计划
 ### `POST /api/study-plans/{planId}/pause`
 
-## 5.7 归档学习计划
+说明：
+- 显式生命周期动作，将计划状态变更为 `PAUSED`
+- 仅允许 `ACTIVE` 状态的计划执行该操作
 
+响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "N4 每日 20 词",
+    "wordSetId": 1,
+    "startDate": "2026-04-20",
+    "dailyNewCount": 20,
+    "reviewOffsets": [0, 1, 3, 7, 14, 30],
+    "ankiTemplateId": 1,
+    "mdTemplateId": 1,
+    "status": "PAUSED",
+    "createdAt": "2026-04-13T10:15:30+09:00",
+    "updatedAt": "2026-04-13T10:30:00+09:00"
+  },
+  "error": null,
+  "timestamp": "2026-04-13T10:30:00+09:00"
+}
+```
+
+错误场景：
+- 当前状态不是 `ACTIVE` 时，返回 `CONFLICT`
+
+## 5.7 归档学习计划
 ### `POST /api/study-plans/{planId}/archive`
+
+说明：
+- 显式生命周期动作，将计划状态变更为 `ARCHIVED`
+- 允许 `DRAFT`、`ACTIVE`、`PAUSED` 状态的计划执行该操作
+- 已经处于 `ARCHIVED` 状态的计划不能重复归档
+
+响应示例：
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "N4 每日 20 词",
+    "wordSetId": 1,
+    "startDate": "2026-04-20",
+    "dailyNewCount": 20,
+    "reviewOffsets": [0, 1, 3, 7, 14, 30],
+    "ankiTemplateId": 1,
+    "mdTemplateId": 1,
+    "status": "ARCHIVED",
+    "createdAt": "2026-04-13T10:15:30+09:00",
+    "updatedAt": "2026-04-13T10:40:00+09:00"
+  },
+  "error": null,
+  "timestamp": "2026-04-13T10:40:00+09:00"
+}
+```
+
+错误场景：
+- 当前状态已经是 `ARCHIVED` 时，返回 `CONFLICT`
 
 ## 5.8 学习量预览
 
@@ -903,7 +1019,29 @@ expression,reading,meaning,partOfSpeech,exampleJp,exampleZh,level,tags
 }
 ```
 
-## 9.4 ReviewCardRequest
+说明：
+- 不包含 `status`
+- 服务端固定默认创建为 `DRAFT`
+
+## 9.4 UpdateStudyPlanRequest
+
+```json
+{
+  "name": "string",
+  "wordSetId": 1,
+  "startDate": "2026-04-20",
+  "dailyNewCount": 20,
+  "reviewOffsets": [0, 1, 3, 7, 14, 30],
+  "ankiTemplateId": 1,
+  "mdTemplateId": 1
+}
+```
+
+说明：
+- 不包含 `status`
+- 仅 `DRAFT` 和 `PAUSED` 状态的计划允许使用该请求体更新
+
+## 9.5 ReviewCardRequest
 
 ```json
 {
@@ -913,7 +1051,7 @@ expression,reading,meaning,partOfSpeech,exampleJp,exampleZh,level,tags
 }
 ```
 
-## 9.5 CreateAnkiExportRequest
+## 9.6 CreateAnkiExportRequest
 
 ```json
 {
@@ -983,3 +1121,98 @@ Service 分组建议：
 - `swagger/openapi.yaml`
 - 统一错误码字典
 - 接口测试样例集
+## 14. Template CRUD Sync (2026-04-17)
+
+This section overrides the older template notes above where they differ from the current implementation.
+
+### 14.1 Anki template create
+
+`POST /api/templates/anki`
+
+Request:
+
+```json
+{
+  "name": "Japanese Basic",
+  "description": "Default anki card template",
+  "fieldMapping": {
+    "front": ["expression"],
+    "back": ["reading", "meaning", "exampleJp", "exampleZh"]
+  },
+  "frontTemplate": "{{expression}}",
+  "backTemplate": "<div>{{reading}}</div><div>{{meaning}}</div>",
+  "cssTemplate": ".card { font-size: 20px; }"
+}
+```
+
+Behavior:
+
+- validates `frontTemplate` and `backTemplate` with `SimpleTemplateEngine.validate(...)`
+- trims `name`, `description`, `frontTemplate`, `backTemplate`, and `cssTemplate`
+- rejects duplicate template names with `409 CONFLICT`
+
+### 14.2 Anki template update
+
+`PUT /api/templates/anki/{templateId}`
+
+Request body is identical to create.
+
+Behavior:
+
+- returns `404 NOT_FOUND` when `templateId` does not exist
+- applies the same save-time validation and duplicate-name checks as create
+
+### 14.3 Markdown template create
+
+`POST /api/templates/md`
+
+Request:
+
+```json
+{
+  "name": "Daily Markdown",
+  "description": "Daily study export template",
+  "templateContent": "# {{date}}\n{{#newCards}}\n- {{expression}} / {{meaning}}\n{{/newCards}}"
+}
+```
+
+Behavior:
+
+- validates `templateContent` with allowed scalar variables plus `newCards` / `reviewCards` sections
+- trims `name`, `description`, and `templateContent`
+- rejects duplicate template names with `409 CONFLICT`
+
+### 14.4 Markdown template update
+
+`PUT /api/templates/md/{templateId}`
+
+Request body is identical to create.
+
+Behavior:
+
+- returns `404 NOT_FOUND` when `templateId` does not exist
+- applies the same save-time validation and duplicate-name checks as create
+
+### 14.5 Template preview routes
+
+Current preview endpoints are request-body driven and do not require template IDs:
+
+- `POST /api/templates/anki/preview`
+- `POST /api/templates/md/preview`
+
+They return:
+
+- rendered front/back/css for Anki preview
+- rendered markdown content for Markdown preview
+
+When template variables or sections are unsupported, the backend returns `400 TEMPLATE_RENDER_ERROR`.
+
+### 14.6 Default template selection
+
+There is no separate global "default template center" endpoint in the current implementation.
+
+The effective selection flow is:
+
+- study plan create/update requests continue to carry `ankiTemplateId` and `mdTemplateId`
+- template management writes to the same template resources queried by the study plan page
+- after template list refresh, newly created or updated templates become selectable in study plans

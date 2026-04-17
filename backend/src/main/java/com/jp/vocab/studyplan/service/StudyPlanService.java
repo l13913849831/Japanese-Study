@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
 
 @Service
 public class StudyPlanService {
@@ -63,8 +62,7 @@ public class StudyPlanService {
                 request.wordSetId(),
                 request.reviewOffsets(),
                 request.ankiTemplateId(),
-                request.mdTemplateId(),
-                request.status()
+                request.mdTemplateId()
         );
 
         StudyPlanEntity entity = StudyPlanEntity.create(
@@ -74,8 +72,7 @@ public class StudyPlanService {
                 request.dailyNewCount(),
                 List.copyOf(request.reviewOffsets()),
                 request.ankiTemplateId(),
-                request.mdTemplateId(),
-                request.status()
+                request.mdTemplateId()
         );
 
         StudyPlanEntity saved = studyPlanRepository.save(entity);
@@ -85,15 +82,15 @@ public class StudyPlanService {
 
     @Transactional
     public StudyPlanResponse update(Long id, UpdateStudyPlanRequest request) {
+        StudyPlanEntity entity = getEntity(id);
+        validateEditable(entity);
         validateRequest(
                 request.wordSetId(),
                 request.reviewOffsets(),
                 request.ankiTemplateId(),
-                request.mdTemplateId(),
-                request.status()
+                request.mdTemplateId()
         );
 
-        StudyPlanEntity entity = getEntity(id);
         entity.update(
                 request.name().trim(),
                 request.wordSetId(),
@@ -101,13 +98,45 @@ public class StudyPlanService {
                 request.dailyNewCount(),
                 List.copyOf(request.reviewOffsets()),
                 request.ankiTemplateId(),
-                request.mdTemplateId(),
-                request.status()
+                request.mdTemplateId()
         );
 
         StudyPlanEntity saved = studyPlanRepository.save(entity);
         cardGenerationService.regenerateForPlan(saved);
         return StudyPlanResponse.from(saved);
+    }
+
+    @Transactional
+    public StudyPlanResponse activate(Long id) {
+        StudyPlanEntity entity = getEntity(id);
+        if (!entity.canActivate()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Only draft or paused study plans can be activated");
+        }
+
+        entity.activate();
+        return StudyPlanResponse.from(studyPlanRepository.save(entity));
+    }
+
+    @Transactional
+    public StudyPlanResponse pause(Long id) {
+        StudyPlanEntity entity = getEntity(id);
+        if (!entity.canPause()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Only active study plans can be paused");
+        }
+
+        entity.pause();
+        return StudyPlanResponse.from(studyPlanRepository.save(entity));
+    }
+
+    @Transactional
+    public StudyPlanResponse archive(Long id) {
+        StudyPlanEntity entity = getEntity(id);
+        if (!entity.canArchive()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Archived study plans cannot be archived again");
+        }
+
+        entity.archive();
+        return StudyPlanResponse.from(studyPlanRepository.save(entity));
     }
 
     private StudyPlanEntity getEntity(Long id) {
@@ -119,8 +148,7 @@ public class StudyPlanService {
             Long wordSetId,
             List<Integer> reviewOffsets,
             Long ankiTemplateId,
-            Long mdTemplateId,
-            String status
+            Long mdTemplateId
     ) {
         if (!wordSetRepository.existsById(wordSetId)) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Word set not found: " + wordSetId);
@@ -139,8 +167,11 @@ public class StudyPlanService {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "reviewOffsets must be sorted ascending");
             }
         }
-        if (!Set.of("DRAFT", "ACTIVE", "PAUSED", "ARCHIVED").contains(status)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "status is invalid");
+    }
+
+    private void validateEditable(StudyPlanEntity entity) {
+        if (!entity.isEditable()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Only draft or paused study plans can be edited");
         }
     }
 }

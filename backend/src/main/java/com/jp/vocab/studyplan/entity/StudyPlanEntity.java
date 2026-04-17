@@ -12,10 +12,18 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "study_plan")
 public class StudyPlanEntity extends AuditableEntity {
+
+    public static final String STATUS_DRAFT = "DRAFT";
+    public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_PAUSED = "PAUSED";
+    public static final String STATUS_ARCHIVED = "ARCHIVED";
+
+    private static final Set<String> EDITABLE_STATUSES = Set.of(STATUS_DRAFT, STATUS_PAUSED);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,8 +64,7 @@ public class StudyPlanEntity extends AuditableEntity {
             Integer dailyNewCount,
             List<Integer> reviewOffsets,
             Long ankiTemplateId,
-            Long mdTemplateId,
-            String status
+            Long mdTemplateId
     ) {
         StudyPlanEntity entity = new StudyPlanEntity();
         entity.name = name;
@@ -67,7 +74,7 @@ public class StudyPlanEntity extends AuditableEntity {
         entity.reviewOffsets = reviewOffsets;
         entity.ankiTemplateId = ankiTemplateId;
         entity.mdTemplateId = mdTemplateId;
-        entity.status = status;
+        entity.status = STATUS_DRAFT;
         return entity;
     }
 
@@ -78,8 +85,7 @@ public class StudyPlanEntity extends AuditableEntity {
             Integer dailyNewCount,
             List<Integer> reviewOffsets,
             Long ankiTemplateId,
-            Long mdTemplateId,
-            String status
+            Long mdTemplateId
     ) {
         this.name = name;
         this.wordSetId = wordSetId;
@@ -88,7 +94,34 @@ public class StudyPlanEntity extends AuditableEntity {
         this.reviewOffsets = reviewOffsets;
         this.ankiTemplateId = ankiTemplateId;
         this.mdTemplateId = mdTemplateId;
-        this.status = status;
+    }
+
+    public boolean isEditable() {
+        return EDITABLE_STATUSES.contains(status);
+    }
+
+    public boolean canActivate() {
+        return STATUS_DRAFT.equals(status) || STATUS_PAUSED.equals(status);
+    }
+
+    public boolean canPause() {
+        return STATUS_ACTIVE.equals(status);
+    }
+
+    public boolean canArchive() {
+        return !STATUS_ARCHIVED.equals(status);
+    }
+
+    public void activate() {
+        this.status = STATUS_ACTIVE;
+    }
+
+    public void pause() {
+        this.status = STATUS_PAUSED;
+    }
+
+    public void archive() {
+        this.status = STATUS_ARCHIVED;
     }
 
     public Long getId() {

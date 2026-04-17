@@ -1,6 +1,8 @@
 import { getJson, postJson, putJson } from "@/shared/api/http";
 import type { PageResponse } from "@/shared/api/types";
 
+export type StudyPlanStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+
 export interface StudyPlan {
   id: number;
   name: string;
@@ -10,7 +12,7 @@ export interface StudyPlan {
   reviewOffsets: number[];
   ankiTemplateId?: number;
   mdTemplateId?: number;
-  status: string;
+  status: StudyPlanStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,7 +33,6 @@ export interface StudyPlanPayload {
   reviewOffsets: number[];
   ankiTemplateId?: number;
   mdTemplateId?: number;
-  status: string;
 }
 
 export function createStudyPlan(payload: StudyPlanPayload) {
@@ -40,4 +41,16 @@ export function createStudyPlan(payload: StudyPlanPayload) {
 
 export function updateStudyPlan(id: number, payload: StudyPlanPayload) {
   return putJson<StudyPlan, StudyPlanPayload>(`/study-plans/${id}`, payload);
+}
+
+export function activateStudyPlan(id: number) {
+  return postJson<StudyPlan, Record<string, never>>(`/study-plans/${id}/activate`, {});
+}
+
+export function pauseStudyPlan(id: number) {
+  return postJson<StudyPlan, Record<string, never>>(`/study-plans/${id}/pause`, {});
+}
+
+export function archiveStudyPlan(id: number) {
+  return postJson<StudyPlan, Record<string, never>>(`/study-plans/${id}/archive`, {});
 }

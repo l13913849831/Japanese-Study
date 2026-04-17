@@ -28,6 +28,28 @@ public class MarkdownTemplateEntity extends AuditableEntity {
     protected MarkdownTemplateEntity() {
     }
 
+    public static MarkdownTemplateEntity create(
+            String name,
+            String description,
+            String templateContent
+    ) {
+        MarkdownTemplateEntity entity = new MarkdownTemplateEntity();
+        entity.name = name;
+        entity.description = description;
+        entity.templateContent = templateContent;
+        return entity;
+    }
+
+    public void update(
+            String name,
+            String description,
+            String templateContent
+    ) {
+        this.name = name;
+        this.description = description;
+        this.templateContent = templateContent;
+    }
+
     public Long getId() {
         return id;
     }

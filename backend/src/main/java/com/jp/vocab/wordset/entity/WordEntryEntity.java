@@ -104,6 +104,26 @@ public class WordEntryEntity extends AuditableEntity {
         );
     }
 
+    public void update(
+            String expression,
+            String reading,
+            String meaning,
+            String partOfSpeech,
+            String exampleJp,
+            String exampleZh,
+            String level,
+            List<String> tags
+    ) {
+        this.expression = expression;
+        this.reading = reading;
+        this.meaning = meaning;
+        this.partOfSpeech = partOfSpeech;
+        this.exampleJp = exampleJp;
+        this.exampleZh = exampleZh;
+        this.level = level;
+        this.tags = tags;
+    }
+
     public Long getId() {
         return id;
     }

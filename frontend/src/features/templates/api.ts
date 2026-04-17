@@ -1,4 +1,4 @@
-import { getJson, postJson } from "@/shared/api/http";
+import { getJson, postJson, putJson } from "@/shared/api/http";
 
 export interface AnkiTemplate {
   id: number;
@@ -21,12 +21,43 @@ export interface MarkdownTemplate {
   updatedAt: string;
 }
 
+export interface SaveAnkiTemplatePayload {
+  name: string;
+  description?: string;
+  fieldMapping: Record<string, string[]>;
+  frontTemplate: string;
+  backTemplate: string;
+  cssTemplate?: string;
+}
+
+export interface SaveMarkdownTemplatePayload {
+  name: string;
+  description?: string;
+  templateContent: string;
+}
+
 export function listAnkiTemplates() {
   return getJson<AnkiTemplate[]>("/templates/anki");
 }
 
+export function createAnkiTemplate(payload: SaveAnkiTemplatePayload) {
+  return postJson<AnkiTemplate, SaveAnkiTemplatePayload>("/templates/anki", payload);
+}
+
+export function updateAnkiTemplate(id: number, payload: SaveAnkiTemplatePayload) {
+  return putJson<AnkiTemplate, SaveAnkiTemplatePayload>(`/templates/anki/${id}`, payload);
+}
+
 export function listMarkdownTemplates() {
   return getJson<MarkdownTemplate[]>("/templates/md");
+}
+
+export function createMarkdownTemplate(payload: SaveMarkdownTemplatePayload) {
+  return postJson<MarkdownTemplate, SaveMarkdownTemplatePayload>("/templates/md", payload);
+}
+
+export function updateMarkdownTemplate(id: number, payload: SaveMarkdownTemplatePayload) {
+  return putJson<MarkdownTemplate, SaveMarkdownTemplatePayload>(`/templates/md/${id}`, payload);
 }
 
 export interface TemplateCardSample {

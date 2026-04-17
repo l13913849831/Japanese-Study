@@ -58,6 +58,17 @@ export async function putJson<TResponse, TRequest>(path: string, body: TRequest)
   return unwrapResponse<TResponse>(response);
 }
 
+export async function deleteJson<TResponse>(path: string): Promise<TResponse> {
+  const response = await fetch(buildUrl(path), {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  return unwrapResponse<TResponse>(response);
+}
+
 export async function postFormData<TResponse>(path: string, formData: FormData): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: "POST",

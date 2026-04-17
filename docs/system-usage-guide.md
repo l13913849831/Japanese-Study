@@ -363,3 +363,37 @@ http://localhost:5173
 3. 学习计划编辑的更细粒度重建策略
 4. 模板编辑与保存能力
 5. 导出任务失败状态与错误信息展示
+## 12. Current Feature Sync (2026-04-17)
+
+This section reflects the currently implemented behavior and should be treated as the latest feature snapshot.
+
+### 12.1 Backend capabilities now available
+
+- word set create/list, CSV and `.apkg` import
+- word entry create/update/delete and filtered list queries
+- study plan create/get/list/update
+- study plan lifecycle actions: `activate`, `pause`, `archive`
+- today cards query, calendar query, review submit, review history query
+- Anki / Markdown template list, create, update, and preview
+- export job create/list/download
+
+### 12.2 Frontend pages now available
+
+- `/word-sets`: manage word sets, import data, and maintain word entries
+- `/study-plans`: create and edit plans, switch lifecycle state, select Anki / Markdown templates
+- `/cards`: view today cards and submit review results
+- `/templates`: create, edit, and preview Anki / Markdown templates
+- `/export-jobs`: create exports and download generated files
+
+### 12.3 Template management behavior
+
+- template page is no longer read-only
+- Anki templates support create, update, and draft preview
+- Markdown templates support create, update, and draft preview
+- after saving templates, the same query keys are refreshed so study plan template selectors can immediately use the latest templates
+
+### 12.4 Current known gaps
+
+- no dedicated global "default template center"; template selection still happens through study plan fields
+- export page does not yet expose explicit template selection in the creation form
+- dashboard / aggregated progress views are still pending

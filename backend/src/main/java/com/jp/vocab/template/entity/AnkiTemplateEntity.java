@@ -43,6 +43,40 @@ public class AnkiTemplateEntity extends AuditableEntity {
     protected AnkiTemplateEntity() {
     }
 
+    public static AnkiTemplateEntity create(
+            String name,
+            String description,
+            Map<String, List<String>> fieldMapping,
+            String frontTemplate,
+            String backTemplate,
+            String cssTemplate
+    ) {
+        AnkiTemplateEntity entity = new AnkiTemplateEntity();
+        entity.name = name;
+        entity.description = description;
+        entity.fieldMapping = fieldMapping;
+        entity.frontTemplate = frontTemplate;
+        entity.backTemplate = backTemplate;
+        entity.cssTemplate = cssTemplate;
+        return entity;
+    }
+
+    public void update(
+            String name,
+            String description,
+            Map<String, List<String>> fieldMapping,
+            String frontTemplate,
+            String backTemplate,
+            String cssTemplate
+    ) {
+        this.name = name;
+        this.description = description;
+        this.fieldMapping = fieldMapping;
+        this.frontTemplate = frontTemplate;
+        this.backTemplate = backTemplate;
+        this.cssTemplate = cssTemplate;
+    }
+
     public Long getId() {
         return id;
     }

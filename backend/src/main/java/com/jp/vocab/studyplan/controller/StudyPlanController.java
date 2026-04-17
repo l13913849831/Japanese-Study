@@ -48,6 +48,21 @@ public class StudyPlanController {
         return ApiResponse.success(studyPlanService.create(request));
     }
 
+    @PostMapping("/{id}/activate")
+    public ApiResponse<StudyPlanResponse> activate(@PathVariable Long id) {
+        return ApiResponse.success(studyPlanService.activate(id));
+    }
+
+    @PostMapping("/{id}/pause")
+    public ApiResponse<StudyPlanResponse> pause(@PathVariable Long id) {
+        return ApiResponse.success(studyPlanService.pause(id));
+    }
+
+    @PostMapping("/{id}/archive")
+    public ApiResponse<StudyPlanResponse> archive(@PathVariable Long id) {
+        return ApiResponse.success(studyPlanService.archive(id));
+    }
+
     @PutMapping("/{id}")
     public ApiResponse<StudyPlanResponse> update(
             @PathVariable Long id,

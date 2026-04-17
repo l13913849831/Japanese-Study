@@ -1,18 +1,25 @@
 package com.jp.vocab.template.service;
 
+import com.jp.vocab.shared.exception.BusinessException;
+import com.jp.vocab.shared.exception.ErrorCode;
 import com.jp.vocab.template.dto.AnkiTemplateResponse;
 import com.jp.vocab.template.dto.AnkiTemplatePreviewRequest;
 import com.jp.vocab.template.dto.AnkiTemplatePreviewResponse;
 import com.jp.vocab.template.dto.MarkdownTemplateResponse;
 import com.jp.vocab.template.dto.MarkdownTemplatePreviewRequest;
 import com.jp.vocab.template.dto.MarkdownTemplatePreviewResponse;
+import com.jp.vocab.template.dto.SaveAnkiTemplateRequest;
+import com.jp.vocab.template.dto.SaveMarkdownTemplateRequest;
 import com.jp.vocab.template.dto.TemplateCardSample;
+import com.jp.vocab.template.entity.AnkiTemplateEntity;
+import com.jp.vocab.template.entity.MarkdownTemplateEntity;
 import com.jp.vocab.template.repository.AnkiTemplateRepository;
 import com.jp.vocab.template.repository.MarkdownTemplateRepository;
 import com.jp.vocab.shared.template.SimpleTemplateEngine;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,10 +57,77 @@ public class TemplateService {
                 .toList();
     }
 
+    @Transactional
+    public AnkiTemplateResponse createAnkiTemplate(SaveAnkiTemplateRequest request) {
+        String normalizedName = normalizeRequired(request.name(), "name");
+        ensureAnkiTemplateNameAvailable(normalizedName, null);
+        validateAnkiTemplates(request.frontTemplate(), request.backTemplate());
+
+        AnkiTemplateEntity saved = ankiTemplateRepository.save(AnkiTemplateEntity.create(
+                normalizedName,
+                normalizeOptional(request.description()),
+                copyFieldMapping(request.fieldMapping()),
+                request.frontTemplate().trim(),
+                request.backTemplate().trim(),
+                normalizeOptional(request.cssTemplate())
+        ));
+        return AnkiTemplateResponse.from(saved);
+    }
+
+    @Transactional
+    public AnkiTemplateResponse updateAnkiTemplate(Long id, SaveAnkiTemplateRequest request) {
+        AnkiTemplateEntity entity = ankiTemplateRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Anki template not found: " + id));
+
+        String normalizedName = normalizeRequired(request.name(), "name");
+        ensureAnkiTemplateNameAvailable(normalizedName, id);
+        validateAnkiTemplates(request.frontTemplate(), request.backTemplate());
+
+        entity.update(
+                normalizedName,
+                normalizeOptional(request.description()),
+                copyFieldMapping(request.fieldMapping()),
+                request.frontTemplate().trim(),
+                request.backTemplate().trim(),
+                normalizeOptional(request.cssTemplate())
+        );
+        return AnkiTemplateResponse.from(ankiTemplateRepository.save(entity));
+    }
+
+    @Transactional
+    public MarkdownTemplateResponse createMarkdownTemplate(SaveMarkdownTemplateRequest request) {
+        String normalizedName = normalizeRequired(request.name(), "name");
+        ensureMarkdownTemplateNameAvailable(normalizedName, null);
+        validateMarkdownTemplate(request.templateContent());
+
+        MarkdownTemplateEntity saved = markdownTemplateRepository.save(MarkdownTemplateEntity.create(
+                normalizedName,
+                normalizeOptional(request.description()),
+                request.templateContent().trim()
+        ));
+        return MarkdownTemplateResponse.from(saved);
+    }
+
+    @Transactional
+    public MarkdownTemplateResponse updateMarkdownTemplate(Long id, SaveMarkdownTemplateRequest request) {
+        MarkdownTemplateEntity entity = markdownTemplateRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Markdown template not found: " + id));
+
+        String normalizedName = normalizeRequired(request.name(), "name");
+        ensureMarkdownTemplateNameAvailable(normalizedName, id);
+        validateMarkdownTemplate(request.templateContent());
+
+        entity.update(
+                normalizedName,
+                normalizeOptional(request.description()),
+                request.templateContent().trim()
+        );
+        return MarkdownTemplateResponse.from(markdownTemplateRepository.save(entity));
+    }
+
     @Transactional(readOnly = true)
     public AnkiTemplatePreviewResponse previewAnki(AnkiTemplatePreviewRequest request) {
-        templateEngine.validate(request.frontTemplate(), allowedScalarVariables(), Set.of());
-        templateEngine.validate(request.backTemplate(), allowedScalarVariables(), Set.of());
+        validateAnkiTemplates(request.frontTemplate(), request.backTemplate());
 
         Map<String, Object> context = toScalarContext(request.sample());
         return new AnkiTemplatePreviewResponse(
@@ -65,11 +139,7 @@ public class TemplateService {
 
     @Transactional(readOnly = true)
     public MarkdownTemplatePreviewResponse previewMarkdown(MarkdownTemplatePreviewRequest request) {
-        templateEngine.validate(
-                request.templateContent(),
-                allowedMarkdownVariables(),
-                Set.of("newCards", "reviewCards")
-        );
+        validateMarkdownTemplate(request.templateContent());
 
         Map<String, Object> context = Map.of(
                 "date", request.date(),
@@ -87,6 +157,68 @@ public class TemplateService {
 
     private Set<String> allowedMarkdownVariables() {
         return Set.of("date", "planName", "expression", "reading", "meaning", "partOfSpeech", "exampleJp", "exampleZh", "tags", "dueDate");
+    }
+
+    private void validateAnkiTemplates(String frontTemplate, String backTemplate) {
+        templateEngine.validate(frontTemplate, allowedScalarVariables(), Set.of());
+        templateEngine.validate(backTemplate, allowedScalarVariables(), Set.of());
+    }
+
+    private void validateMarkdownTemplate(String templateContent) {
+        templateEngine.validate(
+                templateContent,
+                allowedMarkdownVariables(),
+                Set.of("newCards", "reviewCards")
+        );
+    }
+
+    private void ensureAnkiTemplateNameAvailable(String name, Long currentId) {
+        boolean exists = currentId == null
+                ? ankiTemplateRepository.existsByName(name)
+                : ankiTemplateRepository.existsByNameAndIdNot(name, currentId);
+        if (exists) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Anki template name already exists: " + name);
+        }
+    }
+
+    private void ensureMarkdownTemplateNameAvailable(String name, Long currentId) {
+        boolean exists = currentId == null
+                ? markdownTemplateRepository.existsByName(name)
+                : markdownTemplateRepository.existsByNameAndIdNot(name, currentId);
+        if (exists) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Markdown template name already exists: " + name);
+        }
+    }
+
+    private Map<String, List<String>> copyFieldMapping(Map<String, List<String>> fieldMapping) {
+        Map<String, List<String>> copied = new LinkedHashMap<>();
+        for (Map.Entry<String, List<String>> entry : fieldMapping.entrySet()) {
+            String key = normalizeRequired(entry.getKey(), "fieldMapping key");
+            List<String> values = entry.getValue() == null
+                    ? List.of()
+                    : entry.getValue().stream()
+                    .map(value -> normalizeRequired(value, "fieldMapping value"))
+                    .toList();
+            copied.put(key, values);
+        }
+        return copied;
+    }
+
+    private String normalizeRequired(String value, String fieldName) {
+        String normalized = value == null ? "" : value.trim();
+        if (normalized.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, fieldName + " must not be blank");
+        }
+        return normalized;
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private Map<String, Object> toScalarContext(TemplateCardSample sample) {

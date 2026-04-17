@@ -21,8 +21,6 @@ public record UpdateStudyPlanRequest(
         @NotEmpty(message = "reviewOffsets must not be empty")
         List<Integer> reviewOffsets,
         Long ankiTemplateId,
-        Long mdTemplateId,
-        @NotBlank(message = "status must not be blank")
-        String status
+        Long mdTemplateId
 ) {
 }

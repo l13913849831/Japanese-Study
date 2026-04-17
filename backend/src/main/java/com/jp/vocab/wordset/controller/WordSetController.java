@@ -3,6 +3,7 @@ package com.jp.vocab.wordset.controller;
 import com.jp.vocab.shared.api.ApiResponse;
 import com.jp.vocab.shared.api.PageResponse;
 import com.jp.vocab.wordset.dto.CreateWordSetRequest;
+import com.jp.vocab.wordset.dto.SaveWordEntryRequest;
 import com.jp.vocab.wordset.dto.WordEntryImportResponse;
 import com.jp.vocab.wordset.dto.WordEntryResponse;
 import com.jp.vocab.wordset.dto.WordSetResponse;
@@ -52,9 +53,20 @@ public class WordSetController {
     public ApiResponse<PageResponse<WordEntryResponse>> listWordEntries(
             @PathVariable Long wordSetId,
             @RequestParam(defaultValue = "1") @Min(1) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int pageSize
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int pageSize,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String tag
     ) {
-        return ApiResponse.success(wordEntryService.list(wordSetId, page, pageSize));
+        return ApiResponse.success(wordEntryService.list(wordSetId, page, pageSize, keyword, level, tag));
+    }
+
+    @PostMapping("/{wordSetId}/words")
+    public ApiResponse<WordEntryResponse> createWordEntry(
+            @PathVariable Long wordSetId,
+            @Valid @RequestBody SaveWordEntryRequest request
+    ) {
+        return ApiResponse.success(wordEntryService.create(wordSetId, request));
     }
 
     @PostMapping(path = "/{wordSetId}/import", consumes = "multipart/form-data")

@@ -61,4 +61,40 @@ public class CardInstanceEntity extends AuditableEntity {
         entity.status = status;
         return entity;
     }
+
+    public void markDone() {
+        this.status = "DONE";
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Long getPlanId() {
+        return planId;
+    }
+
+    public Long getWordEntryId() {
+        return wordEntryId;
+    }
+
+    public String getCardType() {
+        return cardType;
+    }
+
+    public Integer getSequenceNo() {
+        return sequenceNo;
+    }
+
+    public Integer getStageNo() {
+        return stageNo;
+    }
+
+    public LocalDate getDueDate() {
+        return dueDate;
+    }
+
+    public String getStatus() {
+        return status;
+    }
 }

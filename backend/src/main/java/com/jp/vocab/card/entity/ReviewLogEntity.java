@@ -37,4 +37,49 @@ public class ReviewLogEntity {
 
     protected ReviewLogEntity() {
     }
+
+    public static ReviewLogEntity create(
+            Long cardInstanceId,
+            OffsetDateTime reviewedAt,
+            String rating,
+            Long responseTimeMs,
+            String note
+    ) {
+        ReviewLogEntity entity = new ReviewLogEntity();
+        entity.cardInstanceId = cardInstanceId;
+        entity.reviewedAt = reviewedAt;
+        entity.rating = rating;
+        entity.responseTimeMs = responseTimeMs;
+        entity.note = note;
+        entity.createdAt = OffsetDateTime.now();
+        return entity;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Long getCardInstanceId() {
+        return cardInstanceId;
+    }
+
+    public OffsetDateTime getReviewedAt() {
+        return reviewedAt;
+    }
+
+    public String getRating() {
+        return rating;
+    }
+
+    public Long getResponseTimeMs() {
+        return responseTimeMs;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
 }
