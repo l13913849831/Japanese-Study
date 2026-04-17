@@ -18,5 +18,11 @@ frontend/vite.config.d.ts
 logs/
 *.log
 
+# Trellis local state and runtime logs
+.trellis/.template-hashes.json
+.trellis/tasks/**/check.jsonl
+.trellis/tasks/**/debug.jsonl
+.trellis/tasks/**/implement.jsonl
+
 .DS_Store
 Thumbs.db

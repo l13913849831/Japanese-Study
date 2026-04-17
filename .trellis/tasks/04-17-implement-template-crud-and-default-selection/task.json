@@ -1,0 +1,59 @@
+{
+  "id": "implement-template-crud-and-default-selection",
+  "name": "implement-template-crud-and-default-selection",
+  "title": "Implement Template Crud And Default Selection",
+  "description": "Add template create/update flows and explicit default template selection in plan/export workflows.",
+  "status": "implementing",
+  "dev_type": "fullstack",
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "rikka",
+  "assignee": "rikka",
+  "createdAt": "2026-04-17",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 3,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "brainstorm"
+    },
+    {
+      "phase": 2,
+      "action": "research"
+    },
+    {
+      "phase": 3,
+      "action": "implement"
+    },
+    {
+      "phase": 4,
+      "action": "check"
+    },
+    {
+      "phase": 5,
+      "action": "update-spec"
+    },
+    {
+      "phase": 6,
+      "action": "record-session"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "backend/src/main/java/com/jp/vocab/template/controller/TemplateController.java",
+    "backend/src/main/java/com/jp/vocab/template/service/TemplateService.java",
+    "frontend/src/features/templates/TemplatePage.tsx",
+    "frontend/src/features/templates/api.ts",
+    "docs/api-specification.md"
+  ],
+  "notes": "Implemented template create/update flows, draft preview in template page, and synced API behavior notes.",
+  "meta": {}
+}
