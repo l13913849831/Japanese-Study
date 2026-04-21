@@ -45,9 +45,7 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "04-20-implement-import-enhancement-workflow"
-  ],
+  "children": [],
   "parent": null,
   "relatedFiles": [],
   "notes": "",
