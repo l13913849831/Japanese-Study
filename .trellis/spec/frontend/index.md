@@ -30,6 +30,7 @@ The project is structured around `app`, `features`, and `shared`.
 | [State Management](./state-management.md) | Local state, global state, server state | Bootstrapped |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | Bootstrapped |
 | [Type Safety](./type-safety.md) | Type patterns, validation | Bootstrapped |
+| [Current Feature Workflows](./current-feature-workflows.md) | Implemented phase-one routes and page workflows migrated from legacy OpenSpec | Active |
 
 ---
 
@@ -42,6 +43,7 @@ Read these files before changing frontend code:
 - [Hook Guidelines](./hook-guidelines.md): when introducing shared stateful logic or data-fetch abstractions
 - [State Management](./state-management.md): when deciding between local state, React Query, Zustand, and URL/router state
 - [Type Safety](./type-safety.md): when adding API contracts or component props
+- [Current Feature Workflows](./current-feature-workflows.md): when touching implemented learner-facing routes, shared query keys, or page interaction flows
 - [Quality Guidelines](./quality-guidelines.md): before finishing any frontend change
 
 For cross-layer changes, also read [../guides/cross-layer-thinking-guide.md](../guides/cross-layer-thinking-guide.md).

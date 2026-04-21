@@ -18,7 +18,7 @@
 - `backend/`: Spring Boot 3 + Java 21 后端
 - `frontend/`: React 18 + TypeScript + Vite 前端
 - `docs/`: 产品方案、数据库建模、接口文档和本说明
-- `openspec/`: 当前变更方案与任务记录
+- `.trellis/`: 当前主工作流、规范索引与任务记录
 
 ### 2.2 当前模块
 

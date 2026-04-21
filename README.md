@@ -7,7 +7,7 @@ This repository now contains the bootstrap skeleton for the first-phase Japanese
 - `backend/`: Spring Boot 3 + Java 21 service foundation
 - `frontend/`: React 18 + TypeScript + Vite application shell
 - `docs/`: product, API, database, and MVP planning references
-- `openspec/`: change artifacts and task tracking
+- `.trellis/`: active workflow, spec index, and task tracking
 
 ## Phase-one module boundaries
 
@@ -110,8 +110,7 @@ Frontend dev proxy forwards `/api` requests to `http://localhost:8080`.
 
 ## Suggested next implementation steps
 
-1. Complete write APIs for word sets and study plans
-2. Implement CSV import and deduplication
-3. Implement card pre-generation on study plan creation
-4. Add template preview and export creation flows
-5. Add smoke tests for backend startup and main frontend screens
+1. Add automated tests for import preview/apply, study-plan runtime, review, dashboard, template preview, and export download
+2. Expand dashboard metrics such as streaks, stage distribution, and longer-range trends
+3. Add clearer export creation guidance, including template-selection expectations and preview linkage
+4. Keep Trellis specs in sync whenever the current feature surface changes

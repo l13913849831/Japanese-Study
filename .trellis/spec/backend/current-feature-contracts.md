@@ -1,0 +1,263 @@
+# Current Feature Contracts
+
+> Migrated from retired OpenSpec changes and synced to the backend that is currently implemented.
+
+---
+
+## Source of Truth
+
+Use this file when the change touches any implemented learner-facing backend flow.
+
+This file absorbs the retired OpenSpec feature contracts for bootstrap, core workflows, and `.apkg` import.
+
+When Trellis, `docs/api-specification.md`, and code disagree, prefer current code first, then update both docs.
+
+---
+
+## Scenario: Word-set data preparation and import
+
+### 1. Scope / Trigger
+
+- Trigger: change touches `wordset` controllers, import parsing, word-entry CRUD, or import preview/apply behavior.
+- Packages: `com.jp.vocab.wordset`, shared API envelope, frontend `/word-sets`.
+
+### 2. Signatures
+
+- `POST /api/word-sets`
+- `GET /api/word-sets`
+- `GET /api/word-sets/{wordSetId}/words?page=&pageSize=&keyword=&level=&tag=`
+- `POST /api/word-sets/{wordSetId}/words`
+- `PUT /api/words/{wordId}`
+- `DELETE /api/words/{wordId}`
+- `POST /api/word-sets/{wordSetId}/import/preview` with `multipart/form-data`
+- `POST /api/word-sets/{wordSetId}/import` with `multipart/form-data`
+
+### 3. Contracts
+
+- Import supports `CSV` and `APKG`.
+- Preview returns:
+  - `sourceType`
+  - `totalRows`
+  - `readyCount`
+  - `duplicateCount`
+  - `errorCount`
+  - `fieldMappings[]`
+  - `previewRows[]`
+- Preview row status is one of:
+  - `READY`
+  - `DUPLICATE`
+  - `ERROR`
+- Preview does not persist data.
+- Apply persists only rows that were effectively valid for import and returns:
+  - `importedCount`
+  - `skippedCount`
+  - `errors[]`
+- Duplicate detection is scoped to the target word set and keyed by `expression + reading`.
+- `.apkg` import reuses the same save pipeline as CSV after field mapping and cleanup.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| unsupported file extension | reject with standard error envelope |
+| missing required CSV/APKG fields | preview still returns diagnostics and row-level `ERROR` |
+| duplicate row | preview marks `DUPLICATE`; apply increments `skippedCount` |
+| unreadable `.apkg` package | reject with import error, do not partially persist |
+| alias-based CSV match | surface it through `fieldMappings[].note` |
+
+### 5. Good / Base / Bad Cases
+
+- Good: valid CSV or `.apkg`, required fields mapped, preview shows `READY`, apply imports rows in source order.
+- Base: preview includes a mix of `READY`, `DUPLICATE`, and `ERROR`; apply still imports only valid rows.
+- Bad: package cannot expose readable note data or required fields never map to `expression` and `meaning`.
+
+### 6. Tests Required
+
+- controller test for preview/apply multipart endpoints
+- CSV preview and apply regression coverage
+- `.apkg` parsing and field-mapping coverage
+- duplicate handling and source-order preservation coverage
+- word-entry list filter and CRUD coverage
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- create a separate `.apkg`-only response contract
+- persist rows during preview
+- duplicate CSV and `.apkg` validation logic in different save paths
+
+#### Correct
+
+- keep one preview/apply result model for both file types
+- treat preview as pure analysis
+- convert both sources into the same analyzed-row/save pipeline
+
+---
+
+## Scenario: Study-plan runtime, cards, review, and dashboard
+
+### 1. Scope / Trigger
+
+- Trigger: change touches `studyplan`, `card`, `dashboard`, or the state transition between plan, generated cards, and review logs.
+- Packages: `com.jp.vocab.studyplan`, `com.jp.vocab.card`, `com.jp.vocab.dashboard`.
+
+### 2. Signatures
+
+- `GET /api/study-plans`
+- `GET /api/study-plans/{id}`
+- `POST /api/study-plans`
+- `PUT /api/study-plans/{id}`
+- `POST /api/study-plans/{id}/activate`
+- `POST /api/study-plans/{id}/pause`
+- `POST /api/study-plans/{id}/archive`
+- `GET /api/study-plans/{planId}/cards/today?date=YYYY-MM-DD`
+- `GET /api/study-plans/{planId}/cards/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD`
+- `POST /api/cards/{cardId}/review`
+- `GET /api/cards/{cardId}/reviews`
+- `GET /api/dashboard?date=YYYY-MM-DD`
+
+### 3. Contracts
+
+- Study plan status is one of `DRAFT`, `ACTIVE`, `PAUSED`, `ARCHIVED`.
+- `reviewOffsets` must be non-empty, sorted ascending, and start with `0`.
+- Plan create/update returns the full persisted plan object.
+- Plan create and rebuild paths work against pre-generated `card_instance` records.
+- Today cards return real card instances plus word-entry fields needed by the UI.
+- Review submission appends a review log and returns:
+  - `reviewId`
+  - `cardId`
+  - `rating`
+  - `cardStatus`
+  - `reviewedAt`
+- Dashboard is aggregate-only:
+  - `overview`
+  - `activePlans[]`
+  - `recentTrend[]`
+- Dashboard adds no new persistence model; it reuses `study_plan`, `card_instance`, and `review_log`.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| invalid `reviewOffsets` | reject with field-level validation error |
+| missing word set or template reference | reject before plan persistence |
+| lifecycle action not allowed for current status | reject with business error |
+| review request for unknown card | reject with standard error envelope |
+| dashboard date omitted or invalid | validate at controller boundary before aggregation |
+
+### 5. Good / Base / Bad Cases
+
+- Good: create a valid plan, generate cards, activate it, query today cards, submit reviews, and see dashboard aggregates move.
+- Base: pause or archive a plan without losing its persisted history.
+- Bad: mutate key plan inputs without rebuilding dependent cards, or compute today cards ad hoc outside `card_instance`.
+
+### 6. Tests Required
+
+- plan create/update/lifecycle controller coverage
+- card generation service coverage for offsets, sequence, and due dates
+- today/calendar query coverage
+- review submit and review-history coverage
+- dashboard aggregation coverage for mixed active-plan states
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- recalculate cards only at query time
+- let review-offset rules drift between frontend and backend
+- add dashboard-only tables for data that already exists
+
+#### Correct
+
+- keep generated cards as the runtime source for today/calendar flows
+- validate lifecycle and offset rules at the backend boundary
+- treat dashboard as an aggregate read model over existing tables
+
+---
+
+## Scenario: Template preview and export delivery
+
+### 1. Scope / Trigger
+
+- Trigger: change touches template CRUD/preview, export generation/download, or shared rendering context.
+- Packages: `com.jp.vocab.template`, `com.jp.vocab.exportjob`.
+
+### 2. Signatures
+
+- `GET /api/templates/anki`
+- `POST /api/templates/anki`
+- `PUT /api/templates/anki/{id}`
+- `POST /api/templates/anki/preview`
+- `GET /api/templates/md`
+- `POST /api/templates/md`
+- `PUT /api/templates/md/{id}`
+- `POST /api/templates/md/preview`
+- `GET /api/export-jobs`
+- `POST /api/export-jobs`
+- `GET /api/export-jobs/{id}/download`
+
+### 3. Contracts
+
+- Preview routes are request-body driven and do not require template IDs.
+- Anki preview request carries template strings plus one `sample` card context.
+- Anki preview response returns:
+  - `frontRendered`
+  - `backRendered`
+  - `cssRendered`
+- Markdown preview request carries:
+  - `templateContent`
+  - `date`
+  - `planName`
+  - `newCards[]`
+  - `reviewCards[]`
+- Markdown preview response returns `renderedContent`.
+- Export create supports:
+  - `ANKI_CSV`
+  - `ANKI_TSV`
+  - `MARKDOWN`
+- Download serves the generated file for a completed export job.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| unsupported template variable or syntax error | map to standardized preview error response |
+| missing export target plan or date | reject before job creation |
+| unsupported export type | reject with validation or business error |
+| download before file generation is ready | reject with standard error envelope |
+
+### 5. Good / Base / Bad Cases
+
+- Good: save template, preview with sample data, create export job, list it, then download the generated file.
+- Base: refresh template lists and reuse them immediately in study-plan selectors.
+- Bad: couple preview to stored template IDs only, or bypass export-job persistence when generating files.
+
+### 6. Tests Required
+
+- template create/update/preview controller coverage
+- preview rendering error-path coverage
+- export create/list/download coverage
+- file-name and content-type assertions for each export type
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- require database persistence before every preview
+- invent a preview-only variable shape that diverges from export rendering
+- stream ad hoc files without recording export-job state
+
+#### Correct
+
+- keep preview request-body driven
+- share rendering expectations between preview and export
+- keep export generation and download anchored to `export_job`
+
+---
+
+## Migration Note
+
+The retired OpenSpec work is now treated as Trellis-owned knowledge.
+
+The main remaining debt from those original task lists is test coverage and regression verification, not missing feature scope.

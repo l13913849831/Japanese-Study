@@ -23,6 +23,7 @@ These guides help you **ask the right questions before coding**.
 |-------|---------|-------------|
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+| [Retired OpenSpec Guide](./legacy-openspec-migration-guide.md) | Resolve old OpenSpec references after retiring that workflow | When historical OpenSpec notes conflict with current code or docs |
 
 ---
 
