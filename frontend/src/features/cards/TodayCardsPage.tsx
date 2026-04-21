@@ -31,15 +31,16 @@ interface ReviewFormValues {
 const reviewRatings: ReviewRating[] = ["AGAIN", "HARD", "GOOD", "EASY"];
 
 export function TodayCardsPage() {
+  const currentPlanId = useUiStore((state) => state.currentPlanId);
+  const setCurrentPlanId = useUiStore((state) => state.setCurrentPlanId);
   const [search, setSearch] = useState<{ planId?: number; date?: string }>({
+    planId: currentPlanId,
     date: dayjs().format("YYYY-MM-DD")
   });
   const [selectedCardId, setSelectedCardId] = useState<number>();
   const [reviewForm] = Form.useForm<ReviewFormValues>();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
-  const currentPlanId = useUiStore((state) => state.currentPlanId);
-  const setCurrentPlanId = useUiStore((state) => state.setCurrentPlanId);
 
   const enabled = Boolean(search.planId && search.date);
   const cardsQuery = useQuery({

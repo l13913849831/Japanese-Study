@@ -41,6 +41,18 @@ a {
   flex-wrap: wrap;
 }
 
+.dashboard-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.dashboard-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
 @media (max-width: 768px) {
   .app-content {
     padding: 16px;

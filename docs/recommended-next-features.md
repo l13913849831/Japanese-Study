@@ -433,3 +433,75 @@ Scope:
 
 - streaks, completion stats, and stage distribution
 - longer horizon plan forecasting
+
+## 10. 2026-04-20 Sync
+
+The following item from the remaining backlog is now implemented:
+
+- study dashboard and aggregate visibility, including default-home routing
+
+After removing that item, the current recommended priorities are:
+
+### P1 Remaining
+
+1. Import enhancement workflow
+
+Scope:
+
+- pre-import validation and duplicate preview
+- clearer field mapping diagnostics
+- better import error surfacing in UI
+
+Why it is next:
+
+- import quality still determines the quality of downstream study cards
+- this reduces rework after bad CSV or `.apkg` imports
+
+### P2 Remaining
+
+1. Export workflow enhancement
+
+Scope:
+
+- explicit template selection in export creation UI
+- export preview / validation hints
+- clearer failed export diagnostics
+
+2. Metrics and long-range planning views
+
+Scope:
+
+- streaks, completion stats, and stage distribution
+- longer horizon plan forecasting
+
+## 11. 2026-04-20 Import Sync
+
+The following item from the remaining backlog is now implemented:
+
+- import enhancement workflow, including pre-import validation, duplicate preview, field-mapping diagnostics, and clearer UI error surfacing
+
+After removing that item, the current recommended priorities are:
+
+### P1 Remaining
+
+1. Export workflow enhancement
+
+Scope:
+
+- explicit template selection in export creation UI
+- export preview / validation hints
+- clearer failed export diagnostics
+
+Why it is next:
+
+- import and dashboard now cover data entry and daily visibility
+- export flow is the most obviously thinner workflow left in the product
+
+### P2 Remaining
+
+1. Metrics and long-range planning views
+
+Scope:
+
+- streaks, completion stats, and stage distribution
+- longer horizon plan forecasting

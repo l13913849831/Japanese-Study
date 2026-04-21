@@ -397,3 +397,61 @@ This section reflects the currently implemented behavior and should be treated a
 - no dedicated global "default template center"; template selection still happens through study plan fields
 - export page does not yet expose explicit template selection in the creation form
 - dashboard / aggregated progress views are still pending
+
+## 13. Dashboard Sync (2026-04-20)
+
+The dashboard feature is now implemented and should be treated as the current default entry flow.
+
+### 13.1 Default entry behavior
+
+- `/` now redirects to `/dashboard`
+- the first left-nav item is the learner-facing dashboard
+- `word-sets` remains available, but is no longer the home page
+
+### 13.2 Current frontend pages
+
+- `/dashboard`: today's overview, active plan summary, recent 7-day trend, and cross-plan comparison
+- `/word-sets`: data preparation and maintenance for word sets and word entries
+- `/study-plans`: create, edit, activate, pause, and archive study plans
+- `/cards`: inspect today cards and submit review results
+- `/templates`: create, edit, and preview templates
+- `/export-jobs`: create exports and download files
+
+### 13.3 Dashboard interaction notes
+
+- dashboard uses the selected date as an aggregate anchor
+- active plan cards and comparison rows can jump into `/cards`
+- dashboard empty state is expected when no study plan is in `ACTIVE` status
+
+### 13.4 Remaining known gaps
+
+- export creation still lacks explicit template selection and preview guidance
+- long-range metrics such as streaks and stage distribution are not included in the current dashboard
+
+## 14. Import Enhancement Sync (2026-04-20)
+
+The word-set import flow now includes a preview step before persistence.
+
+### 14.1 Current import behavior
+
+- upload in `/word-sets` now opens an import preview instead of importing immediately
+- preview shows detected source type (`CSV` or `APKG`)
+- preview shows field-mapping diagnostics for canonical word-entry fields
+- preview shows row-level status:
+  - `READY`
+  - `DUPLICATE`
+  - `ERROR`
+- only rows marked `READY` are persisted after confirmation
+
+### 14.2 What this improves
+
+- duplicate entries can be identified before save
+- missing required fields are visible before save
+- alias-based header matching is surfaced through explicit mapping notes
+- `.apkg` inferred field mapping is no longer a black box in the UI
+
+### 14.3 Remaining import limitations
+
+- preview is still a one-shot request; there is no saved import session history
+- row preview is still table-based and does not yet support inline correction
+- advanced CSV mapping customization is not included in the current implementation

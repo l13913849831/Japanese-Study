@@ -1,0 +1,63 @@
+{
+  "id": "implement-import-enhancement-workflow",
+  "name": "implement-import-enhancement-workflow",
+  "title": "Implement Import Enhancement Workflow",
+  "description": "Add import pre-validation, duplicate preview, clearer field mapping diagnostics, and better UI error surfacing for CSV and .apkg imports.",
+  "status": "implementing",
+  "dev_type": "fullstack",
+  "scope": "fullstack",
+  "package": null,
+  "priority": "P1",
+  "creator": "rikka",
+  "assignee": "rikka",
+  "createdAt": "2026-04-20",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 3,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "brainstorm"
+    },
+    {
+      "phase": 2,
+      "action": "research"
+    },
+    {
+      "phase": 3,
+      "action": "implement"
+    },
+    {
+      "phase": 4,
+      "action": "check"
+    },
+    {
+      "phase": 5,
+      "action": "update-spec"
+    },
+    {
+      "phase": 6,
+      "action": "record-session"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "04-20-04-20-brainstorm-next-features",
+  "relatedFiles": [
+    "backend/src/main/java/com/jp/vocab/wordset/controller/WordSetController.java",
+    "backend/src/main/java/com/jp/vocab/wordset/service/WordEntryService.java",
+    "backend/src/main/java/com/jp/vocab/wordset/service/AnkiApkgImportService.java",
+    "backend/src/main/java/com/jp/vocab/wordset/dto/WordEntryImportPreviewResponse.java",
+    "frontend/src/features/word-sets/api.ts",
+    "frontend/src/features/word-sets/WordSetPage.tsx",
+    "docs/api-specification.md",
+    "docs/system-usage-guide.md",
+    "docs/recommended-next-features.md"
+  ],
+  "notes": "Implemented import preview/apply split, field mapping diagnostics, duplicate preview, and word-set UI confirmation flow.",
+  "meta": {}
+}

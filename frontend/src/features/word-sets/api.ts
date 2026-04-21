@@ -65,6 +65,34 @@ export interface WordEntryImportResult {
   errors: WordEntryImportError[];
 }
 
+export interface WordEntryImportFieldMapping {
+  targetField: string;
+  required: boolean;
+  mapped: boolean;
+  sourceField?: string;
+  note: string;
+}
+
+export interface WordEntryImportPreviewRow {
+  lineNumber: number;
+  expression: string;
+  reading?: string;
+  meaning: string;
+  status: "READY" | "DUPLICATE" | "ERROR";
+  field?: string;
+  message: string;
+}
+
+export interface WordEntryImportPreviewResult {
+  sourceType: "CSV" | "APKG";
+  totalRows: number;
+  readyCount: number;
+  duplicateCount: number;
+  errorCount: number;
+  fieldMappings: WordEntryImportFieldMapping[];
+  previewRows: WordEntryImportPreviewRow[];
+}
+
 export function listWordSets() {
   return getJson<PageResponse<WordSet>>("/word-sets");
 }
@@ -91,10 +119,18 @@ export function listWordEntries(wordSetId: number, filters: WordEntryFilters = {
   return getJson<PageResponse<WordEntry>>(`/word-sets/${wordSetId}/words?${params.toString()}`);
 }
 
-export function importWordEntries(wordSetId: number, file: File) {
+function buildImportFormData(file: File) {
   const formData = new FormData();
   formData.append("file", file);
-  return postFormData<WordEntryImportResult>(`/word-sets/${wordSetId}/import`, formData);
+  return formData;
+}
+
+export function previewWordEntriesImport(wordSetId: number, file: File) {
+  return postFormData<WordEntryImportPreviewResult>(`/word-sets/${wordSetId}/import/preview`, buildImportFormData(file));
+}
+
+export function importWordEntries(wordSetId: number, file: File) {
+  return postFormData<WordEntryImportResult>(`/word-sets/${wordSetId}/import`, buildImportFormData(file));
 }
 
 export function createWordEntry(wordSetId: number, payload: WordEntryPayload) {

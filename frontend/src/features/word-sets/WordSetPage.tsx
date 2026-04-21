@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   App,
   Button,
+  Descriptions,
   Form,
   Input,
   Modal,
@@ -26,10 +27,12 @@ import {
   importWordEntries,
   listWordEntries,
   listWordSets,
+  previewWordEntriesImport,
   updateWordEntry,
   type CreateWordSetPayload,
   type WordEntry,
   type WordEntryFilters,
+  type WordEntryImportPreviewResult,
   type WordEntryImportResult,
   type WordEntryPayload,
   type WordSet
@@ -72,6 +75,12 @@ function buildWordEntryPayload(values: WordEntryFormValues): WordEntryPayload {
   };
 }
 
+const PREVIEW_STATUS_COLORS: Record<string, string> = {
+  READY: "green",
+  DUPLICATE: "orange",
+  ERROR: "red"
+};
+
 export function WordSetPage() {
   const [wordSetForm] = Form.useForm<CreateWordSetPayload>();
   const [filterForm] = Form.useForm<WordEntryFilterFormValues>();
@@ -80,6 +89,9 @@ export function WordSetPage() {
   const queryClient = useQueryClient();
   const [selectedWordSet, setSelectedWordSet] = useState<WordSet | null>(null);
   const [lastImportResult, setLastImportResult] = useState<WordEntryImportResult | null>(null);
+  const [importPreview, setImportPreview] = useState<WordEntryImportPreviewResult | null>(null);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [wordEntryModalOpen, setWordEntryModalOpen] = useState(false);
   const [editingWordEntry, setEditingWordEntry] = useState<WordEntry | null>(null);
   const [filters, setFilters] = useState<WordEntryFilters>({ page: 1, pageSize: 20 });
@@ -110,9 +122,21 @@ export function WordSetPage() {
   const createWordSetMutation = useMutation({
     mutationFn: createWordSet,
     onSuccess: async () => {
-      message.success("词库已创建");
+      message.success("Word set created.");
       wordSetForm.resetFields();
       await queryClient.invalidateQueries({ queryKey: ["wordSets"] });
+    },
+    onError: (error) => {
+      message.error((error as ApiClientError).message);
+    }
+  });
+
+  const previewMutation = useMutation({
+    mutationFn: ({ wordSetId, file }: { wordSetId: number; file: File }) => previewWordEntriesImport(wordSetId, file),
+    onSuccess: (result, variables) => {
+      setImportPreview(result);
+      setPendingImportFile(variables.file);
+      setPreviewModalOpen(true);
     },
     onError: (error) => {
       message.error((error as ApiClientError).message);
@@ -123,7 +147,10 @@ export function WordSetPage() {
     mutationFn: ({ wordSetId, file }: { wordSetId: number; file: File }) => importWordEntries(wordSetId, file),
     onSuccess: async (result) => {
       setLastImportResult(result);
-      message.success(`导入完成：新增 ${result.importedCount} 条，跳过 ${result.skippedCount} 条`);
+      setPreviewModalOpen(false);
+      setImportPreview(null);
+      setPendingImportFile(null);
+      message.success(`Import completed: ${result.importedCount} imported, ${result.skippedCount} skipped.`);
       await refreshWordEntries();
     },
     onError: (error) => {
@@ -134,7 +161,7 @@ export function WordSetPage() {
   const createWordEntryMutation = useMutation({
     mutationFn: ({ wordSetId, payload }: { wordSetId: number; payload: WordEntryPayload }) => createWordEntry(wordSetId, payload),
     onSuccess: async () => {
-      message.success("词条已创建");
+      message.success("Word entry created.");
       setWordEntryModalOpen(false);
       setEditingWordEntry(null);
       wordEntryForm.resetFields();
@@ -148,7 +175,7 @@ export function WordSetPage() {
   const updateWordEntryMutation = useMutation({
     mutationFn: ({ wordId, payload }: { wordId: number; payload: WordEntryPayload }) => updateWordEntry(wordId, payload),
     onSuccess: async () => {
-      message.success("词条已更新");
+      message.success("Word entry updated.");
       setWordEntryModalOpen(false);
       setEditingWordEntry(null);
       wordEntryForm.resetFields();
@@ -162,7 +189,7 @@ export function WordSetPage() {
   const deleteWordEntryMutation = useMutation({
     mutationFn: deleteWordEntry,
     onSuccess: async () => {
-      message.success("词条已删除");
+      message.success("Word entry deleted.");
       await refreshWordEntries();
     },
     onError: (error) => {
@@ -175,16 +202,16 @@ export function WordSetPage() {
     showUploadList: false,
     beforeUpload: (file) => {
       if (!selectedWordSet) {
-        message.warning("请先选择一个词库");
+        message.warning("Select a word set before importing.");
         return Upload.LIST_IGNORE;
       }
 
       if (!/\.(csv|apkg)$/i.test(file.name)) {
-        message.error("仅支持 .csv 或 .apkg 文件");
+        message.error("Only .csv and .apkg files are supported.");
         return Upload.LIST_IGNORE;
       }
 
-      importMutation.mutate({ wordSetId: selectedWordSet.id, file });
+      previewMutation.mutate({ wordSetId: selectedWordSet.id, file });
       return false;
     }
   };
@@ -192,6 +219,9 @@ export function WordSetPage() {
   const handleSelectWordSet = (wordSet: WordSet | null) => {
     setSelectedWordSet(wordSet);
     setLastImportResult(null);
+    setImportPreview(null);
+    setPendingImportFile(null);
+    setPreviewModalOpen(false);
     setEditingWordEntry(null);
     setWordEntryModalOpen(false);
     wordEntryForm.resetFields();
@@ -201,7 +231,7 @@ export function WordSetPage() {
 
   const handleOpenCreateWordEntry = () => {
     if (!selectedWordSet) {
-      message.warning("请先选择一个词库");
+      message.warning("Select a word set first.");
       return;
     }
 
@@ -227,7 +257,7 @@ export function WordSetPage() {
 
   const handleWordEntrySubmit = (values: WordEntryFormValues) => {
     if (!selectedWordSet) {
-      message.warning("请先选择一个词库");
+      message.warning("Select a word set first.");
       return;
     }
 
@@ -266,37 +296,44 @@ export function WordSetPage() {
     }));
   };
 
+  const handleConfirmImport = () => {
+    if (!selectedWordSet || !pendingImportFile) {
+      return;
+    }
+
+    importMutation.mutate({
+      wordSetId: selectedWordSet.id,
+      file: pendingImportFile
+    });
+  };
+
   const wordEntryMutationPending = createWordEntryMutation.isPending || updateWordEntryMutation.isPending;
 
   return (
     <div className="page-stack">
       <PageHeader
-        title="词库"
-        description="提供词库列表、单词条维护、过滤检索与 CSV / APKG 导入能力。"
+        title="Word Sets"
+        description="Manage source data, preview CSV / APKG imports before saving, and maintain individual word entries."
         extra={<Tag color="gold">word_set / word_entry</Tag>}
       />
 
-      <PageSection title="创建词库">
-        <Form
-          form={wordSetForm}
-          layout="vertical"
-          onFinish={(values) => createWordSetMutation.mutate(values)}
-        >
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: "请输入词库名称" }]}>
-            <Input placeholder="例如：N4 高频词汇" />
+      <PageSection title="Create Word Set">
+        <Form form={wordSetForm} layout="vertical" onFinish={(values) => createWordSetMutation.mutate(values)}>
+          <Form.Item label="Name" name="name" rules={[{ required: true, message: "Enter a word set name." }]}>
+            <Input placeholder="N4 Core Vocabulary" />
           </Form.Item>
-          <Form.Item label="描述" name="description">
-            <Input.TextArea rows={3} placeholder="例如：日语能力考 N4 词库" />
+          <Form.Item label="Description" name="description">
+            <Input.TextArea rows={3} placeholder="Short note about this word set" />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={createWordSetMutation.isPending}>
-            创建
+            Create
           </Button>
         </Form>
       </PageSection>
 
       <PageSection
-        title="词库列表"
-        extra={<Typography.Text type="secondary">来源：GET /api/word-sets</Typography.Text>}
+        title="Word Set List"
+        extra={<Typography.Text type="secondary">GET /api/word-sets</Typography.Text>}
       >
         {wordSetsQuery.isLoading ? (
           <StatusState mode="loading" />
@@ -314,31 +351,27 @@ export function WordSetPage() {
             }}
             columns={[
               { title: "ID", dataIndex: "id", width: 80 },
-              { title: "名称", dataIndex: "name" },
-              { title: "描述", dataIndex: "description", render: (value?: string) => value || "-" },
-              { title: "创建时间", dataIndex: "createdAt" }
+              { title: "Name", dataIndex: "name" },
+              { title: "Description", dataIndex: "description", render: (value?: string) => value || "-" },
+              { title: "Created At", dataIndex: "createdAt" }
             ]}
             locale={{
-              emptyText: (
-                <Space direction="vertical">
-                  <Typography.Text type="secondary">暂无词库</Typography.Text>
-                </Space>
-              )
+              emptyText: <Typography.Text type="secondary">No word sets yet.</Typography.Text>
             }}
           />
         )}
       </PageSection>
 
       <PageSection
-        title={selectedWordSet ? `词条列表：${selectedWordSet.name}` : "词条列表"}
+        title={selectedWordSet ? `Word Entries: ${selectedWordSet.name}` : "Word Entries"}
         extra={
           <Space wrap>
             <Button onClick={handleOpenCreateWordEntry} disabled={!selectedWordSet}>
-              新增词条
+              New Entry
             </Button>
             <Upload {...uploadProps}>
-              <Button loading={importMutation.isPending} disabled={!selectedWordSet}>
-                导入 CSV / APKG
+              <Button loading={previewMutation.isPending} disabled={!selectedWordSet}>
+                Preview Import
               </Button>
             </Upload>
           </Space>
@@ -347,7 +380,7 @@ export function WordSetPage() {
         {lastImportResult ? (
           <Space direction="vertical" style={{ width: "100%", marginBottom: 16 }}>
             <Typography.Text>
-              最近一次导入结果：新增 {lastImportResult.importedCount} 条，跳过 {lastImportResult.skippedCount} 条
+              Last import result: {lastImportResult.importedCount} imported, {lastImportResult.skippedCount} skipped.
             </Typography.Text>
             {lastImportResult.errors.length > 0 ? (
               <Table
@@ -356,9 +389,9 @@ export function WordSetPage() {
                 pagination={false}
                 dataSource={lastImportResult.errors}
                 columns={[
-                  { title: "行号", dataIndex: "lineNumber", width: 80 },
-                  { title: "字段", dataIndex: "field", width: 120 },
-                  { title: "错误", dataIndex: "message" }
+                  { title: "Line", dataIndex: "lineNumber", width: 80 },
+                  { title: "Field", dataIndex: "field", width: 120 },
+                  { title: "Message", dataIndex: "message" }
                 ]}
               />
             ) : null}
@@ -366,24 +399,24 @@ export function WordSetPage() {
         ) : null}
 
         {!selectedWordSet ? (
-          <StatusState mode="empty" description="请选择一个词库后再查看和维护词条" />
+          <StatusState mode="empty" description="Select a word set to browse or import entries." />
         ) : (
           <Space direction="vertical" style={{ width: "100%" }} size={16}>
             <Form form={filterForm} layout="inline" onFinish={handleFilterSubmit}>
-              <Form.Item label="关键词" name="keyword">
-                <Input allowClear placeholder="匹配词条 / 读音 / 释义" />
+              <Form.Item label="Keyword" name="keyword">
+                <Input allowClear placeholder="expression / reading / meaning" />
               </Form.Item>
-              <Form.Item label="等级" name="level">
-                <Input allowClear placeholder="例如：N4" />
+              <Form.Item label="Level" name="level">
+                <Input allowClear placeholder="N4" />
               </Form.Item>
-              <Form.Item label="标签" name="tag">
-                <Input allowClear placeholder="例如：工作" />
+              <Form.Item label="Tag" name="tag">
+                <Input allowClear placeholder="verb" />
               </Form.Item>
               <Space>
                 <Button type="primary" htmlType="submit">
-                  筛选
+                  Filter
                 </Button>
-                <Button onClick={handleResetFilters}>重置</Button>
+                <Button onClick={handleResetFilters}>Reset</Button>
               </Space>
             </Form>
 
@@ -403,37 +436,37 @@ export function WordSetPage() {
                 }}
                 onChange={handleWordEntryTableChange}
                 locale={{
-                  emptyText: <Typography.Text type="secondary">当前筛选条件下暂无词条</Typography.Text>
+                  emptyText: <Typography.Text type="secondary">No entries match the current filter.</Typography.Text>
                 }}
                 columns={[
-                  { title: "顺序", dataIndex: "sourceOrder", width: 80 },
-                  { title: "词条", dataIndex: "expression", width: 140 },
-                  { title: "读音", dataIndex: "reading", render: (value?: string) => value || "-" },
-                  { title: "释义", dataIndex: "meaning" },
-                  { title: "等级", dataIndex: "level", width: 100, render: (value?: string) => value || "-" },
+                  { title: "Order", dataIndex: "sourceOrder", width: 80 },
+                  { title: "Expression", dataIndex: "expression", width: 160 },
+                  { title: "Reading", dataIndex: "reading", render: (value?: string) => value || "-" },
+                  { title: "Meaning", dataIndex: "meaning" },
+                  { title: "Level", dataIndex: "level", width: 100, render: (value?: string) => value || "-" },
                   {
-                    title: "标签",
+                    title: "Tags",
                     dataIndex: "tags",
-                    render: (tags: string[]) => tags.length ? tags.join(", ") : "-"
+                    render: (tags: string[]) => (tags.length ? tags.join(", ") : "-")
                   },
                   {
-                    title: "操作",
+                    title: "Actions",
                     key: "actions",
                     width: 180,
                     render: (_, record: WordEntry) => (
                       <Space>
                         <Button type="link" onClick={() => handleOpenEditWordEntry(record)}>
-                          编辑
+                          Edit
                         </Button>
                         <Popconfirm
-                          title="删除词条"
-                          description="删除后会级联删除相关卡片与复习记录，确认继续吗？"
-                          okText="删除"
-                          cancelText="取消"
+                          title="Delete word entry"
+                          description="This deletes the current word entry. Related cards or review data are handled by backend rules."
+                          okText="Delete"
+                          cancelText="Cancel"
                           onConfirm={() => deleteWordEntryMutation.mutate(record.id)}
                         >
                           <Button type="link" danger loading={deleteWordEntryMutation.isPending}>
-                            删除
+                            Delete
                           </Button>
                         </Popconfirm>
                       </Space>
@@ -447,7 +480,95 @@ export function WordSetPage() {
       </PageSection>
 
       <Modal
-        title={editingWordEntry ? "编辑词条" : "新增词条"}
+        title="Import Preview"
+        open={previewModalOpen}
+        onCancel={() => {
+          setPreviewModalOpen(false);
+          setImportPreview(null);
+          setPendingImportFile(null);
+        }}
+        onOk={handleConfirmImport}
+        okText="Confirm Import"
+        cancelText="Cancel"
+        okButtonProps={{
+          disabled: !importPreview || importPreview.readyCount === 0
+        }}
+        confirmLoading={importMutation.isPending}
+        width={1080}
+        destroyOnHidden
+      >
+        {!importPreview ? (
+          <StatusState mode="empty" description="No preview data loaded." />
+        ) : (
+          <Space direction="vertical" style={{ width: "100%" }} size={16}>
+            <Descriptions
+              bordered
+              size="small"
+              column={3}
+              items={[
+                { key: "sourceType", label: "Source Type", children: importPreview.sourceType },
+                { key: "totalRows", label: "Total Rows", children: importPreview.totalRows },
+                { key: "readyCount", label: "Ready", children: importPreview.readyCount },
+                { key: "duplicateCount", label: "Duplicates", children: importPreview.duplicateCount },
+                { key: "errorCount", label: "Errors", children: importPreview.errorCount },
+                {
+                  key: "note",
+                  label: "Import Rule",
+                  children: "Only READY rows will be imported."
+                }
+              ]}
+            />
+
+            <Table
+              rowKey="targetField"
+              size="small"
+              pagination={false}
+              dataSource={importPreview.fieldMappings}
+              columns={[
+                { title: "Target Field", dataIndex: "targetField" },
+                {
+                  title: "Required",
+                  dataIndex: "required",
+                  width: 90,
+                  render: (value: boolean) => (value ? "Yes" : "No")
+                },
+                {
+                  title: "Mapped",
+                  dataIndex: "mapped",
+                  width: 90,
+                  render: (value: boolean) => <Tag color={value ? "green" : "default"}>{value ? "Yes" : "No"}</Tag>
+                },
+                { title: "Source Field", dataIndex: "sourceField", render: (value?: string) => value || "-" },
+                { title: "Note", dataIndex: "note" }
+              ]}
+            />
+
+            <Table
+              rowKey={(record) => `${record.lineNumber}-${record.expression}-${record.status}`}
+              size="small"
+              pagination={{ pageSize: 10 }}
+              dataSource={importPreview.previewRows}
+              columns={[
+                { title: "Line", dataIndex: "lineNumber", width: 80 },
+                { title: "Expression", dataIndex: "expression", render: (value?: string) => value || "-" },
+                { title: "Reading", dataIndex: "reading", render: (value?: string) => value || "-" },
+                { title: "Meaning", dataIndex: "meaning", render: (value?: string) => value || "-" },
+                {
+                  title: "Status",
+                  dataIndex: "status",
+                  width: 120,
+                  render: (value: string) => <Tag color={PREVIEW_STATUS_COLORS[value] ?? "default"}>{value}</Tag>
+                },
+                { title: "Field", dataIndex: "field", width: 120, render: (value?: string) => value || "-" },
+                { title: "Message", dataIndex: "message" }
+              ]}
+            />
+          </Space>
+        )}
+      </Modal>
+
+      <Modal
+        title={editingWordEntry ? "Edit Word Entry" : "New Word Entry"}
         open={wordEntryModalOpen}
         onCancel={() => {
           setWordEntryModalOpen(false);
@@ -459,29 +580,29 @@ export function WordSetPage() {
         destroyOnHidden
       >
         <Form form={wordEntryForm} layout="vertical" onFinish={handleWordEntrySubmit}>
-          <Form.Item label="词条" name="expression" rules={[{ required: true, message: "请输入词条" }]}>
+          <Form.Item label="Expression" name="expression" rules={[{ required: true, message: "Enter expression." }]}>
             <Input />
           </Form.Item>
-          <Form.Item label="读音" name="reading">
+          <Form.Item label="Reading" name="reading">
             <Input />
           </Form.Item>
-          <Form.Item label="释义" name="meaning" rules={[{ required: true, message: "请输入释义" }]}>
+          <Form.Item label="Meaning" name="meaning" rules={[{ required: true, message: "Enter meaning." }]}>
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Form.Item label="词性" name="partOfSpeech">
+          <Form.Item label="Part Of Speech" name="partOfSpeech">
             <Input />
           </Form.Item>
-          <Form.Item label="日语例句" name="exampleJp">
+          <Form.Item label="Example JP" name="exampleJp">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item label="中文例句" name="exampleZh">
+          <Form.Item label="Example ZH" name="exampleZh">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item label="等级" name="level">
-            <Input placeholder="例如：N4" />
+          <Form.Item label="Level" name="level">
+            <Input placeholder="N4" />
           </Form.Item>
-          <Form.Item label="标签" name="tagsText">
-            <Input placeholder="多个标签请用逗号分隔" />
+          <Form.Item label="Tags" name="tagsText">
+            <Input placeholder="comma separated tags" />
           </Form.Item>
         </Form>
       </Modal>

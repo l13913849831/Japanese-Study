@@ -1,15 +1,16 @@
-import { BookOutlined, CalendarOutlined, ExportOutlined, ProfileOutlined, TableOutlined } from "@ant-design/icons";
+import { BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, ProfileOutlined, TableOutlined } from "@ant-design/icons";
 import { Layout, Menu, Typography } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const { Header, Content, Sider } = Layout;
 
 const menuItems = [
-  { key: "/word-sets", icon: <BookOutlined />, label: "词库" },
-  { key: "/study-plans", icon: <ProfileOutlined />, label: "学习计划" },
-  { key: "/cards", icon: <CalendarOutlined />, label: "今日卡片" },
-  { key: "/templates", icon: <TableOutlined />, label: "模板" },
-  { key: "/export-jobs", icon: <ExportOutlined />, label: "导出" }
+  { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+  { key: "/word-sets", icon: <BookOutlined />, label: "Word Sets" },
+  { key: "/study-plans", icon: <ProfileOutlined />, label: "Study Plans" },
+  { key: "/cards", icon: <CalendarOutlined />, label: "Today Cards" },
+  { key: "/templates", icon: <TableOutlined />, label: "Templates" },
+  { key: "/export-jobs", icon: <ExportOutlined />, label: "Exports" }
 ];
 
 export function AppShellLayout() {
@@ -23,7 +24,7 @@ export function AppShellLayout() {
           <Typography.Title level={4} style={{ margin: 0 }}>
             JP Phase One
           </Typography.Title>
-          <Typography.Text type="secondary">第一阶段框架骨架</Typography.Text>
+          <Typography.Text type="secondary">Japanese study workflow</Typography.Text>
         </div>
         <Menu
           mode="inline"

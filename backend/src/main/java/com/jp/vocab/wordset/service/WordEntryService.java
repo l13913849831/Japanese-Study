@@ -8,6 +8,9 @@ import com.jp.vocab.shared.exception.ErrorCode;
 import com.jp.vocab.wordset.dto.DeleteWordEntryResponse;
 import com.jp.vocab.wordset.dto.SaveWordEntryRequest;
 import com.jp.vocab.wordset.dto.WordEntryImportError;
+import com.jp.vocab.wordset.dto.WordEntryImportFieldMapping;
+import com.jp.vocab.wordset.dto.WordEntryImportPreviewResponse;
+import com.jp.vocab.wordset.dto.WordEntryImportPreviewRow;
 import com.jp.vocab.wordset.dto.WordEntryImportResponse;
 import com.jp.vocab.wordset.dto.WordEntryResponse;
 import com.jp.vocab.wordset.entity.WordEntryEntity;
@@ -21,18 +24,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class WordEntryService {
-
-    private static final List<String> REQUIRED_HEADERS = List.of("expression", "meaning");
 
     private final WordEntryRepository wordEntryRepository;
     private final WordSetRepository wordSetRepository;
@@ -144,14 +143,47 @@ public class WordEntryService {
         ensureWordSetExists(wordSetId);
         validateUpload(file);
 
-        List<ParsedWordEntryRow> rows = isApkg(file)
-                ? ankiApkgImportService.parse(file)
-                : parseCsvRows(file);
-
-        return persistRows(wordSetId, rows);
+        ParsedImportPayload payload = parseUpload(file);
+        ImportAnalysis analysis = analyzeRows(wordSetId, payload.rows());
+        return persistRows(wordSetId, analysis);
     }
 
-    private List<ParsedWordEntryRow> parseCsvRows(MultipartFile file) {
+    @Transactional(readOnly = true)
+    public WordEntryImportPreviewResponse previewImport(Long wordSetId, MultipartFile file) {
+        ensureWordSetExists(wordSetId);
+        validateUpload(file);
+
+        ParsedImportPayload payload = parseUpload(file);
+        ImportAnalysis analysis = analyzeRows(wordSetId, payload.rows());
+
+        return new WordEntryImportPreviewResponse(
+                payload.sourceType(),
+                payload.rows().size(),
+                analysis.readyCount(),
+                analysis.duplicateCount(),
+                analysis.errorCount(),
+                payload.fieldMappings(),
+                analysis.rows().stream()
+                        .map(row -> new WordEntryImportPreviewRow(
+                                row.lineNumber(),
+                                normalize(row.values().get("expression")),
+                                normalize(row.values().get("reading")),
+                                normalize(row.values().get("meaning")),
+                                row.status(),
+                                row.field(),
+                                row.message()
+                        ))
+                        .toList()
+        );
+    }
+
+    private ParsedImportPayload parseUpload(MultipartFile file) {
+        return isApkg(file)
+                ? ankiApkgImportService.parse(file)
+                : parseCsvRows(file);
+    }
+
+    private ParsedImportPayload parseCsvRows(MultipartFile file) {
         String content;
         try {
             content = new String(file.getBytes(), StandardCharsets.UTF_8);
@@ -161,54 +193,132 @@ public class WordEntryService {
 
         List<CsvRow> rows = csvParser.parse(content);
         if (rows.isEmpty()) {
-            return List.of();
+            return new ParsedImportPayload("CSV", List.of(), List.of());
         }
 
-        validateHeaders(rows.getFirst().values().keySet().stream().toList());
-        return rows.stream()
-                .map(row -> new ParsedWordEntryRow(row.lineNumber(), normalizeKeys(row.values())))
-                .toList();
+        List<String> headers = rows.getFirst().values().keySet().stream().toList();
+        List<WordEntryImportFieldMapping> fieldMappings = ImportFieldMappingSupport.buildDiagnostics(headers);
+        return new ParsedImportPayload(
+                "CSV",
+                fieldMappings,
+                rows.stream()
+                        .map(row -> new ParsedWordEntryRow(row.lineNumber(), ImportFieldMappingSupport.mapValues(row.values())))
+                        .toList()
+        );
     }
 
-    private WordEntryImportResponse persistRows(Long wordSetId, List<ParsedWordEntryRow> rows) {
+    private ImportAnalysis analyzeRows(Long wordSetId, List<ParsedWordEntryRow> rows) {
         if (rows.isEmpty()) {
+            return new ImportAnalysis(List.of(), 0, 0, 0);
+        }
+
+        List<WordEntryEntity> existingEntries = wordEntryRepository.findByWordSetIdOrderBySourceOrderAsc(wordSetId);
+        Set<String> existingKeys = new HashSet<>();
+        for (WordEntryEntity existingEntry : existingEntries) {
+            existingKeys.add(buildDedupKey(existingEntry.getExpression(), existingEntry.getReading()));
+        }
+
+        Set<String> seenImportKeys = new HashSet<>();
+        List<AnalyzedImportRow> analyzedRows = new ArrayList<>(rows.size());
+        int readyCount = 0;
+        int duplicateCount = 0;
+        int errorCount = 0;
+
+        for (ParsedWordEntryRow row : rows) {
+            String expression = normalize(row.values().get("expression"));
+            String meaning = normalize(row.values().get("meaning"));
+            String reading = normalize(row.values().get("reading"));
+
+            if (expression.isBlank()) {
+                analyzedRows.add(new AnalyzedImportRow(
+                        row.lineNumber(),
+                        row.values(),
+                        "ERROR",
+                        "expression",
+                        "expression must not be blank"
+                ));
+                errorCount++;
+                continue;
+            }
+
+            if (meaning.isBlank()) {
+                analyzedRows.add(new AnalyzedImportRow(
+                        row.lineNumber(),
+                        row.values(),
+                        "ERROR",
+                        "meaning",
+                        "meaning must not be blank"
+                ));
+                errorCount++;
+                continue;
+            }
+
+            String key = buildDedupKey(expression, reading);
+            if (existingKeys.contains(key)) {
+                analyzedRows.add(new AnalyzedImportRow(
+                        row.lineNumber(),
+                        row.values(),
+                        "DUPLICATE",
+                        "duplicate",
+                        "same expression/reading already exists in this word set"
+                ));
+                duplicateCount++;
+                continue;
+            }
+
+            if (seenImportKeys.contains(key)) {
+                analyzedRows.add(new AnalyzedImportRow(
+                        row.lineNumber(),
+                        row.values(),
+                        "DUPLICATE",
+                        "duplicate",
+                        "same expression/reading appears multiple times in this import file"
+                ));
+                duplicateCount++;
+                continue;
+            }
+
+            seenImportKeys.add(key);
+            analyzedRows.add(new AnalyzedImportRow(
+                    row.lineNumber(),
+                    row.values(),
+                    "READY",
+                    null,
+                    "ready to import"
+            ));
+            readyCount++;
+        }
+
+        return new ImportAnalysis(analyzedRows, readyCount, duplicateCount, errorCount);
+    }
+
+    private WordEntryImportResponse persistRows(Long wordSetId, ImportAnalysis analysis) {
+        if (analysis.rows().isEmpty()) {
             return new WordEntryImportResponse(0, 0, List.of());
         }
 
         List<WordEntryEntity> existingEntries = wordEntryRepository.findByWordSetIdOrderBySourceOrderAsc(wordSetId);
-        Set<String> knownKeys = new HashSet<>();
         int maxSourceOrder = 0;
         for (WordEntryEntity existingEntry : existingEntries) {
-            knownKeys.add(buildDedupKey(existingEntry.getExpression(), existingEntry.getReading()));
             maxSourceOrder = Math.max(maxSourceOrder, existingEntry.getSourceOrder());
         }
 
         List<WordEntryEntity> toSave = new ArrayList<>();
         List<WordEntryImportError> errors = new ArrayList<>();
-        int skippedCount = 0;
         int nextSourceOrder = maxSourceOrder + 1;
 
-        for (ParsedWordEntryRow row : rows) {
+        for (AnalyzedImportRow row : analysis.rows()) {
+            if (row.isError()) {
+                errors.add(new WordEntryImportError(row.lineNumber(), row.field(), row.message()));
+                continue;
+            }
+            if (!row.isReady()) {
+                continue;
+            }
+
             String expression = normalize(row.values().get("expression"));
-            String meaning = normalize(row.values().get("meaning"));
-
-            if (expression.isBlank()) {
-                errors.add(new WordEntryImportError(row.lineNumber(), "expression", "expression must not be blank"));
-                continue;
-            }
-            if (meaning.isBlank()) {
-                errors.add(new WordEntryImportError(row.lineNumber(), "meaning", "meaning must not be blank"));
-                continue;
-            }
-
             String reading = normalize(row.values().get("reading"));
-            String key = buildDedupKey(expression, reading);
-            if (knownKeys.contains(key)) {
-                skippedCount++;
-                continue;
-            }
-
-            knownKeys.add(key);
+            String meaning = normalize(row.values().get("meaning"));
             toSave.add(WordEntryEntity.create(
                     wordSetId,
                     expression,
@@ -224,7 +334,7 @@ public class WordEntryService {
         }
 
         wordEntryRepository.saveAll(toSave);
-        return new WordEntryImportResponse(toSave.size(), skippedCount, errors);
+        return new WordEntryImportResponse(toSave.size(), analysis.duplicateCount(), errors);
     }
 
     private void ensureWordSetExists(Long wordSetId) {
@@ -277,29 +387,6 @@ public class WordEntryService {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.IMPORT_ERROR, "Import file must not be empty");
         }
-    }
-
-    private void validateHeaders(List<String> headers) {
-        List<String> normalized = headers.stream()
-                .map(this::normalizeHeader)
-                .toList();
-        for (String requiredHeader : REQUIRED_HEADERS) {
-            if (!normalized.contains(requiredHeader)) {
-                throw new BusinessException(ErrorCode.IMPORT_ERROR, "Missing CSV header: " + requiredHeader);
-            }
-        }
-    }
-
-    private Map<String, String> normalizeKeys(Map<String, String> values) {
-        Map<String, String> normalized = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            normalized.put(normalizeHeader(entry.getKey()), entry.getValue());
-        }
-        return normalized;
-    }
-
-    private String normalizeHeader(String value) {
-        return normalize(value).toLowerCase(Locale.ROOT);
     }
 
     private boolean isApkg(MultipartFile file) {

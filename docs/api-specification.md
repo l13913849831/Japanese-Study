@@ -1216,3 +1216,154 @@ The effective selection flow is:
 - study plan create/update requests continue to carry `ankiTemplateId` and `mdTemplateId`
 - template management writes to the same template resources queried by the study plan page
 - after template list refresh, newly created or updated templates become selectable in study plans
+
+## 15. Dashboard Sync (2026-04-20)
+
+This section reflects the currently implemented learner-facing dashboard behavior.
+
+### 15.1 Dashboard query
+
+`GET /api/dashboard?date=2026-04-20`
+
+Request notes:
+
+- `date` is optional
+- when omitted, the backend uses the server-local current date
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "overview": {
+      "date": "2026-04-20",
+      "activePlanCount": 2,
+      "totalDueToday": 48,
+      "newDueToday": 20,
+      "reviewDueToday": 28,
+      "pendingDueToday": 31,
+      "reviewedToday": 17
+    },
+    "activePlans": [
+      {
+        "planId": 1,
+        "planName": "N4 Core Plan",
+        "status": "ACTIVE",
+        "startDate": "2026-04-20",
+        "dailyNewCount": 20,
+        "totalCards": 180,
+        "completedCards": 84,
+        "completionRate": 46.7,
+        "dueToday": 28,
+        "newToday": 10,
+        "reviewToday": 18,
+        "pendingToday": 16,
+        "reviewedToday": 12
+      }
+    ],
+    "recentTrend": [
+      {
+        "date": "2026-04-14",
+        "newCards": 20,
+        "reviewCards": 0,
+        "reviewedCards": 18
+      },
+      {
+        "date": "2026-04-15",
+        "newCards": 20,
+        "reviewCards": 20,
+        "reviewedCards": 23
+      }
+    ]
+  },
+  "error": null,
+  "timestamp": "2026-04-20T18:00:00+09:00"
+}
+```
+
+Behavior:
+
+- `overview` aggregates all `ACTIVE` study plans for the requested date
+- `activePlans` returns per-plan summary metrics for the same date
+- `recentTrend` returns a 7-day window ending on the requested date
+- dashboard metrics reuse `study_plan`, `card_instance`, and `review_log`; no new persistence objects are introduced
+
+## 16. Import Preview Sync (2026-04-20)
+
+This section reflects the current import-enhancement behavior for word entries.
+
+### 16.1 Import preview
+
+`POST /api/word-sets/{wordSetId}/import/preview`
+
+Request:
+
+- `multipart/form-data`
+- file field: `file`
+- supported file types: `.csv`, `.apkg`
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "sourceType": "CSV",
+    "totalRows": 12,
+    "readyCount": 8,
+    "duplicateCount": 2,
+    "errorCount": 2,
+    "fieldMappings": [
+      {
+        "targetField": "expression",
+        "required": true,
+        "mapped": true,
+        "sourceField": "word",
+        "note": "mapped by alias"
+      }
+    ],
+    "previewRows": [
+      {
+        "lineNumber": 2,
+        "expression": "食べる",
+        "reading": "たべる",
+        "meaning": "to eat",
+        "status": "READY",
+        "field": null,
+        "message": "ready to import"
+      },
+      {
+        "lineNumber": 3,
+        "expression": "食べる",
+        "reading": "たべる",
+        "meaning": "to eat",
+        "status": "DUPLICATE",
+        "field": "duplicate",
+        "message": "same expression/reading already exists in this word set"
+      }
+    ]
+  },
+  "error": null,
+  "timestamp": "2026-04-20T19:00:00+09:00"
+}
+```
+
+Behavior:
+
+- preview does not persist any row
+- preview classifies each row as `READY`, `DUPLICATE`, or `ERROR`
+- CSV headers now support alias-based mapping diagnostics instead of only strict literal header names
+- when required CSV fields are not mapped, preview still returns diagnostics and the affected rows surface as validation errors instead of failing before preview
+- `.apkg` preview surfaces inferred field mappings from Anki model fields plus row-level readiness
+
+### 16.2 Import apply
+
+`POST /api/word-sets/{wordSetId}/import`
+
+Current apply behavior after the enhancement:
+
+- import still persists only once the user confirms
+- only rows classified as `READY` are imported
+- duplicates are counted in `skippedCount`
+- validation failures continue to return row-level `errors`

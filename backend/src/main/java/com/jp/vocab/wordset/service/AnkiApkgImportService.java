@@ -44,43 +44,13 @@ public class AnkiApkgImportService {
     private static final Pattern CLOZE_PATTERN = Pattern.compile("\\{\\{c\\d+::(.*?)(?:::[^}]*)?}}");
     private static final Pattern KANA_PATTERN = Pattern.compile("[\\p{IsHiragana}\\p{IsKatakana}\\u30FC\\u30FB\\s]+");
 
-    private static final Set<String> EXPRESSION_ALIASES = Set.of(
-            "expression", "word", "vocab", "vocabulary", "term", "japanese", "japaneseword", "front",
-            "kanji", "headword", "prompt", "\u5358\u8a9e", "\u65e5\u672c\u8a9e", "\u6f22\u5b57"
-    );
-    private static final Set<String> READING_ALIASES = Set.of(
-            "reading", "kana", "yomi", "pronunciation", "furigana", "ruby", "sound",
-            "\u8aad\u307f", "\u304b\u306a", "\u30d5\u30ea\u30ac\u30ca"
-    );
-    private static final Set<String> MEANING_ALIASES = Set.of(
-            "meaning", "definition", "gloss", "translation", "back", "english", "chinese", "answer", "explanation",
-            "\u610f\u5473", "\u4e2d\u6587", "\u91ca\u4e49", "\u7ffb\u8bd1"
-    );
-    private static final Set<String> PART_OF_SPEECH_ALIASES = Set.of(
-            "partofspeech", "pos", "speech", "wordclass", "\u54c1\u8a5e", "\u8bcd\u6027"
-    );
-    private static final Set<String> EXAMPLE_JP_ALIASES = Set.of(
-            "examplejp", "exampleja", "sentence", "sentencejp", "jpsentence", "example", "context",
-            "\u4f8b\u6587"
-    );
-    private static final Set<String> EXAMPLE_ZH_ALIASES = Set.of(
-            "examplezh", "examplecn", "sentencezh", "sentencecn", "translatedsentence", "translationexample", "sentenceen",
-            "\u4f8b\u53e5", "\u4e2d\u6587\u4f8b\u53e5"
-    );
-    private static final Set<String> LEVEL_ALIASES = Set.of(
-            "level", "jlpt", "difficulty", "\u7b49\u7ea7", "\u7d1a\u5225"
-    );
-    private static final Set<String> TAG_ALIASES = Set.of(
-            "tag", "tags", "label", "labels", "\u6807\u7b7e", "\u6a19\u7c64"
-    );
-
     private final ObjectMapper objectMapper;
 
     public AnkiApkgImportService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
-    public List<ParsedWordEntryRow> parse(MultipartFile file) {
+    public ParsedImportPayload parse(MultipartFile file) {
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory("apkg-import-");
@@ -120,7 +90,7 @@ public class AnkiApkgImportService {
         throw new BusinessException(ErrorCode.IMPORT_ERROR, "APKG collection database not found");
     }
 
-    private List<ParsedWordEntryRow> readNotes(Path collectionPath) throws SQLException {
+    private ParsedImportPayload readNotes(Path collectionPath) throws SQLException {
         String jdbcUrl = "jdbc:sqlite:" + collectionPath.toAbsolutePath();
         try (Connection connection = DriverManager.getConnection(jdbcUrl)) {
             Map<Long, List<String>> modelFields = loadModelFields(connection);
@@ -169,10 +139,11 @@ public class AnkiApkgImportService {
         }
     }
 
-    private List<ParsedWordEntryRow> loadNotes(Connection connection, Map<Long, List<String>> modelFields) throws SQLException {
+    private ParsedImportPayload loadNotes(Connection connection, Map<Long, List<String>> modelFields) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("select id, mid, flds, tags from notes order by id");
              ResultSet resultSet = statement.executeQuery()) {
             List<ParsedWordEntryRow> rows = new ArrayList<>();
+            LinkedHashSet<String> allFieldNames = new LinkedHashSet<>();
             long lineNumber = 1;
             while (resultSet.next()) {
                 long modelId = resultSet.getLong("mid");
@@ -180,9 +151,14 @@ public class AnkiApkgImportService {
                         .orElse("")
                         .split(String.valueOf(FIELD_SEPARATOR), -1);
                 List<String> fieldNames = modelFields.getOrDefault(modelId, fallbackFieldNames(fieldValues.length));
+                allFieldNames.addAll(fieldNames);
                 rows.add(buildRow(lineNumber++, fieldNames, fieldValues, resultSet.getString("tags")));
             }
-            return rows;
+            return new ParsedImportPayload(
+                    "APKG",
+                    ImportFieldMappingSupport.buildDiagnostics(allFieldNames),
+                    rows
+            );
         }
     }
 
@@ -192,19 +168,19 @@ public class AnkiApkgImportService {
             cleanedValues.add(cleanField(fieldValue));
         }
 
-        List<String> normalizedFieldNames = new ArrayList<>(fieldValues.length);
+        Map<String, String> rawValues = new LinkedHashMap<>();
         for (int index = 0; index < fieldValues.length; index++) {
             String fieldName = index < fieldNames.size() ? fieldNames.get(index) : "field" + (index + 1);
-            normalizedFieldNames.add(normalizeFieldName(fieldName));
+            rawValues.put(fieldName, cleanedValues.get(index));
         }
+
+        Map<String, String> mappedValues = ImportFieldMappingSupport.mapValues(rawValues);
 
         LinkedHashSet<Integer> usedIndexes = new LinkedHashSet<>();
 
-        Integer expressionIndex = findFieldIndex(normalizedFieldNames, EXPRESSION_ALIASES);
-        String expression = valueAt(cleanedValues, expressionIndex);
-        if (!expression.isBlank() && expressionIndex != null) {
-            usedIndexes.add(expressionIndex);
-        } else {
+        String expression = Optional.ofNullable(mappedValues.get("expression")).orElse("");
+        Integer expressionIndex = null;
+        if (expression.isBlank()) {
             expressionIndex = findFirstNonBlankIndex(cleanedValues, usedIndexes);
             expression = valueAt(cleanedValues, expressionIndex);
             if (expressionIndex != null) {
@@ -212,11 +188,9 @@ public class AnkiApkgImportService {
             }
         }
 
-        Integer readingIndex = findFieldIndex(normalizedFieldNames, READING_ALIASES);
-        String reading = valueAt(cleanedValues, readingIndex);
-        if (!reading.isBlank() && readingIndex != null) {
-            usedIndexes.add(readingIndex);
-        } else {
+        String reading = Optional.ofNullable(mappedValues.get("reading")).orElse("");
+        Integer readingIndex = null;
+        if (reading.isBlank()) {
             readingIndex = findKanaLikeIndex(cleanedValues, usedIndexes);
             reading = valueAt(cleanedValues, readingIndex);
             if (readingIndex != null && !reading.isBlank()) {
@@ -224,11 +198,9 @@ public class AnkiApkgImportService {
             }
         }
 
-        Integer meaningIndex = findFieldIndex(normalizedFieldNames, MEANING_ALIASES);
-        String meaning = valueAt(cleanedValues, meaningIndex);
-        if (!meaning.isBlank() && meaningIndex != null) {
-            usedIndexes.add(meaningIndex);
-        } else {
+        String meaning = Optional.ofNullable(mappedValues.get("meaning")).orElse("");
+        Integer meaningIndex = null;
+        if (meaning.isBlank()) {
             meaningIndex = findFirstNonBlankIndex(cleanedValues, usedIndexes);
             meaning = valueAt(cleanedValues, meaningIndex);
             if (meaningIndex != null) {
@@ -236,11 +208,11 @@ public class AnkiApkgImportService {
             }
         }
 
-        String partOfSpeech = valueAt(cleanedValues, findFieldIndex(normalizedFieldNames, PART_OF_SPEECH_ALIASES));
-        String exampleJp = valueAt(cleanedValues, findFieldIndex(normalizedFieldNames, EXAMPLE_JP_ALIASES));
-        String exampleZh = valueAt(cleanedValues, findFieldIndex(normalizedFieldNames, EXAMPLE_ZH_ALIASES));
-        String level = valueAt(cleanedValues, findFieldIndex(normalizedFieldNames, LEVEL_ALIASES));
-        String extraTags = valueAt(cleanedValues, findFieldIndex(normalizedFieldNames, TAG_ALIASES));
+        String partOfSpeech = Optional.ofNullable(mappedValues.get("partOfSpeech")).orElse("");
+        String exampleJp = Optional.ofNullable(mappedValues.get("exampleJp")).orElse("");
+        String exampleZh = Optional.ofNullable(mappedValues.get("exampleZh")).orElse("");
+        String level = Optional.ofNullable(mappedValues.get("level")).orElse("");
+        String extraTags = Optional.ofNullable(mappedValues.get("tags")).orElse("");
 
         Map<String, String> values = new LinkedHashMap<>();
         values.put("expression", expression);
@@ -260,15 +232,6 @@ public class AnkiApkgImportService {
             fields.add("field" + (index + 1));
         }
         return fields;
-    }
-
-    private Integer findFieldIndex(List<String> normalizedFieldNames, Set<String> aliases) {
-        for (int index = 0; index < normalizedFieldNames.size(); index++) {
-            if (aliases.contains(normalizedFieldNames.get(index))) {
-                return index;
-            }
-        }
-        return null;
     }
 
     private Integer findFirstNonBlankIndex(List<String> values, Set<Integer> excluded) {
@@ -359,14 +322,6 @@ public class AnkiApkgImportService {
         }
         matcher.appendTail(buffer);
         return buffer.toString();
-    }
-
-    private String normalizeFieldName(String fieldName) {
-        return Optional.ofNullable(fieldName)
-                .orElse("")
-                .trim()
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[\\s_\\-:/]+", "");
     }
 
     private void cleanupQuietly(Path tempDir) {

@@ -4,6 +4,7 @@ import com.jp.vocab.shared.api.ApiResponse;
 import com.jp.vocab.shared.api.PageResponse;
 import com.jp.vocab.wordset.dto.CreateWordSetRequest;
 import com.jp.vocab.wordset.dto.SaveWordEntryRequest;
+import com.jp.vocab.wordset.dto.WordEntryImportPreviewResponse;
 import com.jp.vocab.wordset.dto.WordEntryImportResponse;
 import com.jp.vocab.wordset.dto.WordEntryResponse;
 import com.jp.vocab.wordset.dto.WordSetResponse;
@@ -75,5 +76,13 @@ public class WordSetController {
             @RequestPart("file") MultipartFile file
     ) {
         return ApiResponse.success(wordEntryService.importEntries(wordSetId, file));
+    }
+
+    @PostMapping(path = "/{wordSetId}/import/preview", consumes = "multipart/form-data")
+    public ApiResponse<WordEntryImportPreviewResponse> previewImportWordEntries(
+            @PathVariable Long wordSetId,
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ApiResponse.success(wordEntryService.previewImport(wordSetId, file));
     }
 }

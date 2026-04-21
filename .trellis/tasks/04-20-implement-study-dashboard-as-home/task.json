@@ -1,0 +1,67 @@
+{
+  "id": "implement-study-dashboard-as-home",
+  "name": "implement-study-dashboard-as-home",
+  "title": "Implement Study Dashboard As Home",
+  "description": "Add a learner-facing dashboard page, make it the default entry, and provide aggregate visibility for today's study and recent trends.",
+  "status": "implementing",
+  "dev_type": "fullstack",
+  "scope": "fullstack",
+  "package": null,
+  "priority": "P1",
+  "creator": "rikka",
+  "assignee": "rikka",
+  "createdAt": "2026-04-20",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 3,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "brainstorm"
+    },
+    {
+      "phase": 2,
+      "action": "research"
+    },
+    {
+      "phase": 3,
+      "action": "implement"
+    },
+    {
+      "phase": 4,
+      "action": "check"
+    },
+    {
+      "phase": 5,
+      "action": "update-spec"
+    },
+    {
+      "phase": 6,
+      "action": "record-session"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "04-20-04-20-brainstorm-next-features",
+  "relatedFiles": [
+    "frontend/src/app/router.tsx",
+    "frontend/src/app/shell/AppShellLayout.tsx",
+    "frontend/src/features/word-sets/WordSetPage.tsx",
+    "frontend/src/features/study-plans/StudyPlanPage.tsx",
+    "frontend/src/features/cards/TodayCardsPage.tsx",
+    "frontend/src/features/cards/api.ts",
+    "frontend/src/features/study-plans/api.ts",
+    "backend/src/main/java/com/jp/vocab/card/controller/CardQueryController.java",
+    "backend/src/main/java/com/jp/vocab/card/service/CardQueryService.java",
+    "backend/src/main/java/com/jp/vocab/card/service/CardReviewService.java",
+    "backend/src/main/java/com/jp/vocab/studyplan/controller/StudyPlanController.java",
+    "docs/api-specification.md",
+    "docs/system-usage-guide.md"
+  ],
+  "notes": "Derived from the 2026-04-20 next-features brainstorm. Implemented the first dashboard slice: backend aggregate endpoint, /dashboard route, default-home redirect, and dashboard documentation sync.",
+  "meta": {}
+}
