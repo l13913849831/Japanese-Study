@@ -1,74 +1,103 @@
 # State Management
 
-> How the current frontend separates local, global, and server state.
+> 当前前端对本地状态、服务端状态和共享状态的划分。
 
 ---
 
-## Overview
+## 总览
 
-The project uses three state categories:
+当前项目的状态分层很克制：
 
-- local component state with React hooks
-- server state with TanStack Query
-- small shared UI state with Zustand
+- 组件局部状态用 React state
+- 服务端状态用 React Query
+- 少量跨页状态用 Zustand
+- 路由状态交给 React Router
 
-There is no large global client-state framework such as Redux in the current codebase.
-
----
-
-## State Categories
-
-- Local UI state:
-  - selected table row
-  - last import result
-  - current form fields
-  - examples: `selectedWordSet`, `lastImportResult` in `WordSetPage`
-- Server state:
-  - paged lists and backend-backed resources
-  - examples: `wordSetsQuery`, `studyPlanQuery`
-- Shared client state:
-  - small cross-page or shell-level UI state
-  - example: `useUiStore.currentPlanId`
-- Router state:
-  - page identity and navigation are handled by `react-router-dom`
+没有 Redux，也没有把 React Query 数据复制进 store。
 
 ---
 
-## When to Use Global State
+## 本地状态
 
-Use Zustand only when state must outlive a single component or be shared without prop drilling.
+适合放本地 state 的内容：
 
-Do not promote state to global just because several child elements in one page need it. Keep page-local state in the page container until there is a real reuse or persistence need.
+- modal 开关
+- 当前编辑对象
+- 当前筛选表单值
+- 临时预览结果
+
+真实例子：
+
+- `WordSetPage` 的 `previewModalOpen`、`editingWordEntry`
+- `WordSetPage` 的 `filters`
+- `StudyPlanPage` 的表单选择和派生 UI 状态
 
 ---
 
-## Server State
+## 服务端状态
 
-- Use TanStack Query for all backend-backed state.
-- Central query defaults live in `app/query-client.ts`.
-- Invalidate affected query keys after successful mutations.
-- Keep fetch functions in API modules and let React Query own caching/retries/staleness.
+所有后端资源继续走 React Query：
 
-Current defaults:
+- 列表查询
+- 明细查询
+- 写操作后的刷新
+
+全局默认值在 `app/query-client.ts`：
 
 - `retry: 1`
 - `staleTime: 30_000`
 - `refetchOnWindowFocus: false`
 
----
-
-## Common Mistakes
-
-- Do not duplicate server state into Zustand or plain React state unless there is a clear reason.
-- Do not store derivable form text globally.
-- Do not bypass query invalidation after successful writes.
-- Do not make `shared/store` a dumping ground for unrelated state.
+这组默认值已经是项目基线，新查询先沿用，不要单独乱改。
 
 ---
 
-## Examples
+## 共享客户端状态
+
+只有确实跨页面或跨壳层共享时，才用 Zustand。
+
+当前唯一示例：
+
+- `useUiStore.currentPlanId`
+
+这说明 store 目前只是轻量协调，不是业务真相源。
+
+---
+
+## 路由状态
+
+- 当前页身份、菜单切换、默认重定向交给 `react-router-dom`
+- 不要把路由选择再存一份到 Zustand 或普通 state
+
+示例：
+
+- `app/router.tsx`
+- `AppShellLayout.tsx` 使用 `useLocation()` 和 `useNavigate()`
+
+---
+
+## 选择规则
+
+- 只在当前页面用到：React state
+- 来自后端：React Query
+- 多页面共享但不值得进 URL：Zustand
+- 与路径、页面身份相关：Router
+
+---
+
+## 反模式
+
+- 不要把后端返回列表复制一份进 Zustand
+- 不要把表单输入全搬到全局 store
+- 不要写完 mutation 却忘了失效相关 query key
+- 不要让 `shared/store` 变成杂物间
+
+---
+
+## 参考文件
 
 - `frontend/src/features/word-sets/WordSetPage.tsx`
 - `frontend/src/features/study-plans/StudyPlanPage.tsx`
-- `frontend/src/shared/store/useUiStore.ts`
 - `frontend/src/app/query-client.ts`
+- `frontend/src/app/router.tsx`
+- `frontend/src/shared/store/useUiStore.ts`

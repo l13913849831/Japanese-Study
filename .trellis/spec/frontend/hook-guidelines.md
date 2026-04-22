@@ -1,78 +1,101 @@
 # Hook Guidelines
 
-> Hook usage patterns in the current frontend codebase.
+> 当前前端对 hooks 的使用边界和抽取时机。
 
 ---
 
-## Overview
+## 总览
 
-The codebase currently uses React built-in hooks plus TanStack Query hooks directly inside page components. There are almost no custom hooks yet; the only project-defined hook-style module is the small Zustand store `useUiStore`.
+这个项目的现状不是“万物皆 hook”，而是：
 
-This is important: current convention prefers simple colocated query logic over premature hook extraction.
+- React 内建 hooks 正常使用
+- React Query hooks 直接写在页面里
+- 自定义 hook 很少
+- 唯一常驻的项目级 hook 形态是 `useUiStore`
 
----
-
-## Custom Hook Patterns
-
-Current state:
-
-- no feature-specific custom hooks are present in `src`
-- shared state is exposed through `useUiStore`
-
-When to add a custom hook:
-
-- the same stateful/query workflow is reused by multiple components
-- the page component becomes hard to read because state orchestration dominates rendering
-- the hook can expose a stable, well-typed interface
-
-If you add one:
-
-- name it `useXxx`
-- keep it in the owning feature unless reused across features
-- return typed values and actions, not raw untyped bags
+结论很简单：先写清楚页面逻辑，再决定要不要抽 hook。
 
 ---
 
-## Data Fetching
+## 当前稳定模式
 
-Server data is fetched with TanStack Query:
+### 页面内直接使用 React Query
 
-- `useQuery` for reads
-- `useMutation` for writes
-- `useQueryClient().invalidateQueries(...)` after successful mutations
+- `useQuery` 负责读
+- `useMutation` 负责写
+- `useQueryClient().invalidateQueries(...)` 负责刷新缓存
 
-API calls themselves live in `features/*/api.ts` or `shared/api/http.ts`, not inline in components.
+示例：
 
-Examples:
+- `WordSetPage.tsx`
+- `StudyPlanPage.tsx`
+- `StudyDashboardPage.tsx`
 
-- `WordSetPage.tsx`: query list + import/create mutations
-- `StudyPlanPage.tsx`: query lists + create/update mutations
-- `app/query-client.ts`: shared query defaults
+### 轻量共享状态走 Zustand hook
 
----
-
-## Naming Conventions
-
-- built-in and library hooks keep their original names (`useState`, `useEffect`, `useQuery`, `useMutation`)
-- project-defined hooks/stores must start with `use`
-- query keys should be stable arrays like `["wordSets"]` or `["wordEntries", id]`
-
-Avoid inventing inconsistent names like `fetchWordSetsHook` or `wordSetStoreHook`.
+- `useUiStore` 只保存 `currentPlanId`
+- store 很小，没有演变成全局业务仓库
 
 ---
 
-## Common Mistakes
+## 什么时候抽自定义 hook
 
-- Do not create a custom hook when the logic is used by only one page and remains readable inline.
-- Do not call API helpers directly during render; wrap them in React Query.
-- Do not use non-null assertions in query functions unless the query is guarded by `enabled`; `WordSetPage` is the current exception pattern and should stay tightly paired with `enabled`.
-- Do not mix unrelated local UI state, server state, and cross-page state into a single hook.
+满足其中至少一个再抽：
+
+- 同一段状态编排会复用到多个组件
+- 页面组件已经被 query / mutation / side effect 淹没，阅读成本明显升高
+- 可以输出一个清晰、稳定、强类型的接口
+
+不满足时，继续留在页面里。
 
 ---
 
-## Examples
+## 自定义 hook 约定
+
+- 命名必须是 `useXxx`
+- 默认先放所属 feature 内
+- 返回值要明确，不返回无类型大杂烩
+- 网络请求仍然调用 `features/*/api.ts` 或 `shared/api/http.ts`
+
+---
+
+## 查询键规则
+
+- 用稳定数组做 query key
+- 先放资源名，再放实体 id、分页和筛选条件
+- 与 mutation 刷新范围保持一致
+
+真实例子：
+
+- `["wordSets"]`
+- `["studyPlans"]`
+- `["wordEntries", selectedWordSet?.id, page, pageSize, keyword, level, tag]`
+
+---
+
+## 条件查询
+
+- 依赖某个 id 才能发请求时，用 `enabled`
+- 若 queryFn 内部用了非空断言，必须和 `enabled` 成对出现
+
+当前例子：
+
+- `WordSetPage` 里的 `selectedWordSet!.id` + `enabled: Boolean(selectedWordSet?.id)`
+
+---
+
+## 反模式
+
+- 不要把只用一次的页面逻辑硬抽成 hook
+- 不要在 render 阶段直接调 API helper
+- 不要写 `fetchWordSetsHook` 这种和现有命名不一致的名字
+- 不要把本地 UI 状态、服务器状态、全局状态混成一个 hook
+
+---
+
+## 参考文件
 
 - `frontend/src/features/word-sets/WordSetPage.tsx`
 - `frontend/src/features/study-plans/StudyPlanPage.tsx`
-- `frontend/src/shared/store/useUiStore.ts`
 - `frontend/src/app/query-client.ts`
+- `frontend/src/shared/store/useUiStore.ts`

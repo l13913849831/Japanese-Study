@@ -1,25 +1,23 @@
 # Directory Structure
 
-> How backend code is organized in the current Spring Boot application.
+> 基于当前 Spring Boot 代码组织总结出的后端目录规范。
 
 ---
 
-## Overview
+## 总览
 
-Backend code is split by domain package first, then by responsibility inside that package. Shared cross-cutting code is placed under `com.jp.vocab.shared`.
+后端主线是按业务域拆包，再在域内按职责分层。现在的稳定边界是：
 
-The dominant structure today is:
-
-- `controller`: HTTP entry points
-- `service`: business logic and orchestration
-- `repository`: Spring Data JPA repositories
-- `entity`: JPA persistence models
-- `dto`: request and response records
-- `shared`: reusable infrastructure and contracts
+- `controller/`: HTTP 入口，只做参数接收、注解校验、调用 service、返回统一 envelope
+- `service/`: 事务、业务规则、跨仓储编排、外部依赖协调
+- `repository/`: Spring Data JPA 查询接口
+- `entity/`: 数据库映射对象和少量领域状态变更方法
+- `dto/`: 请求和响应 record
+- `shared/`: 跨域复用的基础设施和全局契约
 
 ---
 
-## Directory Layout
+## 实际目录
 
 ```text
 backend/
@@ -27,34 +25,38 @@ backend/
     JapaneseVocabApplication.java
     wordset/
       controller/
-      service/
-      repository/
-      entity/
       dto/
+      entity/
+      repository/
+      service/
     studyplan/
       controller/
-      service/
-      repository/
-      entity/
       dto/
+      entity/
+      repository/
+      service/
     card/
       controller/
-      service/
-      repository/
-      entity/
       dto/
+      entity/
+      repository/
+      service/
     template/
       controller/
-      service/
-      repository/
-      entity/
       dto/
+      entity/
+      repository/
+      service/
     exportjob/
       controller/
-      service/
-      repository/
-      entity/
       dto/
+      entity/
+      repository/
+      service/
+    dashboard/
+      controller/
+      dto/
+      service/
     shared/
       api/
       config/
@@ -70,46 +72,103 @@ backend/
 
 ---
 
-## Module Organization
+## 真实模式
 
-Create new business capabilities as domain packages alongside `wordset`, `studyplan`, and `exportjob`, not as giant horizontal buckets.
+### 1. 先按业务域，再按分层
 
-Within a domain package:
+- `wordset`、`studyplan`、`template`、`exportjob` 都是完整域包
+- `dashboard` 是只读聚合场景，所以只有 `controller / dto / service`
+- 不存在全局 `controllers/`、`services/` 这种横向大桶
 
-- put request/response contracts in `dto/`
-- put HTTP mapping and parameter validation in `controller/`
-- put orchestration, validation, and transaction boundaries in `service/`
-- put JPA interfaces in `repository/`
-- put database-mapped objects in `entity/`
+示例：
 
-Put cross-domain code in `shared/` only if at least two modules depend on it or it defines a stable application-wide contract.
+- `backend/src/main/java/com/jp/vocab/wordset/`
+- `backend/src/main/java/com/jp/vocab/studyplan/`
+- `backend/src/main/java/com/jp/vocab/exportjob/`
+
+### 2. controller 保持很薄
+
+- `WordSetController` 只接请求、做注解校验、回 `ApiResponse.success(...)`
+- `WordEntryController` 把单条词条更新和删除独立成 item resource 路由
+- controller 不拼业务状态，不手写异常翻译
+
+示例：
+
+- `backend/src/main/java/com/jp/vocab/wordset/controller/WordSetController.java`
+- `backend/src/main/java/com/jp/vocab/wordset/controller/WordEntryController.java`
+- `backend/src/main/java/com/jp/vocab/dashboard/controller/StudyDashboardController.java`
+
+### 3. service 持有事务和业务规则
+
+- `WordEntryService` 负责导入校验、去重、预览和落库
+- `StudyPlanService` 负责生命周期流转、依赖资源校验、卡片重建触发
+- `ExportJobService` 负责文件生成和导出任务持久化
+
+### 4. shared 只放稳定通用能力
+
+- `shared/api`: `ApiResponse`、`PageResponse`、`ApiError`
+- `shared/web`: 全局异常处理、健康检查
+- `shared/config`: `@ConfigurationProperties` 和 Web 配置
+- `shared/persistence`: `AuditableEntity`
+- `shared/csv`、`shared/template`: 通用解析和模板能力
 
 ---
 
-## Naming Conventions
+## 新代码放哪里
 
-- package names are lowercase and domain-oriented: `wordset`, `studyplan`, `shared`
-- controllers end with `Controller`
-- services end with `Service`
-- repositories end with `Repository`
-- entities end with `Entity`
-- API contracts end with `Request`, `Response`, or a domain-specific record name
-- shared API wrappers live under `shared.api`
+### 新增业务能力
 
-Prefer singular nouns for entities (`WordSetEntity`) and plural resource names for HTTP routes (`/api/word-sets`).
+- 先判断属于哪个业务域
+- 优先放进现有域包，比如词库相关继续放 `wordset/`
+- 只有确实是新的一级业务边界，才新增同级域目录
+
+### 新增 HTTP 接口
+
+- 放在所属域的 `controller/`
+- 列表和集合动作优先挂在拥有者资源上
+- 单项编辑可拆到独立 item resource controller，当前 `WordSetController` + `WordEntryController` 就是这个模式
+
+### 新增 DTO
+
+- 请求体、响应体都放域内 `dto/`
+- 命名继续用 `CreateXxxRequest`、`UpdateXxxRequest`、`XxxResponse`
+- 导入、预览这种特殊流程可以用更具体的名词 record，比如 `WordEntryImportPreviewResponse`
+
+### 新增公共能力
+
+- 至少两个域要复用，或者它本身是应用级契约，才进 `shared/`
+- 还只有单一业务使用时，不要提前抽到 `shared/`
 
 ---
 
-## Examples
+## 命名约定
 
-- `backend/src/main/java/com/jp/vocab/wordset/`: complete CRUD-style module layout with controller/service/repository/entity/dto
-- `backend/src/main/java/com/jp/vocab/studyplan/`: module with validation plus orchestration across repositories and services
-- `backend/src/main/java/com/jp/vocab/shared/`: shared API envelope, exception mapping, config properties, and utility helpers
+- 包名小写，按业务语义命名：`wordset`、`studyplan`
+- 类名按职责后缀：
+  - `*Controller`
+  - `*Service`
+  - `*Repository`
+  - `*Entity`
+  - `*Request`
+  - `*Response`
+- 路由资源名用复数 kebab-case：`/api/word-sets`、`/api/export-jobs`
+- 实体名保持单数：`WordSetEntity`、`ExportJobEntity`
 
 ---
 
-## Anti-Patterns
+## 反模式
 
-- Do not put business logic in controllers. `WordSetController` delegates directly to services.
-- Do not create generic `util` packages inside each feature without a clear shared need.
-- Do not skip the domain package structure by placing unrelated classes directly under `com.jp.vocab`.
+- 不要把业务规则塞进 controller
+- 不要在业务域里随手建 `util`、`common`、`helper` 桶目录
+- 不要把只服务一个模块的类提前丢进 `shared/`
+- 不要绕过域目录，直接把业务类放到 `com.jp.vocab` 根下
+
+---
+
+## 参考文件
+
+- `backend/src/main/java/com/jp/vocab/wordset/controller/WordSetController.java`
+- `backend/src/main/java/com/jp/vocab/wordset/controller/WordEntryController.java`
+- `backend/src/main/java/com/jp/vocab/studyplan/service/StudyPlanService.java`
+- `backend/src/main/java/com/jp/vocab/shared/api/ApiResponse.java`
+- `backend/src/main/java/com/jp/vocab/shared/persistence/AuditableEntity.java`

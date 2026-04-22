@@ -1,95 +1,109 @@
 # Component Guidelines
 
-> Component composition and page patterns for the current React + Ant Design UI.
+> 基于当前页面实现总结出的组件编写规范。
 
 ---
 
-## Overview
+## 总览
 
-The UI currently favors straightforward function components with Ant Design primitives. Feature page components compose reusable shared building blocks such as `PageHeader`, `PageSection`, and `StatusState`.
+当前组件风格偏直接，不追求过度抽象。主线是：
 
-There is no custom design-system wrapper layer yet. Reuse is currently light and pragmatic.
-
----
-
-## Component Structure
-
-Typical component order:
-
-1. third-party imports
-2. React imports
-3. internal imports
-4. local types/interfaces
-5. component implementation
-
-Page components often follow this flow:
-
-- initialize form and local state
-- wire React Query queries/mutations
-- define event handlers
-- render stacked `PageSection` blocks
-
-Examples:
-
-- `frontend/src/features/word-sets/WordSetPage.tsx`
-- `frontend/src/features/study-plans/StudyPlanPage.tsx`
-- `frontend/src/shared/components/StatusState.tsx`
+- 页面组件负责状态编排和交互
+- 共享组件保持薄、通用、无业务耦合
+- 布局和视觉优先复用 Ant Design
 
 ---
 
-## Props Conventions
+## 页面组件模式
 
-- Use TypeScript interfaces for component props.
-- Keep props explicit and narrow; do not pass giant untyped config objects.
-- For simple wrappers, extend `PropsWithChildren` when children are part of the API.
-- Use `ReactNode` for extensibility slots such as `extra`.
+当前页面大多遵循这个顺序：
 
-Examples:
+1. import
+2. 局部类型和常量
+3. 小型纯函数
+4. 组件内部 state / query / mutation
+5. handler
+6. JSX
 
-- `PageHeaderProps` uses `title`, `description`, and optional `extra`
-- `PageSectionProps` extends `PropsWithChildren`
-- `StatusStateProps` encodes mode as a string union
+真实例子：
 
----
-
-## Styling Patterns
-
-- Global layout tokens and utility classes live in `src/styles.css`.
-- Per-component styling is mostly inline via the `style` prop for small layout concerns.
-- Ant Design theme tokens are configured centrally in `AppProviders`.
-- Avoid introducing another styling system unless there is a clear repo-wide decision.
-
-Current examples:
-
-- `frontend/src/styles.css`
-- `frontend/src/app/providers.tsx`
-- `frontend/src/app/shell/AppShellLayout.tsx`
+- `WordSetPage.tsx` 先定义 `parseTags`、`buildWordEntryPayload`
+- `StudyPlanPage.tsx` 先定义 `fillForm`、`parseReviewOffsets`
+- `ExportJobPage.tsx` 和 `TemplatePage.tsx` 也沿用“顶部纯函数 + 页面容器”的结构
 
 ---
 
-## Accessibility
+## 共享组件模式
 
-- Prefer Ant Design form, table, button, and input components for built-in accessibility behavior.
-- Use semantic page hierarchy with `Typography.Title` and descriptive labels in `Form.Item`.
-- Keep button text explicit about the action.
-- Preserve keyboard access when using clickable rows or menu navigation.
+共享组件现在都很薄：
 
-The current code relies heavily on Ant Design defaults, so any custom interactive element should match that baseline.
+- `PageHeader`: 标题、说明、右侧扩展区
+- `PageSection`: 基于 Antd `Card`
+- `StatusState`: 统一 loading / empty / error
 
----
+规则：
 
-## Common Mistakes
-
-- Do not embed shared API logic inside presentational shared components.
-- Do not over-abstract one-off page layouts into generic wrappers too early.
-- Do not use anonymous object blobs for props when a small typed interface is clearer.
-- Do not move all text and UI state into global stores when it is page-local.
+- 保持 props 小而明确
+- 不把 React Query、fetch、业务 mutation 塞进共享组件
+- 共享组件只承载展示层复用
 
 ---
 
-## Examples
+## Props 约定
+
+- 用 `interface` 定义 props
+- 需要插槽时用 `ReactNode`
+- 需要 children 时用 `PropsWithChildren`
+- mode、status 这类有限集合优先用字符串联合类型
+
+示例：
+
+- `PageHeaderProps.extra?: ReactNode`
+- `PageSectionProps extends PropsWithChildren`
+- `StatusStateProps.mode: "loading" | "empty" | "error"`
+
+---
+
+## 样式约定
+
+样式来源现在有三层：
+
+- 全局类和基础布局在 `src/styles.css`
+- 主题 token 在 `app/providers.tsx`
+- 局部布局用少量内联 `style`
+
+当前风格不是 CSS Modules，也没有引入额外样式方案。新增样式先沿用这三层，不要突然切 styled-components 或 Tailwind。
+
+示例：
+
+- `styles.css` 里的 `.page-stack`、`.table-toolbar`
+- `providers.tsx` 里的 `colorPrimary`、`borderRadius`
+- `PageHeader.tsx` 的 flex 布局内联样式
+
+---
+
+## 可访问性
+
+- 表单输入优先用 `Form.Item` 提供 label 和规则
+- 操作按钮文本要明确，不只写图标
+- 状态组件沿用 Antd `Result`、`Empty`、`Spin`
+- 页面层级优先用 `Typography.Title`
+
+---
+
+## 反模式
+
+- 不要把 feature 专属业务组件提前抽进 `shared/components`
+- 不要为了“通用”把 props 做成一个大 object bag
+- 不要把表单转换逻辑塞进共享组件
+- 不要把所有布局细节都写成巨型内联样式对象
+
+---
+
+## 参考文件
 
 - `frontend/src/shared/components/PageHeader.tsx`
 - `frontend/src/shared/components/PageSection.tsx`
 - `frontend/src/shared/components/StatusState.tsx`
 - `frontend/src/features/word-sets/WordSetPage.tsx`
+- `frontend/src/features/study-plans/StudyPlanPage.tsx`

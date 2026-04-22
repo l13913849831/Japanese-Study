@@ -46,3 +46,34 @@ Migrated active specs into Trellis, retired the OpenSpec workflow, and archived 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Brainstorm note-taking knowledge review
+
+**Date**: 2026-04-22
+**Task**: Brainstorm note-taking knowledge review
+**Branch**: `main`
+
+### Summary
+
+Completed requirements discovery for an independent note-taking knowledge-point review system and set the brainstorm task as current for next session.
+
+### Main Changes
+
+
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

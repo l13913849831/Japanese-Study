@@ -1,74 +1,121 @@
 # Type Safety
 
-> TypeScript and API contract conventions for the current frontend.
+> 当前前端的 TypeScript、API 契约和类型组织规范。
 
 ---
 
-## Overview
+## 总览
 
-The frontend uses TypeScript in `strict` mode. Types are defined close to where they are used:
+前端启用了 `strict` 模式，类型组织原则是“类型跟着边界走”：
 
-- shared transport-level types live in `shared/api/types.ts`
-- feature-specific API payload and response shapes live in `features/*/api.ts`
-- component props use local interfaces in component files
+- 传输层通用类型放 `shared/api/types.ts`
+- feature DTO 放各自 `features/*/api.ts`
+- 组件 props 写在组件文件旁边
 
-There is no dedicated runtime validation library in the frontend yet.
+当前没有引入 zod 之类的运行时 schema 库，所以类型安全主要靠：
 
----
-
-## Type Organization
-
-- Put envelope and generic transport types in `shared/api/types.ts`
-- Put feature DTOs next to the feature API wrapper in `features/<feature>/api.ts`
-- Put component props next to the component
-- Reuse exported feature types where screens and handlers share the same contract
-
-Examples:
-
-- `ApiEnvelope<T>` and `PageResponse<T>` in `shared/api/types.ts`
-- `WordSet`, `WordEntry`, and payload types in `features/word-sets/api.ts`
-- `StudyPlan` and `StudyPlanPayload` in `features/study-plans/api.ts`
+- TypeScript 编译期
+- Antd 表单规则
+- 后端统一 envelope 和校验
 
 ---
 
-## Validation
+## 类型放置规则
 
-Current validation split:
+### 共享传输层类型
 
-- compile-time validation: TypeScript
-- input/UI validation: Ant Design `Form.Item` rules
-- backend contract validation: delegated to backend Jakarta Validation and business rules
+放这里：
 
-Because there is no runtime schema library on the frontend yet, keep API helpers typed and assume backend envelope validation happens server-side.
+- `ApiEnvelope<T>`
+- `PageResponse<T>`
+- `ApiError`
+- `ApiFieldError`
 
----
+文件：
 
-## Common Patterns
+- `frontend/src/shared/api/types.ts`
 
-- Use generic helpers for transport wrappers, for example `getJson<T>` and `ApiEnvelope<T>`
-- Use string unions when a component API has a limited mode set, for example `StatusStateProps["mode"]`
-- Use optional fields only when the backend can truly omit them
-- Prefer explicit payload interfaces over inline object literals in mutation helpers
+### Feature DTO
 
----
+接口类型和请求载荷放 feature 的 `api.ts`：
 
-## Forbidden Patterns
+- `WordSet`
+- `WordEntry`
+- `StudyPlan`
+- `WordEntryImportPreviewResult`
 
-- Avoid `any`
-- Avoid broad `as` assertions for API payloads or query results
-- Avoid duplicating the same DTO shape in multiple components
-- Avoid bypassing strict null handling unless the code is guarded by control flow
+### 组件 props
 
-Current exceptions to watch:
-
-- `StudyPlanPage.handleSubmit(values: any)` should remain a temporary/simple pattern, not the default for new complex forms
-- query functions using `selectedWordSet!.id` are acceptable only when paired with `enabled`
+- 就近定义
+- 不要把组件 props 提前堆进一个全局 `types.ts`
 
 ---
 
-## Examples
+## API helper 泛型规则
+
+`shared/api/http.ts` 已经提供统一泛型 helper：
+
+- `getJson<T>`
+- `postJson<TResponse, TRequest>`
+- `putJson<TResponse, TRequest>`
+- `deleteJson<TResponse>`
+- `postFormData<TResponse>`
+
+新增 API 函数优先复用这些 helper，不要重新写 fetch 包装。
+
+---
+
+## 空值和可选字段
+
+- 后端可能缺省返回时，字段才用 `?`
+- 表单提交时，空字符串转 `undefined` 的转换写在页面或 feature helper 里
+- 非空断言只在有控制流保护时使用
+
+真实例子：
+
+- `buildWordEntryPayload(...)` 把空值规范化为 `undefined`
+- `selectedWordSet!.id` 依赖 `enabled`
+- `ApiEnvelope<T>` 的 `data` 明确允许 `null`
+
+---
+
+## 联合类型和常量
+
+有限状态优先用联合类型或精确定义的 record：
+
+- `StatusStateProps["mode"]`
+- `StudyPlanStatus`
+- `WordEntryImportPreviewRow["status"]`
+- `Record<StudyPlanStatus, string>`
+
+这样写比到处散落裸字符串更稳。
+
+---
+
+## 现阶段例外
+
+当前代码里有少量应避免扩散的简单写法：
+
+- `StudyPlanPage` 的表单值类型仍比较宽松
+- 个别 queryFn 里存在受 `enabled` 保护的非空断言
+
+这些可以暂时接受，但不应成为新代码默认模板。
+
+---
+
+## 反模式
+
+- 不要用 `any`
+- 不要在多个组件里重复定义同一份 DTO
+- 不要用大范围 `as` 强转吞掉类型问题
+- 不要让组件直接依赖未封装的后端 envelope 细节
+
+---
+
+## 参考文件
 
 - `frontend/tsconfig.json`
 - `frontend/src/shared/api/types.ts`
 - `frontend/src/shared/api/http.ts`
-- `frontend/src/shared/components/StatusState.tsx`
+- `frontend/src/features/word-sets/api.ts`
+- `frontend/src/features/study-plans/api.ts`

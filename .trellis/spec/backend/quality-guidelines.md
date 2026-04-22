@@ -1,69 +1,96 @@
 # Quality Guidelines
 
-> Backend code quality standards based on the current codebase and tooling.
+> 基于当前后端工程和构建方式整理出的质量要求。
 
 ---
 
-## Overview
+## 总览
 
-The current backend is intentionally simple: Spring Boot controllers, services, repositories, entities, and Flyway migrations. The main quality goals are consistency of contracts, explicit persistence mapping, and predictable service-layer validation.
+这个后端没有接入单独 lint 工具，质量门槛主要靠：
 
-There is no separate lint setup visible in the repo yet. Quality is enforced through compileability, API consistency, migration correctness, and review discipline.
-
----
-
-## Forbidden Patterns
-
-- Do not return plain entities directly from controllers. Use DTO/response records.
-- Do not put database or business logic in controllers.
-- Do not mutate schema through `ddl-auto`; keep it at `none` and use Flyway.
-- Do not bypass the shared response envelope for API endpoints under `/api`.
-- Do not add hidden cross-module coupling without moving the shared logic into `shared/` or a clearly owned module.
+- 编译通过
+- API 契约一致
+- 事务和异常边界清楚
+- migration 与 entity 同步
+- 关键业务路径可读、可验证
 
 ---
 
-## Required Patterns
+## 必守模式
 
-- use `@Transactional` at the service layer, with `readOnly = true` for read paths
-- use explicit `@Table` and `@Column` mappings for persisted entities
-- use Jakarta Validation on request DTOs and controller parameters where applicable
-- use `BusinessException` + `ErrorCode` for expected rule violations
-- use paged list responses via `PageResponse.from(...)` for list endpoints
-- keep environment-driven settings in `application.yml` plus `@ConfigurationProperties` classes
-
----
-
-## Testing Requirements
-
-Current state:
-
-- no backend test sources are present yet under `backend/src/test`
-
-Expectation for new backend work:
-
-- at minimum, run project compilation before finishing
-- add focused tests when introducing non-trivial service logic, persistence edge cases, or exception mapping changes
-- prioritize tests for:
-  - service validation logic
-  - repository query behavior
-  - controller response envelope and status mapping
-  - migration-sensitive persistence changes
+- controller 只返回 DTO / response record，不返回 entity
+- `/api` 接口统一用 `ApiResponse`
+- 分页列表统一用 `PageResponse`
+- service 承担事务和业务规则
+- entity 显式映射表和列
+- 预期业务失败统一走 `BusinessException + ErrorCode`
+- 配置项统一收在 `application.yml` 和 `@ConfigurationProperties`
 
 ---
 
-## Code Review Checklist
+## 禁止模式
 
-- Are routes, DTOs, and response envelopes consistent with existing `/api` contracts?
-- Are service methods the only place where transactions and business rules are orchestrated?
-- If schema or persistence changed, is there a matching Flyway migration?
-- Are entity/table/column names aligned with existing snake_case database conventions?
-- Are failure paths mapped to the right `ErrorCode` and HTTP status?
-- If filesystem or infra behavior changed, are env/config contracts documented in `application.yml` and config properties?
+- controller 直接调 repository
+- controller 手写 try/catch 翻译业务异常
+- 新增表结构却不写 Flyway migration
+- 返回裸字符串、裸数组、裸 entity 破坏统一 envelope
+- 偷偷跨模块复用内部实现，制造隐式耦合
 
 ---
 
-## Examples
+## 代码评审清单
 
+- controller 是否只保留入口职责
+- service 是否承担完整业务编排
+- 新增或修改持久化字段时，migration、entity、DTO 是否同步
+- 错误码和 HTTP status 是否沿用现有映射
+- 列表接口是否继续返回 `PageResponse`
+- 新增 JSONB、状态字段、外键时，数据库约束是否完整
+- 如果改了导入、导出、模板、学习流程，是否同步核对 `current-feature-contracts.md`
+
+---
+
+## 构建与检查
+
+完成后至少跑：
+
+```bash
+cd backend
+mvn test
+```
+
+当前项目虽然几乎没有测试源码，但 `mvn test` 仍然是最直接的编译和测试入口。
+
+若只做快速校验，至少保证：
+
+- Maven 编译成功
+- Spring Boot 依赖解析正常
+- 没有因为 DTO / entity / repository 变更引入编译错误
+
+---
+
+## 测试优先级
+
+后端新增测试时，优先覆盖这些点：
+
+- service 的校验和状态流转
+- repository 的关键查询和约束行为
+- 全局异常映射
+- migration 相关持久化变更
+- 导入预览、导出文件生成这类有边界条件的流程
+
+当前高价值对象：
+
+- `StudyPlanService`
+- `WordEntryService`
+- `ExportJobService`
+- `GlobalExceptionHandler`
+
+---
+
+## 参考文件
+
+- `backend/pom.xml`
 - `backend/src/main/java/com/jp/vocab/wordset/controller/WordSetController.java`
 - `backend/src/main/java/com/jp/vocab/studyplan/service/StudyPlanService.java`
 - `backend/src/main/java/com/jp/vocab/shared/web/GlobalExceptionHandler.java`
