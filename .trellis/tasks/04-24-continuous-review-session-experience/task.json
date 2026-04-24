@@ -1,0 +1,33 @@
+{
+  "id": "continuous-review-session-experience",
+  "name": "continuous-review-session-experience",
+  "title": "implement: continuous review session experience",
+  "description": "Refactor word and note review pages from table-driven management views into focused continuous review sessions.",
+  "status": "completed",
+  "dev_type": "frontend",
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "rikka",
+  "assignee": "rikka",
+  "createdAt": "2026-04-24",
+  "completedAt": "2026-04-24",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "04-24-next-priorities-after-notes-mvp",
+  "relatedFiles": [
+    "frontend/src/features/cards/TodayCardsPage.tsx",
+    "frontend/src/features/notes/NoteReviewPage.tsx",
+    "frontend/src/features/review/session.ts",
+    "frontend/src/styles.css",
+    ".trellis/spec/frontend/current-feature-workflows.md",
+    ".trellis/tasks/04-24-continuous-review-session-experience/prd.md"
+  ],
+  "notes": "Word review and note review were both refactored into focused continuous sessions with current-item, queue, progress, and history regions. The learner-facing contract was synced in frontend specs.",
+  "meta": {}
+}

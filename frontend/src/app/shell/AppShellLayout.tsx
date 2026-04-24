@@ -1,14 +1,17 @@
-import { BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, ProfileOutlined, TableOutlined } from "@ant-design/icons";
+import { BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, FileTextOutlined, ProfileOutlined, ReadOutlined, TableOutlined } from "@ant-design/icons";
 import { Layout, Menu, Typography } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const { Header, Content, Sider } = Layout;
 
 const menuItems = [
-  { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
+  { key: "/dashboard", icon: <DashboardOutlined />, label: "Workbench" },
   { key: "/word-sets", icon: <BookOutlined />, label: "Word Sets" },
   { key: "/study-plans", icon: <ProfileOutlined />, label: "Study Plans" },
   { key: "/cards", icon: <CalendarOutlined />, label: "Today Cards" },
+  { key: "/notes/dashboard", icon: <DashboardOutlined />, label: "Note Dashboard" },
+  { key: "/notes", icon: <FileTextOutlined />, label: "Notes" },
+  { key: "/notes/review", icon: <ReadOutlined />, label: "Note Review" },
   { key: "/templates", icon: <TableOutlined />, label: "Templates" },
   { key: "/export-jobs", icon: <ExportOutlined />, label: "Exports" }
 ];
@@ -16,6 +19,10 @@ const menuItems = [
 export function AppShellLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const selectedKey =
+    menuItems
+      .filter((item) => location.pathname.startsWith(item.key))
+      .sort((left, right) => right.key.length - left.key.length)[0]?.key ?? location.pathname;
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -28,7 +35,7 @@ export function AppShellLayout() {
         </div>
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />

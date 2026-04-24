@@ -4,6 +4,13 @@ import dayjs, { type Dayjs } from "dayjs";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStudyDashboard, type DashboardPlanSummary, type DashboardTrendItem } from "@/features/dashboard/api";
+import {
+  getNoteDashboard,
+  type NoteDashboardMasteryItem,
+  type NoteDashboardTrendItem,
+  type NoteMasteryStatus,
+  type RecentNoteItem
+} from "@/features/notes/api";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageSection } from "@/shared/components/PageSection";
 import { StatusState } from "@/shared/components/StatusState";
@@ -16,6 +23,17 @@ const STATUS_COLORS: Record<string, string> = {
   ARCHIVED: "red"
 };
 
+const NOTE_MASTERY_LABELS: Record<NoteMasteryStatus, string> = {
+  UNSTARTED: "未开始",
+  LEARNING: "学习中",
+  CONSOLIDATING: "巩固中",
+  MASTERED: "已掌握"
+};
+
+function getTodayReviewedNotes(recentTrend: NoteDashboardTrendItem[], formattedDate: string) {
+  return recentTrend.find((item) => item.date === formattedDate)?.reviewedNotes ?? 0;
+}
+
 export function StudyDashboardPage() {
   const navigate = useNavigate();
   const setCurrentPlanId = useUiStore((state) => state.setCurrentPlanId);
@@ -26,10 +44,29 @@ export function StudyDashboardPage() {
     queryKey: ["dashboard", formattedDate],
     queryFn: () => getStudyDashboard(formattedDate)
   });
+  const noteDashboardQuery = useQuery({
+    queryKey: ["noteDashboard", formattedDate],
+    queryFn: () => getNoteDashboard(formattedDate)
+  });
 
   const dashboard = dashboardQuery.data;
   const activePlans = dashboard?.activePlans ?? [];
   const hasActivePlans = activePlans.length > 0;
+  const noteDashboard = noteDashboardQuery.data;
+  const noteDueToday = noteDashboard?.overview.dueToday ?? 0;
+  const noteReviewedToday = getTodayReviewedNotes(noteDashboard?.recentTrend ?? [], formattedDate);
+  const todayTotalDue = (dashboard?.overview.totalDueToday ?? 0) + noteDueToday;
+  const todayReviewed = (dashboard?.overview.reviewedToday ?? 0) + noteReviewedToday;
+  const primaryPlan = activePlans[0];
+  const noteMasteryRows = useMemo(
+    () =>
+      (noteDashboard?.masteryDistribution ?? []).map((item) => ({
+        ...item,
+        label: NOTE_MASTERY_LABELS[item.masteryStatus]
+      })),
+    [noteDashboard?.masteryDistribution]
+  );
+  const masteredNotes = (noteDashboard?.masteryDistribution ?? []).find((item) => item.masteryStatus === "MASTERED")?.count ?? 0;
 
   const trendRows = useMemo(
     () =>
@@ -45,60 +82,131 @@ export function StudyDashboardPage() {
     navigate("/cards");
   }
 
+  function startWordReview() {
+    if (!primaryPlan) {
+      return;
+    }
+    openTodayCards(primaryPlan.planId);
+  }
+
+  const studyError = dashboardQuery.isError ? (dashboardQuery.error as Error).message : null;
+  const noteError = noteDashboardQuery.isError ? (noteDashboardQuery.error as Error).message : null;
+  const showInitialLoading = dashboardQuery.isLoading && noteDashboardQuery.isLoading;
+
   return (
     <div className="page-stack">
       <PageHeader
-        title="Study Dashboard"
-        description="Start from a learner-facing home page: review today's workload, active plans, and the recent study trend."
+        title="Today Workbench"
+        description="See today's workload across word study and note review, then jump straight into the next action."
         extra={
           <Space wrap>
             <DatePicker value={selectedDate} onChange={(value) => value && setSelectedDate(value)} />
             <Button onClick={() => setSelectedDate(dayjs())}>Today</Button>
-            <Tag color="gold">dashboard</Tag>
+            <Button type="primary" onClick={startWordReview} disabled={!primaryPlan}>
+              Start Word Review
+            </Button>
+            <Button onClick={() => navigate("/notes/review")}>Start Note Review</Button>
+            <Tag color="gold">workbench</Tag>
           </Space>
         }
       />
 
-      {dashboardQuery.isLoading ? (
+      {showInitialLoading ? (
         <StatusState mode="loading" />
-      ) : dashboardQuery.isError ? (
-        <StatusState mode="error" description={(dashboardQuery.error as Error).message} />
       ) : (
         <>
+          {studyError || noteError ? (
+            <Alert
+              type="warning"
+              showIcon
+              message="Some workbench data is unavailable."
+              description={[studyError ? `Word study: ${studyError}` : null, noteError ? `Note review: ${noteError}` : null]
+                .filter(Boolean)
+                .join(" | ")}
+            />
+          ) : null}
+
           <PageSection title="Today's Overview">
             <div className="dashboard-overview-grid">
               <Card size="small">
-                <Statistic title="Total Due Today" value={dashboard?.overview.totalDueToday ?? 0} />
+                <Statistic title="Total Due Today" value={todayTotalDue} />
               </Card>
               <Card size="small">
-                <Statistic title="New Cards" value={dashboard?.overview.newDueToday ?? 0} />
+                <Statistic title="Word Cards Due" value={dashboard?.overview.totalDueToday ?? 0} />
               </Card>
               <Card size="small">
-                <Statistic title="Review Cards" value={dashboard?.overview.reviewDueToday ?? 0} />
+                <Statistic title="Notes Due" value={noteDueToday} />
               </Card>
               <Card size="small">
-                <Statistic title="Reviewed Today" value={dashboard?.overview.reviewedToday ?? 0} />
-              </Card>
-              <Card size="small">
-                <Statistic title="Pending Today" value={dashboard?.overview.pendingDueToday ?? 0} />
+                <Statistic title="Reviewed Today" value={todayReviewed} />
               </Card>
               <Card size="small">
                 <Statistic title="Active Plans" value={dashboard?.overview.activePlanCount ?? 0} />
               </Card>
+              <Card size="small">
+                <Statistic title="Total Notes" value={noteDashboard?.overview.totalNotes ?? 0} />
+              </Card>
             </div>
-            {!hasActivePlans ? (
-              <Alert
-                style={{ marginTop: 16 }}
-                type="info"
-                showIcon
-                message="No active study plans yet."
-                description="Create and activate at least one study plan to populate the dashboard."
-              />
-            ) : null}
           </PageSection>
 
-          <PageSection title="Active Plan Summary">
-            {!hasActivePlans ? (
+          <PageSection title="Quick Start">
+            <div className="dashboard-plan-grid">
+              <Card size="small" title="Word Study">
+                <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                  <Typography.Text type="secondary">
+                    {hasActivePlans
+                      ? `Top plan: ${primaryPlan.planName}`
+                      : "No active plan yet. Create and activate one first."}
+                  </Typography.Text>
+                  <Row gutter={[12, 12]}>
+                    <Col span={12}>
+                      <Statistic title="Due Today" value={dashboard?.overview.totalDueToday ?? 0} />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic title="Pending" value={dashboard?.overview.pendingDueToday ?? 0} />
+                    </Col>
+                  </Row>
+                  <Space wrap>
+                    <Button type="primary" onClick={startWordReview} disabled={!primaryPlan}>
+                      Start Word Review
+                    </Button>
+                    <Button onClick={() => navigate("/study-plans")}>Open Plans</Button>
+                    <Button onClick={() => navigate("/word-sets")}>Open Word Sets</Button>
+                  </Space>
+                </Space>
+              </Card>
+
+              <Card size="small" title="Note Review">
+                <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                  <Typography.Text type="secondary">
+                    Review today's due knowledge points or continue building your note base.
+                  </Typography.Text>
+                  <Row gutter={[12, 12]}>
+                    <Col span={12}>
+                      <Statistic title="Due Today" value={noteDueToday} />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic title="Reviewed Today" value={noteReviewedToday} />
+                    </Col>
+                  </Row>
+                  <Space wrap>
+                    <Button type="primary" onClick={() => navigate("/notes/review")}>
+                      Start Note Review
+                    </Button>
+                    <Button onClick={() => navigate("/notes")}>Open Notes</Button>
+                    <Button onClick={() => navigate("/notes/dashboard")}>Open Note Dashboard</Button>
+                  </Space>
+                </Space>
+              </Card>
+            </div>
+          </PageSection>
+
+          <PageSection title="Word Study Line">
+            {dashboardQuery.isLoading ? (
+              <StatusState mode="loading" />
+            ) : dashboardQuery.isError ? (
+              <StatusState mode="error" description={studyError ?? undefined} />
+            ) : !hasActivePlans ? (
               <StatusState mode="empty" description="No active plans are available for the selected date." />
             ) : (
               <div className="dashboard-plan-grid">
@@ -148,8 +256,12 @@ export function StudyDashboardPage() {
             )}
           </PageSection>
 
-          <PageSection title="Recent 7-Day Trend">
-            {!hasActivePlans ? (
+          <PageSection title="Word Study Trend">
+            {dashboardQuery.isLoading ? (
+              <StatusState mode="loading" />
+            ) : dashboardQuery.isError ? (
+              <StatusState mode="error" description={studyError ?? undefined} />
+            ) : !hasActivePlans ? (
               <StatusState mode="empty" description="Trend data will appear after you activate a study plan." />
             ) : (
               <Table<DashboardTrendItem & { totalCards: number }>
@@ -172,8 +284,108 @@ export function StudyDashboardPage() {
             )}
           </PageSection>
 
+          <PageSection title="Note Review Line">
+            {noteDashboardQuery.isLoading ? (
+              <StatusState mode="loading" />
+            ) : noteDashboardQuery.isError ? (
+              <StatusState mode="error" description={noteError ?? undefined} />
+            ) : (
+              <div className="dashboard-plan-grid">
+                <Card size="small" title="Overview">
+                  <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                    <Row gutter={[12, 12]}>
+                      <Col span={12}>
+                        <Statistic title="Due Today" value={noteDashboard?.overview.dueToday ?? 0} />
+                      </Col>
+                      <Col span={12}>
+                        <Statistic title="Reviewed Today" value={noteReviewedToday} />
+                      </Col>
+                      <Col span={12}>
+                        <Statistic title="Reviewed Notes" value={noteDashboard?.overview.reviewedNotes ?? 0} />
+                      </Col>
+                      <Col span={12}>
+                        <Statistic title="Mastered Notes" value={masteredNotes} />
+                      </Col>
+                    </Row>
+                    <Space wrap>
+                      <Button type="primary" onClick={() => navigate("/notes/review")}>
+                        Open Note Review
+                      </Button>
+                      <Button onClick={() => navigate("/notes")}>Manage Notes</Button>
+                    </Space>
+                  </Space>
+                </Card>
+
+                <Card size="small" title="Mastery Distribution">
+                  <Table<NoteDashboardMasteryItem & { label: string }>
+                    rowKey="masteryStatus"
+                    size="small"
+                    pagination={false}
+                    dataSource={noteMasteryRows}
+                    columns={[
+                      {
+                        title: "Status",
+                        dataIndex: "label"
+                      },
+                      {
+                        title: "Count",
+                        dataIndex: "count",
+                        width: 120
+                      }
+                    ]}
+                    locale={{
+                      emptyText: "Create notes to populate mastery distribution."
+                    }}
+                  />
+                </Card>
+              </div>
+            )}
+          </PageSection>
+
+          <PageSection title="Recent Note Activity">
+            {noteDashboardQuery.isLoading ? (
+              <StatusState mode="loading" />
+            ) : noteDashboardQuery.isError ? (
+              <StatusState mode="error" description={noteError ?? undefined} />
+            ) : (
+              <Table<RecentNoteItem>
+                rowKey="id"
+                pagination={false}
+                dataSource={noteDashboard?.recentNotes ?? []}
+                columns={[
+                  {
+                    title: "Title",
+                    dataIndex: "title"
+                  },
+                  {
+                    title: "Tags",
+                    dataIndex: "tags",
+                    render: (tags: string[]) => (tags.length ? tags.join(", ") : "-")
+                  },
+                  {
+                    title: "Mastery",
+                    dataIndex: "masteryStatus",
+                    render: (value: NoteMasteryStatus) => NOTE_MASTERY_LABELS[value]
+                  },
+                  {
+                    title: "Created At",
+                    dataIndex: "createdAt",
+                    render: (value: string) => dayjs(value).format("YYYY-MM-DD HH:mm")
+                  }
+                ]}
+                locale={{
+                  emptyText: "No notes yet."
+                }}
+              />
+            )}
+          </PageSection>
+
           <PageSection title="Cross-Plan Comparison">
-            {!hasActivePlans ? (
+            {dashboardQuery.isLoading ? (
+              <StatusState mode="loading" />
+            ) : dashboardQuery.isError ? (
+              <StatusState mode="error" description={studyError ?? undefined} />
+            ) : !hasActivePlans ? (
               <StatusState mode="empty" description="Activate multiple plans to compare their current workload." />
             ) : (
               <Table<DashboardPlanSummary>

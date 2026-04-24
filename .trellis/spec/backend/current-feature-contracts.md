@@ -176,6 +176,108 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 
 ---
 
+## Scenario: Note knowledge capture, Markdown import, note review, and dashboard
+
+### 1. Scope / Trigger
+
+- Trigger: change touches `note` controllers, Markdown parsing/import, note review scheduling, or note dashboard aggregation.
+- Packages: `com.jp.vocab.note`, shared API envelope, frontend `/notes*`.
+
+### 2. Signatures
+
+- `GET /api/notes?page=&pageSize=&keyword=&tag=&masteryStatus=`
+- `POST /api/notes`
+- `PUT /api/notes/{noteId}`
+- `DELETE /api/notes/{noteId}`
+- `POST /api/notes/import/preview` with `multipart/form-data`
+- `POST /api/notes/import`
+- `GET /api/notes/reviews/today?date=YYYY-MM-DD`
+- `POST /api/notes/{noteId}/reviews`
+- `GET /api/notes/{noteId}/reviews`
+- `GET /api/notes/dashboard?date=YYYY-MM-DD`
+- DB tables:
+  - `note`
+  - `note_review_log`
+
+### 3. Contracts
+
+- Note is an independent learner-facing entity and stores:
+  - `title`
+  - `content`
+  - `tags[]`
+  - `reviewCount`
+  - `masteryStatus`
+  - `dueAt`
+  - `lastReviewedAt`
+  - `fsrsCardJson`
+- Markdown import preview accepts:
+  - `file`
+  - `splitMode` in `H1 | H1_H2 | ALL`
+  - `commonTagsText`
+- Preview returns:
+  - `splitMode`
+  - `totalItems`
+  - `readyCount`
+  - `errorCount`
+  - `previewItems[]`
+- Untitled Markdown content is preserved as editable preview item titled `未命名知识点`.
+- Empty parent headings created only as structure must not surface as preview rows.
+- Review ratings are fixed to:
+  - `AGAIN`
+  - `HARD`
+  - `GOOD`
+  - `EASY`
+- Product wording maps to FSRS as:
+  - `不会 -> AGAIN`
+  - `吃力 -> HARD`
+  - `还行 -> GOOD`
+  - `熟悉 -> EASY`
+- Review submission appends one `note_review_log` row and updates the `note` scheduling fields from FSRS.
+- Dashboard is aggregate-only and returns:
+  - `overview`
+  - `masteryDistribution[]`
+  - `recentTrend[]`
+  - `recentNotes[]`
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| empty or non-`.md` upload | reject with standard import error envelope |
+| blank note title/content on create or import | reject with validation error |
+| note not found | reject with standard `NOT_FOUND` envelope |
+| invalid review rating | reject with validation error |
+| blank section generated only from parent heading | skip it from preview instead of emitting an error row |
+
+### 5. Good / Base / Bad Cases
+
+- Good: create a note, import Markdown with preview edits, submit reviews, and see queue/dashboard values move.
+- Base: preview contains both untitled content and titled sections; user edits tags and imports only the kept rows.
+- Bad: persist Markdown preview rows before confirmation, or couple notes to the legacy `study_plan/card_instance/review_log` tables.
+
+### 6. Tests Required
+
+- Markdown parser coverage for untitled content preservation and breadcrumb titles
+- FSRS scheduler coverage for initial state and mastery bucketing
+- CRUD, import preview/apply, review, and dashboard controller/service coverage
+- migration assertions for note status/rating constraints and note-review foreign key behavior
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- store imported Markdown as a required parent document entity
+- surface empty structural headings as editable note rows
+- reuse the word-study runtime tables for note review
+
+#### Correct
+
+- treat imported output as first-class notes
+- keep preview focused on real editable knowledge points
+- keep note scheduling and review logs in dedicated note tables
+
+---
+
 ## Scenario: Template preview and export delivery
 
 ### 1. Scope / Trigger

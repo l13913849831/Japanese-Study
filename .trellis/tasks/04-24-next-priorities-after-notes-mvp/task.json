@@ -1,0 +1,30 @@
+{
+  "id": "next-priorities-after-notes-mvp",
+  "name": "next-priorities-after-notes-mvp",
+  "title": "brainstorm: next priorities after notes MVP",
+  "description": "",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "rikka",
+  "assignee": "rikka",
+  "createdAt": "2026-04-24",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "04-24-continuous-review-session-experience",
+    "04-24-unified-daily-learning-workbench",
+    "04-24-docs-and-regression-foundation"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

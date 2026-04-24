@@ -1,0 +1,92 @@
+package com.jp.vocab.card.service;
+
+import com.jp.vocab.card.dto.ReviewCardRequest;
+import com.jp.vocab.card.dto.ReviewCardResponse;
+import com.jp.vocab.card.entity.CardInstanceEntity;
+import com.jp.vocab.card.entity.ReviewLogEntity;
+import com.jp.vocab.card.repository.CardInstanceRepository;
+import com.jp.vocab.card.repository.ReviewLogRepository;
+import com.jp.vocab.shared.exception.BusinessException;
+import com.jp.vocab.shared.exception.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.LocalDate;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class CardReviewServiceTest {
+
+    @Mock
+    private CardInstanceRepository cardInstanceRepository;
+
+    @Mock
+    private ReviewLogRepository reviewLogRepository;
+
+    private CardReviewService cardReviewService;
+
+    @BeforeEach
+    void setUp() {
+        cardReviewService = new CardReviewService(cardInstanceRepository, reviewLogRepository);
+    }
+
+    @Test
+    void shouldSaveReviewAndMarkCardDone() {
+        CardInstanceEntity card = CardInstanceEntity.create(1L, 2L, "NEW", 1, 0, LocalDate.of(2026, 4, 24), "PENDING");
+        ReflectionTestUtils.setField(card, "id", 7L);
+
+        when(cardInstanceRepository.findById(7L)).thenReturn(Optional.of(card));
+        when(reviewLogRepository.save(any(ReviewLogEntity.class))).thenAnswer(invocation -> {
+            ReviewLogEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 88L);
+            return saved;
+        });
+        when(cardInstanceRepository.save(card)).thenReturn(card);
+
+        ReviewCardResponse response = cardReviewService.review(
+                7L,
+                new ReviewCardRequest(" good ", 2400L, "  recalled after one second  ")
+        );
+
+        assertEquals(88L, response.reviewId());
+        assertEquals(7L, response.cardId());
+        assertEquals("GOOD", response.rating());
+        assertEquals("DONE", response.cardStatus());
+        assertEquals("DONE", card.getStatus());
+
+        ArgumentCaptor<ReviewLogEntity> logCaptor = ArgumentCaptor.forClass(ReviewLogEntity.class);
+        verify(reviewLogRepository).save(logCaptor.capture());
+        assertEquals("GOOD", logCaptor.getValue().getRating());
+        assertEquals(2400L, logCaptor.getValue().getResponseTimeMs());
+        assertEquals("recalled after one second", logCaptor.getValue().getNote());
+    }
+
+    @Test
+    void shouldRejectInvalidRatingBeforeSavingReview() {
+        CardInstanceEntity card = CardInstanceEntity.create(1L, 2L, "NEW", 1, 0, LocalDate.of(2026, 4, 24), "PENDING");
+        ReflectionTestUtils.setField(card, "id", 7L);
+        when(cardInstanceRepository.findById(7L)).thenReturn(Optional.of(card));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> cardReviewService.review(7L, new ReviewCardRequest("bad", 1000L, "x"))
+        );
+
+        assertEquals(ErrorCode.VALIDATION_ERROR, exception.getErrorCode());
+        assertEquals("rating is invalid", exception.getMessage());
+        verify(reviewLogRepository, never()).save(any());
+        verify(cardInstanceRepository, never()).save(any());
+    }
+}

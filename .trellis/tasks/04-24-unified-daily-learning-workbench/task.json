@@ -1,0 +1,30 @@
+{
+  "id": "unified-daily-learning-workbench",
+  "name": "unified-daily-learning-workbench",
+  "title": "implement: unified daily learning workbench",
+  "description": "Create a unified learner-facing home/workbench that aggregates today's word and note workload and provides direct entry points into the two study lines.",
+  "status": "completed",
+  "dev_type": "frontend",
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "rikka",
+  "assignee": "rikka",
+  "createdAt": "2026-04-24",
+  "completedAt": "2026-04-24",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "04-24-next-priorities-after-notes-mvp",
+  "relatedFiles": [
+    "frontend/src/features/dashboard/StudyDashboardPage.tsx",
+    "frontend/src/app/shell/AppShellLayout.tsx",
+    ".trellis/spec/frontend/current-feature-workflows.md"
+  ],
+  "notes": "Upgraded /dashboard into a unified daily workbench by composing existing study and note dashboard aggregates on the frontend.",
+  "meta": {}
+}
