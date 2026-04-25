@@ -143,3 +143,37 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: FSRS迁移收尾
+
+**Date**: 2026-04-25
+**Task**: FSRS迁移收尾
+**Branch**: `main`
+
+### Summary
+
+完成单词线 FSRS 迁移并归档任务。新增 FSRS 调度器与 V9 数据迁移；单词计划改为每词只保留一条 pending 运行时卡，review 后动态追加下一张 pending 卡；today/calendar/dashboard 改为按 due_at 读取待复习卡；保留 weak-item 闭环兼容。已通过 backend mvn test（15/15）与 frontend npm run build。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bc66fb7` | (see git log) |
+| `94774ab` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
