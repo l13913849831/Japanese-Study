@@ -258,6 +258,106 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 ### 6. Tests Required
 
 - Markdown parser coverage for untitled content preservation and breadcrumb titles
+
+---
+
+## Scenario: Weak-item lifecycle and same-day recovery
+
+### 1. Scope / Trigger
+
+- Trigger: change touches weak-item state, card/note review responses, weak-item listing APIs, or same-day recovery semantics.
+- Packages: `com.jp.vocab.card`, `com.jp.vocab.note`, `com.jp.vocab.weakitem`, frontend `/cards`, `/notes/review`, `/weak-items`.
+
+### 2. Signatures
+
+- DB migration:
+  - `V8__add_weak_state.sql`
+- `POST /api/cards/{cardId}/review`
+- `POST /api/notes/{noteId}/reviews`
+- `GET /api/weak-items/summary`
+- `GET /api/weak-items/words?page=&pageSize=`
+- `GET /api/weak-items/notes?page=&pageSize=`
+- `POST /api/weak-items/words/{cardId}/dismiss`
+- `POST /api/weak-items/notes/{noteId}/dismiss`
+
+### 3. Contracts
+
+- `card_instance` adds:
+  - `weak_flag`
+  - `weak_marked_at`
+  - `weak_review_count`
+  - `last_review_rating`
+- `note` adds:
+  - `weak_flag`
+  - `weak_marked_at`
+  - `last_review_rating`
+- Card review request accepts optional `sessionAgainCount`.
+- Note review request accepts optional `sessionAgainCount`.
+- Card review response returns:
+  - `reviewId`
+  - `cardId`
+  - `rating`
+  - `cardStatus`
+  - `reviewedAt`
+  - `weak`
+  - `weakMarkedAt`
+  - `todayAction`
+- Note review response returns:
+  - `reviewId`
+  - `noteId`
+  - `rating`
+  - `masteryStatus`
+  - `reviewedAt`
+  - `dueAt`
+  - `weak`
+  - `weakMarkedAt`
+  - `todayAction`
+- `todayAction` values:
+  - card: `DONE | REQUEUE_TODAY | MOVE_TO_WEAK_ROUND`
+  - note: `DONE | MOVE_TO_RECOVERY_QUEUE | MOVE_TO_WEAK_ROUND`
+- `GET /api/weak-items/summary` returns:
+  - `weakWordCount`
+  - `weakNoteCount`
+- Weak-item list endpoints are paged and sorted by `weak_marked_at desc, id desc`.
+- Dismiss endpoints clear weak state only; they do not mutate review logs.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| `sessionAgainCount < 0` | reject with validation error |
+| second-or-later `AGAIN` in same session | mark item weak and return `MOVE_TO_WEAK_ROUND` |
+| first `AGAIN` for card | keep long-term schedule path, return `REQUEUE_TODAY` |
+| first `AGAIN` for note | keep long-term schedule path, return `MOVE_TO_RECOVERY_QUEUE` |
+| later `GOOD` or `EASY` on weak item | clear weak state automatically |
+| dismiss unknown card/note | reject with standard `NOT_FOUND` envelope |
+
+### 5. Good / Base / Bad Cases
+
+- Good: card or note hits `AGAIN` twice in the same session, enters weak list, appears in `/weak-items`, then exits on later `GOOD`.
+- Base: item enters weak state and the learner manually dismisses it from `/weak-items`.
+- Bad: persist today's temporary recovery queue in the database or require a dedicated temp table just to support same-day requeue.
+
+### 6. Tests Required
+
+- card review service coverage for `sessionAgainCount`, weak marking, and `GOOD/EASY` weak clearing
+- note review service coverage for `sessionAgainCount`, weak marking, and `GOOD/EASY` weak clearing
+- weak-item controller/service coverage for summary, paged list, and dismiss behavior
+- migration verification for new weak-state columns and constraints
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- treat same-day recovery queue as persisted backend state
+- mark items weak on first `AGAIN` without session context
+- overload review logs to act as the weak-item read model
+
+#### Correct
+
+- keep same-day recovery as frontend session state and persist only long-term weak state
+- use `sessionAgainCount` to distinguish first and second `AGAIN`
+- expose weak-item summary/list/dismiss through dedicated read endpoints
 - FSRS scheduler coverage for initial state and mastery bucketing
 - CRUD, import preview/apply, review, and dashboard controller/service coverage
 - migration assertions for note status/rating constraints and note-review foreign key behavior

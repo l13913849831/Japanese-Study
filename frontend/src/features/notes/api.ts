@@ -70,6 +70,7 @@ export interface NoteImportResult {
 export interface ReviewNotePayload {
   rating: NoteReviewRating;
   responseTimeMs?: number;
+  sessionAgainCount?: number;
   note?: string;
 }
 
@@ -80,6 +81,9 @@ export interface ReviewNoteResult {
   masteryStatus: NoteMasteryStatus;
   reviewedAt: string;
   dueAt: string;
+  weak: boolean;
+  weakMarkedAt?: string;
+  todayAction: "DONE" | "MOVE_TO_RECOVERY_QUEUE" | "MOVE_TO_WEAK_ROUND";
 }
 
 export interface NoteReviewLogItem {

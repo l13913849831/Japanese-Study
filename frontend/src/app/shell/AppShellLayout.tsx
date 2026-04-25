@@ -1,4 +1,4 @@
-import { BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, FileTextOutlined, ProfileOutlined, ReadOutlined, TableOutlined } from "@ant-design/icons";
+import { AlertOutlined, BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, FileTextOutlined, ProfileOutlined, ReadOutlined, TableOutlined } from "@ant-design/icons";
 import { Layout, Menu, Typography } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -12,6 +12,7 @@ const menuItems = [
   { key: "/notes/dashboard", icon: <DashboardOutlined />, label: "Note Dashboard" },
   { key: "/notes", icon: <FileTextOutlined />, label: "Notes" },
   { key: "/notes/review", icon: <ReadOutlined />, label: "Note Review" },
+  { key: "/weak-items", icon: <AlertOutlined />, label: "Weak Items" },
   { key: "/templates", icon: <TableOutlined />, label: "Templates" },
   { key: "/export-jobs", icon: <ExportOutlined />, label: "Exports" }
 ];

@@ -57,13 +57,15 @@ class CardReviewServiceTest {
 
         ReviewCardResponse response = cardReviewService.review(
                 7L,
-                new ReviewCardRequest(" good ", 2400L, "  recalled after one second  ")
+                new ReviewCardRequest(" good ", 2400L, 0, "  recalled after one second  ")
         );
 
         assertEquals(88L, response.reviewId());
         assertEquals(7L, response.cardId());
         assertEquals("GOOD", response.rating());
         assertEquals("DONE", response.cardStatus());
+        assertEquals("DONE", response.todayAction());
+        assertEquals(false, response.weak());
         assertEquals("DONE", card.getStatus());
 
         ArgumentCaptor<ReviewLogEntity> logCaptor = ArgumentCaptor.forClass(ReviewLogEntity.class);
@@ -81,12 +83,36 @@ class CardReviewServiceTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> cardReviewService.review(7L, new ReviewCardRequest("bad", 1000L, "x"))
+                () -> cardReviewService.review(7L, new ReviewCardRequest("bad", 1000L, 0, "x"))
         );
 
         assertEquals(ErrorCode.VALIDATION_ERROR, exception.getErrorCode());
         assertEquals("rating is invalid", exception.getMessage());
         verify(reviewLogRepository, never()).save(any());
         verify(cardInstanceRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldMarkCardWeakAfterSecondAgainInSession() {
+        CardInstanceEntity card = CardInstanceEntity.create(1L, 2L, "NEW", 1, 0, LocalDate.of(2026, 4, 24), "PENDING");
+        ReflectionTestUtils.setField(card, "id", 7L);
+
+        when(cardInstanceRepository.findById(7L)).thenReturn(Optional.of(card));
+        when(reviewLogRepository.save(any(ReviewLogEntity.class))).thenAnswer(invocation -> {
+            ReviewLogEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 89L);
+            return saved;
+        });
+        when(cardInstanceRepository.save(card)).thenReturn(card);
+
+        ReviewCardResponse response = cardReviewService.review(
+                7L,
+                new ReviewCardRequest("again", 800L, 2, "hard miss")
+        );
+
+        assertEquals(true, response.weak());
+        assertEquals("MOVE_TO_WEAK_ROUND", response.todayAction());
+        assertEquals("AGAIN", card.getLastReviewRating());
+        assertEquals(true, card.isWeakFlag());
     }
 }

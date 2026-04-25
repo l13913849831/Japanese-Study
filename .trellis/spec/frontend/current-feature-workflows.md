@@ -208,6 +208,68 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 ---
 
+## Scenario: Weak-item recovery loop and weak-items page
+
+### Scope
+
+- `/cards` session queue behavior
+- `/notes/review` session queue behavior
+- `/weak-items` route and tabs
+- workbench weak-item entry
+
+### Query and mutation anchors
+
+- `["todayCards", planId, date]`
+- `["cardReviews", cardId]`
+- `["todayNoteReviews", date]`
+- `["noteReviewLogs", noteId]`
+- `["weakItemSummary"]`
+- `["weakWords"]`
+- `["weakNotes"]`
+
+### Current contract
+
+- `/cards` keeps session-only queue state on the frontend instead of asking the backend to persist today's temporary queue.
+- Word review rules:
+  - first `AGAIN` appends one `REQUEUE` row to today's main queue
+  - second `AGAIN` appends one `WEAK` row to the weak round
+  - after the main queue ends, the page prompts whether to enter the weak round
+- `/notes/review` keeps session-only recovery state on the frontend.
+- Note review rules:
+  - first `AGAIN` appends one `RECOVERY` row to today's main queue
+  - second `AGAIN` appends one `WEAK` row to the weak round
+  - after the main queue ends, the page prompts whether to enter the weak round
+- Review submission sends `sessionAgainCount` so the backend can decide whether to mark the item `WEAK`.
+- `/weak-items` shows:
+  - summary cards
+  - `易错词` tab
+  - `易错知识点` tab
+  - dismiss actions for both tabs
+- `/dashboard` surfaces weak-item counts and links into `/weak-items`.
+
+### Tests Required
+
+- word-review queue regression coverage for first `AGAIN`, second `AGAIN`, and weak-round prompt
+- note-review queue regression coverage for recovery queue, weak round, and prompt
+- weak-items summary/list/dismiss query invalidation coverage
+- workbench weak-item quick-entry rendering coverage
+
+### Wrong vs Correct
+
+#### Wrong
+
+- rely on refetching `todayCards` or `todayNoteReviews` to rebuild today's temporary queue
+- lose the distinction between main queue, recovery queue, and weak round
+- hide weak-item entry only inside `/weak-items` without surfacing it from the workbench
+
+#### Correct
+
+- keep temporary recovery queue state on the frontend session
+- send only `sessionAgainCount` and final rating to the backend for long-term weak-state changes
+- surface weak-item counts from the workbench and route users into `/weak-items`
+
+---
+
 ## Scenario: Template editing, preview, and export delivery
 
 ### Scope

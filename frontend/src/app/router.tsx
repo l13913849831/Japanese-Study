@@ -48,6 +48,11 @@ const ExportJobPage = lazy(async () => {
   return { default: module.ExportJobPage };
 });
 
+const WeakItemsPage = lazy(async () => {
+  const module = await import("@/features/weak-items/WeakItemsPage");
+  return { default: module.WeakItemsPage };
+});
+
 function withPageFallback(element: React.JSX.Element) {
   return (
     <Suspense fallback={<StatusState mode="loading" />}>
@@ -69,6 +74,7 @@ export const router = createBrowserRouter([
       { path: "notes/dashboard", element: withPageFallback(<NoteDashboardPage />) },
       { path: "notes", element: withPageFallback(<NotesPage />) },
       { path: "notes/review", element: withPageFallback(<NoteReviewPage />) },
+      { path: "weak-items", element: withPageFallback(<WeakItemsPage />) },
       { path: "templates", element: withPageFallback(<TemplatePage />) },
       { path: "export-jobs", element: withPageFallback(<ExportJobPage />) }
     ]

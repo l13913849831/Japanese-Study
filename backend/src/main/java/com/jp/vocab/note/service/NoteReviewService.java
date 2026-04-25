@@ -74,7 +74,9 @@ public class NoteReviewService {
                 scheduled.masteryStatus(),
                 scheduled.dueAt(),
                 scheduled.reviewedAt(),
-                scheduled.fsrsCardJson()
+                scheduled.fsrsCardJson(),
+                rating,
+                request.sessionAgainCount()
         );
 
         NoteReviewLogEntity saved = noteReviewLogRepository.save(NoteReviewLogEntity.create(
@@ -86,7 +88,14 @@ public class NoteReviewService {
                 scheduled.fsrsReviewLogJson()
         ));
         noteRepository.save(entity);
-        return ReviewNoteResponse.from(saved, entity.getMasteryStatus(), entity.getDueAt());
+        return ReviewNoteResponse.from(
+                saved,
+                entity.getMasteryStatus(),
+                entity.getDueAt(),
+                entity.isWeakFlag(),
+                entity.getWeakMarkedAt(),
+                resolveTodayAction(rating, request.sessionAgainCount())
+        );
     }
 
     @Transactional(readOnly = true)
@@ -117,5 +126,14 @@ public class NoteReviewService {
         }
         String normalized = note.trim();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private String resolveTodayAction(String rating, Integer sessionAgainCount) {
+        if (!"AGAIN".equals(rating)) {
+            return "DONE";
+        }
+        return sessionAgainCount != null && sessionAgainCount >= 2
+                ? "MOVE_TO_WEAK_ROUND"
+                : "MOVE_TO_RECOVERY_QUEUE";
     }
 }

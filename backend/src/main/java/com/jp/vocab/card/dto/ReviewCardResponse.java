@@ -9,15 +9,27 @@ public record ReviewCardResponse(
         Long cardId,
         String rating,
         String cardStatus,
-        OffsetDateTime reviewedAt
+        OffsetDateTime reviewedAt,
+        boolean weak,
+        OffsetDateTime weakMarkedAt,
+        String todayAction
 ) {
-    public static ReviewCardResponse from(ReviewLogEntity entity, String cardStatus) {
+    public static ReviewCardResponse from(
+            ReviewLogEntity entity,
+            String cardStatus,
+            boolean weak,
+            OffsetDateTime weakMarkedAt,
+            String todayAction
+    ) {
         return new ReviewCardResponse(
                 entity.getId(),
                 entity.getCardInstanceId(),
                 entity.getRating(),
                 cardStatus,
-                entity.getReviewedAt()
+                entity.getReviewedAt(),
+                weak,
+                weakMarkedAt,
+                todayAction
         );
     }
 }

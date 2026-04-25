@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 2
-- **Last Active**: 2026-04-22
+- **Total Sessions**: 4
+- **Last Active**: 2026-04-25
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~79 | Active |
+| `journal-1.md` | ~145 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,8 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-04-25 | daily weak item recovery loop complete | `690dfbf` | `main` |
+| 3 | 2026-04-25 | language learning roadmap and weak-item loop | `8ee6820` | `main` |
 | 2 | 2026-04-22 | Brainstorm note-taking knowledge review | - | `main` |
 | 1 | 2026-04-21 | Retire OpenSpec and archive completed phase-one tasks | `97f2350`, `da6f8da`, `af0eaf4` | `main` |
 <!-- @@@/auto:session-history -->

@@ -11,6 +11,7 @@ import {
   type NoteMasteryStatus,
   type RecentNoteItem
 } from "@/features/notes/api";
+import { getWeakItemSummary } from "@/features/weak-items/api";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageSection } from "@/shared/components/PageSection";
 import { StatusState } from "@/shared/components/StatusState";
@@ -48,16 +49,22 @@ export function StudyDashboardPage() {
     queryKey: ["noteDashboard", formattedDate],
     queryFn: () => getNoteDashboard(formattedDate)
   });
+  const weakItemSummaryQuery = useQuery({
+    queryKey: ["weakItemSummary"],
+    queryFn: getWeakItemSummary
+  });
 
   const dashboard = dashboardQuery.data;
   const activePlans = dashboard?.activePlans ?? [];
   const hasActivePlans = activePlans.length > 0;
   const noteDashboard = noteDashboardQuery.data;
+  const weakItemSummary = weakItemSummaryQuery.data;
   const noteDueToday = noteDashboard?.overview.dueToday ?? 0;
   const noteReviewedToday = getTodayReviewedNotes(noteDashboard?.recentTrend ?? [], formattedDate);
   const todayTotalDue = (dashboard?.overview.totalDueToday ?? 0) + noteDueToday;
   const todayReviewed = (dashboard?.overview.reviewedToday ?? 0) + noteReviewedToday;
   const primaryPlan = activePlans[0];
+  const totalWeakItems = (weakItemSummary?.weakWordCount ?? 0) + (weakItemSummary?.weakNoteCount ?? 0);
   const noteMasteryRows = useMemo(
     () =>
       (noteDashboard?.masteryDistribution ?? []).map((item) => ({
@@ -91,6 +98,7 @@ export function StudyDashboardPage() {
 
   const studyError = dashboardQuery.isError ? (dashboardQuery.error as Error).message : null;
   const noteError = noteDashboardQuery.isError ? (noteDashboardQuery.error as Error).message : null;
+  const weakError = weakItemSummaryQuery.isError ? (weakItemSummaryQuery.error as Error).message : null;
   const showInitialLoading = dashboardQuery.isLoading && noteDashboardQuery.isLoading;
 
   return (
@@ -115,12 +123,16 @@ export function StudyDashboardPage() {
         <StatusState mode="loading" />
       ) : (
         <>
-          {studyError || noteError ? (
+          {studyError || noteError || weakError ? (
             <Alert
               type="warning"
               showIcon
               message="Some workbench data is unavailable."
-              description={[studyError ? `Word study: ${studyError}` : null, noteError ? `Note review: ${noteError}` : null]
+              description={[
+                studyError ? `Word study: ${studyError}` : null,
+                noteError ? `Note review: ${noteError}` : null,
+                weakError ? `Weak items: ${weakError}` : null
+              ]
                 .filter(Boolean)
                 .join(" | ")}
             />
@@ -145,6 +157,9 @@ export function StudyDashboardPage() {
               </Card>
               <Card size="small">
                 <Statistic title="Total Notes" value={noteDashboard?.overview.totalNotes ?? 0} />
+              </Card>
+              <Card size="small">
+                <Statistic title="Weak Items" value={totalWeakItems} />
               </Card>
             </div>
           </PageSection>
@@ -172,6 +187,9 @@ export function StudyDashboardPage() {
                     </Button>
                     <Button onClick={() => navigate("/study-plans")}>Open Plans</Button>
                     <Button onClick={() => navigate("/word-sets")}>Open Word Sets</Button>
+                    <Button onClick={() => navigate("/weak-items")}>
+                      Weak Items {weakItemSummary ? `(${weakItemSummary.weakWordCount})` : ""}
+                    </Button>
                   </Space>
                 </Space>
               </Card>
@@ -195,6 +213,9 @@ export function StudyDashboardPage() {
                     </Button>
                     <Button onClick={() => navigate("/notes")}>Open Notes</Button>
                     <Button onClick={() => navigate("/notes/dashboard")}>Open Note Dashboard</Button>
+                    <Button onClick={() => navigate("/weak-items")}>
+                      Weak Notes {weakItemSummary ? `(${weakItemSummary.weakNoteCount})` : ""}
+                    </Button>
                   </Space>
                 </Space>
               </Card>

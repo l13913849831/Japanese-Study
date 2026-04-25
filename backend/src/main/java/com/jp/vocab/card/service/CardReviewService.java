@@ -38,19 +38,27 @@ public class CardReviewService {
         CardInstanceEntity card = getCard(cardId);
         String rating = normalizeRating(request.rating());
         String note = normalizeNote(request.note());
+        OffsetDateTime reviewedAt = OffsetDateTime.now();
 
         ReviewLogEntity saved = reviewLogRepository.save(ReviewLogEntity.create(
                 card.getId(),
-                OffsetDateTime.now(),
+                reviewedAt,
                 rating,
                 request.responseTimeMs(),
                 note
         ));
 
+        card.applyReviewResult(rating, request.sessionAgainCount(), reviewedAt);
         card.markDone();
         cardInstanceRepository.save(card);
 
-        return ReviewCardResponse.from(saved, card.getStatus());
+        return ReviewCardResponse.from(
+                saved,
+                card.getStatus(),
+                card.isWeakFlag(),
+                card.getWeakMarkedAt(),
+                resolveTodayAction(rating, request.sessionAgainCount())
+        );
     }
 
     @Transactional(readOnly = true)
@@ -82,5 +90,14 @@ public class CardReviewService {
 
         String trimmed = note.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String resolveTodayAction(String rating, Integer sessionAgainCount) {
+        if (!"AGAIN".equals(rating)) {
+            return "DONE";
+        }
+        return sessionAgainCount != null && sessionAgainCount >= 2
+                ? "MOVE_TO_WEAK_ROUND"
+                : "REQUEUE_TODAY";
     }
 }

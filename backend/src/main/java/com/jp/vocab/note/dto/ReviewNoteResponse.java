@@ -10,16 +10,29 @@ public record ReviewNoteResponse(
         String rating,
         String masteryStatus,
         OffsetDateTime reviewedAt,
-        OffsetDateTime dueAt
+        OffsetDateTime dueAt,
+        boolean weak,
+        OffsetDateTime weakMarkedAt,
+        String todayAction
 ) {
-    public static ReviewNoteResponse from(NoteReviewLogEntity entity, String masteryStatus, OffsetDateTime dueAt) {
+    public static ReviewNoteResponse from(
+            NoteReviewLogEntity entity,
+            String masteryStatus,
+            OffsetDateTime dueAt,
+            boolean weak,
+            OffsetDateTime weakMarkedAt,
+            String todayAction
+    ) {
         return new ReviewNoteResponse(
                 entity.getId(),
                 entity.getNoteId(),
                 entity.getRating(),
                 masteryStatus,
                 entity.getReviewedAt(),
-                dueAt
+                dueAt,
+                weak,
+                weakMarkedAt,
+                todayAction
         );
     }
 }

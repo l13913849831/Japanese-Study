@@ -96,13 +96,15 @@ class NoteReviewServiceTest {
 
         ReviewNoteResponse response = noteReviewService.review(
                 10L,
-                new ReviewNoteRequest(" good ", 1800L, "  remembered after hint  ")
+                new ReviewNoteRequest(" good ", 1800L, 0, "  remembered after hint  ")
         );
 
         assertEquals(99L, response.reviewId());
         assertEquals(10L, response.noteId());
         assertEquals("GOOD", response.rating());
         assertEquals("LEARNING", response.masteryStatus());
+        assertEquals("DONE", response.todayAction());
+        assertEquals(false, response.weak());
         assertEquals(nextDueAt, response.dueAt());
         assertEquals(1, entity.getReviewCount());
         assertEquals("LEARNING", entity.getMasteryStatus());
@@ -123,13 +125,47 @@ class NoteReviewServiceTest {
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
-                () -> noteReviewService.review(10L, new ReviewNoteRequest("invalid", 800L, "bad"))
+                () -> noteReviewService.review(10L, new ReviewNoteRequest("invalid", 800L, 0, "bad"))
         );
 
         assertEquals(ErrorCode.VALIDATION_ERROR, exception.getErrorCode());
         assertEquals("rating is invalid", exception.getMessage());
         verify(noteFsrsScheduler, never()).review(any(), any(), any(), any());
         verify(noteReviewLogRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldMarkNoteWeakAfterSecondAgainInSession() {
+        OffsetDateTime reviewedAt = OffsetDateTime.of(2026, 4, 24, 9, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime nextDueAt = reviewedAt.plusHours(4);
+        NoteEntity entity = createNoteEntity(10L, "Java", reviewedAt.minusDays(1));
+
+        when(noteRepository.findById(10L)).thenReturn(Optional.of(entity));
+        when(noteFsrsScheduler.review(eq(entity.getFsrsCardJson()), eq("AGAIN"), eq(0), any(OffsetDateTime.class)))
+                .thenReturn(new NoteFsrsScheduler.ScheduledNoteReview(
+                        "next-card-json",
+                        nextDueAt,
+                        "LEARNING",
+                        1,
+                        reviewedAt,
+                        "review-log-json"
+                ));
+        when(noteReviewLogRepository.save(any(NoteReviewLogEntity.class))).thenAnswer(invocation -> {
+            NoteReviewLogEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 100L);
+            return saved;
+        });
+        when(noteRepository.save(entity)).thenReturn(entity);
+
+        ReviewNoteResponse response = noteReviewService.review(
+                10L,
+                new ReviewNoteRequest("again", 1200L, 2, "forgot")
+        );
+
+        assertEquals(true, response.weak());
+        assertEquals("MOVE_TO_WEAK_ROUND", response.todayAction());
+        assertEquals(true, entity.isWeakFlag());
+        assertEquals("AGAIN", entity.getLastReviewRating());
     }
 
     private NoteEntity createNoteEntity(Long id, String title, OffsetDateTime dueAt) {

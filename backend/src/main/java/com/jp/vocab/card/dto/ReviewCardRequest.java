@@ -9,6 +9,8 @@ public record ReviewCardRequest(
         String rating,
         @PositiveOrZero(message = "responseTimeMs must be greater than or equal to 0")
         Long responseTimeMs,
+        @PositiveOrZero(message = "sessionAgainCount must be greater than or equal to 0")
+        Integer sessionAgainCount,
         @Size(max = 2000, message = "note must be at most 2000 characters")
         String note
 ) {

@@ -21,6 +21,7 @@ export type ReviewRating = "AGAIN" | "HARD" | "GOOD" | "EASY";
 export interface ReviewCardPayload {
   rating: ReviewRating;
   responseTimeMs?: number;
+  sessionAgainCount?: number;
   note?: string;
 }
 
@@ -30,6 +31,9 @@ export interface ReviewCardResult {
   rating: ReviewRating;
   cardStatus: string;
   reviewedAt: string;
+  weak: boolean;
+  weakMarkedAt?: string;
+  todayAction: "DONE" | "REQUEUE_TODAY" | "MOVE_TO_WEAK_ROUND";
 }
 
 export interface ReviewLogItem {

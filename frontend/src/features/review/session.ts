@@ -18,8 +18,8 @@ export function buildReviewSessionSummary<T>(
 
 export function resolveCurrentSessionIndex<T>(
   items: T[],
-  currentId: number | undefined,
-  getId: (item: T) => number,
+  currentId: string | number | undefined,
+  getId: (item: T) => string | number,
   isPending: (item: T) => boolean
 ) {
   if (!items.length) {

@@ -30,6 +30,19 @@ interface ReviewFormValues {
   note?: string;
 }
 
+type SessionRowMode = "MAIN" | "REQUEUE" | "WEAK";
+
+interface SessionCardRow {
+  rowKey: string;
+  cardId: number;
+  mode: SessionRowMode;
+}
+
+type SessionCardTableRow = TodayCard & {
+  rowKey: string;
+  queueMode: SessionRowMode;
+};
+
 const reviewRatings: Array<{ rating: ReviewRating; label: string; type?: "primary" | "default" }> = [
   { rating: "AGAIN", label: "AGAIN" },
   { rating: "HARD", label: "HARD" },
@@ -49,10 +62,6 @@ function sortCards(items: TodayCard[]) {
   });
 }
 
-function isPendingCard(card: TodayCard) {
-  return card.status === "PENDING";
-}
-
 function buildPlanLabel(plan: StudyPlan) {
   return `${plan.name} (${plan.status})`;
 }
@@ -64,7 +73,13 @@ export function TodayCardsPage() {
     planId: currentPlanId,
     date: dayjs().format("YYYY-MM-DD")
   });
-  const [currentCardId, setCurrentCardId] = useState<number>();
+  const [mainQueue, setMainQueue] = useState<SessionCardRow[]>([]);
+  const [weakQueue, setWeakQueue] = useState<SessionCardRow[]>([]);
+  const [completedRowKeys, setCompletedRowKeys] = useState<string[]>([]);
+  const [againCountByCardId, setAgainCountByCardId] = useState<Record<number, number>>({});
+  const [weakRoundStarted, setWeakRoundStarted] = useState(false);
+  const [weakRoundSkipped, setWeakRoundSkipped] = useState(false);
+  const [currentRowKey, setCurrentRowKey] = useState<string>();
   const [reviewForm] = Form.useForm<ReviewFormValues>();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -78,27 +93,62 @@ export function TodayCardsPage() {
   const cardsQuery = useQuery({
     queryKey: ["todayCards", search.planId, search.date],
     queryFn: () => getTodayCards(search.planId!, search.date),
-    enabled
+    enabled,
+    refetchOnWindowFocus: false
   });
 
   const orderedCards = useMemo(() => sortCards(cardsQuery.data ?? []), [cardsQuery.data]);
-  const sessionSummary = useMemo(() => buildReviewSessionSummary(orderedCards, isPendingCard), [orderedCards]);
-  const resolvedCurrentIndex = useMemo(
-    () => resolveCurrentSessionIndex(orderedCards, currentCardId, (item) => item.id, isPendingCard),
-    [orderedCards, currentCardId]
+  const cardById = useMemo(() => new Map(orderedCards.map((card) => [card.id, card])), [orderedCards]);
+  const completedRowKeySet = useMemo(() => new Set(completedRowKeys), [completedRowKeys]);
+  const activeQueue = weakRoundStarted ? weakQueue : mainQueue;
+  const pendingWeakCount = weakQueue.filter((item) => !completedRowKeySet.has(item.rowKey)).length;
+  const sessionSummary = useMemo(
+    () => buildReviewSessionSummary(activeQueue, (item) => !completedRowKeySet.has(item.rowKey)),
+    [activeQueue, completedRowKeySet]
   );
-  const currentCard = resolvedCurrentIndex === -1 ? undefined : orderedCards[resolvedCurrentIndex];
+  const resolvedCurrentIndex = useMemo(
+    () => resolveCurrentSessionIndex(activeQueue, currentRowKey, (item) => item.rowKey, (item) => !completedRowKeySet.has(item.rowKey)),
+    [activeQueue, completedRowKeySet, currentRowKey]
+  );
+  const currentRow = resolvedCurrentIndex === -1 ? undefined : activeQueue[resolvedCurrentIndex];
+  const currentCard = currentRow ? cardById.get(currentRow.cardId) : undefined;
   const currentQueuePosition = currentCard ? resolvedCurrentIndex + 1 : 0;
   const currentPendingPosition = currentCard
-    ? orderedCards.filter((item) => isPendingCard(item) || item.id === currentCard.id).findIndex((item) => item.id === currentCard.id) + 1
+    ? activeQueue
+        .filter((item) => !completedRowKeySet.has(item.rowKey) || item.rowKey === currentRow?.rowKey)
+        .findIndex((item) => item.rowKey === currentRow?.rowKey) + 1
     : 0;
+  const shouldPromptWeakRound = !weakRoundStarted && !weakRoundSkipped && sessionSummary.pendingCount === 0 && weakQueue.length > 0;
 
   useEffect(() => {
-    const nextCardId = resolvedCurrentIndex === -1 ? undefined : orderedCards[resolvedCurrentIndex]?.id;
-    if (nextCardId !== currentCardId) {
-      setCurrentCardId(nextCardId);
+    if (!enabled) {
+      setMainQueue([]);
+      setWeakQueue([]);
+      setCompletedRowKeys([]);
+      setAgainCountByCardId({});
+      setWeakRoundStarted(false);
+      setWeakRoundSkipped(false);
+      setCurrentRowKey(undefined);
+      return;
     }
-  }, [currentCardId, orderedCards, resolvedCurrentIndex]);
+    if (!orderedCards.length && !cardsQuery.isSuccess) {
+      return;
+    }
+    setMainQueue(orderedCards.map((card) => ({ rowKey: `main-${card.id}`, cardId: card.id, mode: "MAIN" })));
+    setWeakQueue([]);
+    setCompletedRowKeys([]);
+    setAgainCountByCardId({});
+    setWeakRoundStarted(false);
+    setWeakRoundSkipped(false);
+    setCurrentRowKey(undefined);
+  }, [cardsQuery.isSuccess, enabled, orderedCards, search.date, search.planId]);
+
+  useEffect(() => {
+    const nextRowKey = resolvedCurrentIndex === -1 ? undefined : activeQueue[resolvedCurrentIndex]?.rowKey;
+    if (nextRowKey !== currentRowKey) {
+      setCurrentRowKey(nextRowKey);
+    }
+  }, [activeQueue, currentRowKey, resolvedCurrentIndex]);
 
   const reviewsQuery = useQuery({
     queryKey: ["cardReviews", currentCard?.id],
@@ -107,12 +157,45 @@ export function TodayCardsPage() {
   });
 
   const reviewMutation = useMutation({
-    mutationFn: ({ cardId, payload }: { cardId: number; payload: ReviewCardPayload }) => submitCardReview(cardId, payload),
-    onSuccess: async () => {
-      message.success("Review submitted.");
+    mutationFn: ({
+      cardId,
+      payload
+    }: {
+      cardId: number;
+      payload: ReviewCardPayload;
+      queueRowKey: string;
+      nextAgainCount: number;
+    }) => submitCardReview(cardId, payload),
+    onSuccess: async (result, variables) => {
+      setCompletedRowKeys((prev) => (prev.includes(variables.queueRowKey) ? prev : [...prev, variables.queueRowKey]));
+      if (result.rating === "AGAIN") {
+        setAgainCountByCardId((prev) => ({
+          ...prev,
+          [result.cardId]: variables.nextAgainCount
+        }));
+      }
+      if (result.todayAction === "REQUEUE_TODAY") {
+        setMainQueue((prev) => {
+          const rowKey = `requeue-${result.cardId}`;
+          return prev.some((item) => item.rowKey === rowKey)
+            ? prev
+            : [...prev, { rowKey, cardId: result.cardId, mode: "REQUEUE" }];
+        });
+      }
+      if (result.todayAction === "MOVE_TO_WEAK_ROUND") {
+        setWeakQueue((prev) => {
+          const rowKey = `weak-${result.cardId}`;
+          return prev.some((item) => item.rowKey === rowKey)
+            ? prev
+            : [...prev, { rowKey, cardId: result.cardId, mode: "WEAK" }];
+        });
+      }
+      message.success(resolveCardReviewMessage(result.todayAction));
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["todayCards", search.planId, search.date] }),
-        queryClient.invalidateQueries({ queryKey: ["cardReviews", currentCard?.id] })
+        queryClient.invalidateQueries({ queryKey: ["cardReviews", variables.cardId] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["weakItemSummary"] }),
+        queryClient.invalidateQueries({ queryKey: ["weakWords"] })
       ]);
       reviewForm.resetFields();
     },
@@ -126,28 +209,32 @@ export function TodayCardsPage() {
   const planOptions = activePlans.length > 0 ? activePlans : studyPlansQuery.data?.items ?? [];
 
   function handleReviewSubmit(rating: ReviewRating) {
-    if (!currentCard) {
+    if (!currentCard || !currentRow) {
       message.warning("No current card in this session.");
       return;
     }
 
     const values = reviewForm.getFieldsValue();
+    const nextAgainCount = rating === "AGAIN" ? (againCountByCardId[currentCard.id] ?? 0) + 1 : againCountByCardId[currentCard.id] ?? 0;
     reviewMutation.mutate({
       cardId: currentCard.id,
+      queueRowKey: currentRow.rowKey,
+      nextAgainCount,
       payload: {
         rating,
         responseTimeMs: values.responseTimeMs,
+        sessionAgainCount: nextAgainCount,
         note: values.note?.trim() || undefined
       }
     });
   }
 
   function moveCurrentCard(offset: number) {
-    const nextCard = orderedCards[resolvedCurrentIndex + offset];
-    if (!nextCard) {
+    const nextRow = activeQueue[resolvedCurrentIndex + offset];
+    if (!nextRow) {
       return;
     }
-    setCurrentCardId(nextCard.id);
+    setCurrentRowKey(nextRow.rowKey);
     reviewForm.resetFields();
   }
 
@@ -174,7 +261,7 @@ export function TodayCardsPage() {
               planId: nextPlanId,
               date: values.date?.format("YYYY-MM-DD") ?? dayjs().format("YYYY-MM-DD")
             });
-            setCurrentCardId(undefined);
+            setCurrentRowKey(undefined);
           }}
         >
           <Form.Item label="Plan" name="planId" rules={[{ required: true, message: "Select a study plan." }]}>
@@ -210,15 +297,34 @@ export function TodayCardsPage() {
               <CardStat title="Total Due" value={sessionSummary.totalCount} />
               <CardStat title="Pending" value={sessionSummary.pendingCount} />
               <CardStat title="Completed" value={sessionSummary.completedCount} />
+              <CardStat title="Weak Round" value={pendingWeakCount} />
               <CardStat title="Current Position" value={currentQueuePosition} suffix={sessionSummary.totalCount ? `/ ${sessionSummary.totalCount}` : ""} />
             </div>
             {sessionSummary.totalCount === 0 ? (
               <Alert
                 style={{ marginTop: 16 }}
-                type="info"
+                type={weakRoundStarted ? "success" : "info"}
                 showIcon
-                message="No cards found for this session."
-                description="Try another date or plan."
+                message={weakRoundStarted ? "Weak round is complete." : "No cards found for this session."}
+                description={weakRoundStarted ? "Today's main queue and weak round are both complete." : "Try another date or plan."}
+              />
+            ) : shouldPromptWeakRound ? (
+              <Alert
+                style={{ marginTop: 16 }}
+                type="success"
+                showIcon
+                message="主队列已完成。"
+                description={
+                  <Space wrap>
+                    <Typography.Text>还有 {weakQueue.length} 个薄弱项可再练一轮。</Typography.Text>
+                    <Button type="primary" size="small" onClick={() => setWeakRoundStarted(true)}>
+                      开始薄弱轮
+                    </Button>
+                    <Button size="small" onClick={() => setWeakRoundSkipped(true)}>
+                      稍后再说
+                    </Button>
+                  </Space>
+                }
               />
             ) : sessionSummary.pendingCount === 0 ? (
               <Alert
@@ -226,7 +332,7 @@ export function TodayCardsPage() {
                 type="success"
                 showIcon
                 message="This session is complete."
-                description="All due cards for the selected plan and date have been reviewed."
+                description="All cards in the current queue have been reviewed."
               />
             ) : (
               <Alert
@@ -234,7 +340,11 @@ export function TodayCardsPage() {
                 type="info"
                 showIcon
                 message="Current flow"
-                description={`Stay on the current card, submit a rating, and the session will advance to the next pending item automatically. Pending position: ${currentPendingPosition} / ${sessionSummary.pendingCount}`}
+                description={
+                  weakRoundStarted
+                    ? `You are in the weak round. Pending position: ${currentPendingPosition} / ${sessionSummary.pendingCount}`
+                    : `Stay on the current card, submit a rating, and the session will advance automatically. Pending position: ${currentPendingPosition} / ${sessionSummary.pendingCount}`
+                }
               />
             )}
           </PageSection>
@@ -245,7 +355,9 @@ export function TodayCardsPage() {
             ) : (
               <Space direction="vertical" size={16} style={{ width: "100%" }}>
                 <Space wrap>
-                  <Tag color={currentCard.status === "DONE" ? "green" : "gold"}>{currentCard.status}</Tag>
+                  <Tag color={currentRow?.mode === "WEAK" ? "volcano" : currentRow?.mode === "REQUEUE" ? "cyan" : "gold"}>
+                    {currentRow?.mode}
+                  </Tag>
                   <Tag>{currentCard.cardType}</Tag>
                   <Tag>Stage {currentCard.stageNo}</Tag>
                   <Tag>Due {currentCard.dueDate}</Tag>
@@ -278,7 +390,7 @@ export function TodayCardsPage() {
                   <Button onClick={() => moveCurrentCard(-1)} disabled={resolvedCurrentIndex <= 0}>
                     Previous
                   </Button>
-                  <Button onClick={() => moveCurrentCard(1)} disabled={resolvedCurrentIndex >= orderedCards.length - 1}>
+                  <Button onClick={() => moveCurrentCard(1)} disabled={resolvedCurrentIndex >= activeQueue.length - 1}>
                     Next
                   </Button>
                 </Space>
@@ -326,18 +438,22 @@ export function TodayCardsPage() {
           </PageSection>
 
           <PageSection title="Queue">
-            <Table<TodayCard>
-              rowKey="id"
+            <Table<SessionCardTableRow>
+              rowKey="rowKey"
               size="small"
               pagination={false}
-              dataSource={orderedCards}
+              dataSource={activeQueue.map((item) => ({
+                ...cardById.get(item.cardId),
+                rowKey: item.rowKey,
+                queueMode: item.mode
+              })).filter((item): item is SessionCardTableRow => Boolean(item?.id))}
               onRow={(record) => ({
                 onClick: () => {
-                  setCurrentCardId(record.id);
+                  setCurrentRowKey(record.rowKey);
                   reviewForm.resetFields();
                 }
               })}
-              rowClassName={(record) => (record.id === currentCard?.id ? "review-session-row-active" : "")}
+              rowClassName={(record) => (record.rowKey === currentRow?.rowKey ? "review-session-row-active" : "")}
               columns={[
                 {
                   title: "#",
@@ -355,10 +471,20 @@ export function TodayCardsPage() {
                   width: 100
                 },
                 {
-                  title: "Status",
-                  dataIndex: "status",
+                  title: "Queue",
+                  dataIndex: "queueMode",
                   width: 110,
-                  render: (value: string) => <Tag color={value === "DONE" ? "green" : "default"}>{value}</Tag>
+                  render: (value: SessionRowMode) => <Tag color={value === "WEAK" ? "volcano" : value === "REQUEUE" ? "cyan" : "default"}>{value}</Tag>
+                },
+                {
+                  title: "Status",
+                  dataIndex: "rowKey",
+                  width: 110,
+                  render: (value: string) => (
+                    <Tag color={completedRowKeySet.has(value) ? "green" : "default"}>
+                      {completedRowKeySet.has(value) ? "DONE" : "PENDING"}
+                    </Tag>
+                  )
                 }
               ]}
               locale={{
@@ -423,4 +549,14 @@ function CardStat({ title, value, suffix }: CardStatProps) {
       <Statistic title={title} value={value} suffix={suffix} />
     </div>
   );
+}
+
+function resolveCardReviewMessage(todayAction: "DONE" | "REQUEUE_TODAY" | "MOVE_TO_WEAK_ROUND") {
+  if (todayAction === "REQUEUE_TODAY") {
+    return "已回到今日队尾。";
+  }
+  if (todayAction === "MOVE_TO_WEAK_ROUND") {
+    return "已加入薄弱项再练一轮。";
+  }
+  return "已记录评分。";
 }

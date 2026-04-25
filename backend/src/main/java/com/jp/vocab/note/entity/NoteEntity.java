@@ -46,6 +46,15 @@ public class NoteEntity extends AuditableEntity {
     @Column(name = "fsrs_card_json", nullable = false)
     private String fsrsCardJson;
 
+    @Column(name = "weak_flag", nullable = false)
+    private boolean weakFlag;
+
+    @Column(name = "weak_marked_at")
+    private OffsetDateTime weakMarkedAt;
+
+    @Column(name = "last_review_rating", length = 16)
+    private String lastReviewRating;
+
     protected NoteEntity() {
     }
 
@@ -103,13 +112,33 @@ public class NoteEntity extends AuditableEntity {
             String masteryStatus,
             OffsetDateTime dueAt,
             OffsetDateTime lastReviewedAt,
-            String fsrsCardJson
+            String fsrsCardJson,
+            String rating,
+            Integer sessionAgainCount
     ) {
         this.reviewCount = reviewCount;
         this.masteryStatus = masteryStatus;
         this.dueAt = dueAt;
         this.lastReviewedAt = lastReviewedAt;
         this.fsrsCardJson = fsrsCardJson;
+        this.lastReviewRating = rating;
+        if ("GOOD".equals(rating) || "EASY".equals(rating)) {
+            clearWeak();
+        } else if ("AGAIN".equals(rating) && sessionAgainCount != null && sessionAgainCount >= 2) {
+            markWeak(lastReviewedAt);
+        }
+    }
+
+    public void clearWeak() {
+        this.weakFlag = false;
+        this.weakMarkedAt = null;
+    }
+
+    private void markWeak(OffsetDateTime reviewedAt) {
+        if (!weakFlag) {
+            this.weakFlag = true;
+            this.weakMarkedAt = reviewedAt;
+        }
     }
 
     public Long getId() {
@@ -146,5 +175,17 @@ public class NoteEntity extends AuditableEntity {
 
     public String getFsrsCardJson() {
         return fsrsCardJson;
+    }
+
+    public boolean isWeakFlag() {
+        return weakFlag;
+    }
+
+    public OffsetDateTime getWeakMarkedAt() {
+        return weakMarkedAt;
+    }
+
+    public String getLastReviewRating() {
+        return lastReviewRating;
     }
 }

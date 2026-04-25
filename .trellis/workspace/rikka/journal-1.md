@@ -77,3 +77,69 @@ Completed requirements discovery for an independent note-taking knowledge-point 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: language learning roadmap and weak-item loop
+
+**Date**: 2026-04-25
+**Task**: language learning roadmap and weak-item loop
+**Branch**: `main`
+
+### Summary
+
+建立语言学习产品增强总任务；拆出学习闭环与单词线 FSRS 两个子任务；完成学习闭环实现前设计；已开始实现 weak state 和 /weak-items 入口，前端构建通过，后端测试受 Maven 依赖网络限制未完成。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8ee6820` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 4: daily weak item recovery loop complete
+
+**Date**: 2026-04-25
+**Task**: daily weak item recovery loop complete
+**Branch**: `main`
+
+### Summary
+
+Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recovery session logic for cards and notes, dashboard weak-item entry, full backend tests and frontend build passed.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `690dfbf` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

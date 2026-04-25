@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "card_instance")
@@ -39,6 +40,18 @@ public class CardInstanceEntity extends AuditableEntity {
     @Column(name = "status", nullable = false)
     private String status;
 
+    @Column(name = "weak_flag", nullable = false)
+    private boolean weakFlag;
+
+    @Column(name = "weak_marked_at")
+    private OffsetDateTime weakMarkedAt;
+
+    @Column(name = "weak_review_count", nullable = false)
+    private Integer weakReviewCount;
+
+    @Column(name = "last_review_rating", length = 16)
+    private String lastReviewRating;
+
     protected CardInstanceEntity() {
     }
 
@@ -59,11 +72,40 @@ public class CardInstanceEntity extends AuditableEntity {
         entity.stageNo = stageNo;
         entity.dueDate = dueDate;
         entity.status = status;
+        entity.weakFlag = false;
+        entity.weakReviewCount = 0;
         return entity;
     }
 
     public void markDone() {
         this.status = "DONE";
+    }
+
+    public void applyReviewResult(String rating, Integer sessionAgainCount, OffsetDateTime reviewedAt) {
+        this.lastReviewRating = rating;
+        if ("GOOD".equals(rating) || "EASY".equals(rating)) {
+            clearWeak();
+        } else if ("AGAIN".equals(rating) && sessionAgainCount != null && sessionAgainCount >= 2) {
+            markWeak(reviewedAt);
+        } else if (weakFlag) {
+            weakReviewCount = weakReviewCount + 1;
+        }
+    }
+
+    public void clearWeak() {
+        this.weakFlag = false;
+        this.weakMarkedAt = null;
+        this.weakReviewCount = 0;
+    }
+
+    private void markWeak(OffsetDateTime reviewedAt) {
+        if (!weakFlag) {
+            this.weakFlag = true;
+            this.weakMarkedAt = reviewedAt;
+            this.weakReviewCount = 0;
+            return;
+        }
+        this.weakReviewCount = weakReviewCount + 1;
     }
 
     public Long getId() {
@@ -96,5 +138,21 @@ public class CardInstanceEntity extends AuditableEntity {
 
     public String getStatus() {
         return status;
+    }
+
+    public boolean isWeakFlag() {
+        return weakFlag;
+    }
+
+    public OffsetDateTime getWeakMarkedAt() {
+        return weakMarkedAt;
+    }
+
+    public Integer getWeakReviewCount() {
+        return weakReviewCount;
+    }
+
+    public String getLastReviewRating() {
+        return lastReviewRating;
     }
 }
