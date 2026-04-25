@@ -177,3 +177,36 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: 切换到连续复习会话任务
+
+**Date**: 2026-04-25
+**Task**: 切换到连续复习会话任务
+**Branch**: `main`
+
+### Summary
+
+新建并切换当前任务到 04-25-04-25-continuous-review-session-experience，目标是把单词与知识点复习页收紧成连续会话主路径。PRD 已写明推荐方案为先收紧 /cards，再对齐 /notes/review，最后回补 /dashboard 直达行为。下次继续时直接先读 TodayCardsPage，划分主区/辅助区/可删区，然后先改单词线入口与主布局。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c3ea7f7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

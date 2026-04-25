@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
+- **Total Sessions**: 6
 - **Last Active**: 2026-04-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~179 | Active |
+| `journal-1.md` | ~212 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-04-25 | 切换到连续复习会话任务 | `c3ea7f7` | `main` |
 | 5 | 2026-04-25 | FSRS迁移收尾 | `bc66fb7`, `94774ab` | `main` |
 | 4 | 2026-04-25 | daily weak item recovery loop complete | `690dfbf` | `main` |
 | 3 | 2026-04-25 | language learning roadmap and weak-item loop | `8ee6820` | `main` |
