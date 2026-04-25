@@ -164,6 +164,48 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 ---
 
+## Scenario: Word-review FSRS migration
+
+### Scope
+
+- `/study-plans` wording around compatibility fields
+- `/cards` queue source semantics
+- dashboard word-study summaries after FSRS migration
+
+### Query and mutation anchors
+
+- `["studyPlans"]`
+- `["todayCards", planId, date]`
+- `["cardReviews", cardId]`
+- `["dashboard", date]`
+
+### Current contract
+
+- `/study-plans` still sends `reviewOffsets`, but the UI must treat it as compatibility data rather than the active schedule model.
+- `/cards` now reads one pending runtime row per word from the backend. The frontend still owns same-day requeue and weak-round behavior.
+- After a card review succeeds, the backend appends the next pending FSRS row. The frontend must not assume the old pre-generated offset rows still exist.
+- Dashboard word-study counts now reflect pending rows selected by `dueAt`/day-end semantics instead of exact pre-generated due dates.
+
+### Tests Required
+
+- study-plan page wording and payload-shape regression coverage
+- `/cards` session still works when backend creates next pending rows dynamically
+- dashboard rendering coverage after FSRS-driven due counts change
+
+### Wrong vs Correct
+
+#### Wrong
+
+- describe `reviewOffsets` as the live review schedule after FSRS migration
+- assume the backend still pre-generates every future review row
+
+#### Correct
+
+- keep compatibility fields visible but clearly demoted
+- treat `/cards` as a runtime queue backed by dynamic FSRS rows
+
+---
+
 ## Scenario: Unified learner workbench
 
 ### Scope

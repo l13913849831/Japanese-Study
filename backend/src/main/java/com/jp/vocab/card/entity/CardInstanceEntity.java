@@ -7,9 +7,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "card_instance")
@@ -37,8 +40,21 @@ public class CardInstanceEntity extends AuditableEntity {
     @Column(name = "due_date", nullable = false)
     private LocalDate dueDate;
 
+    @Column(name = "due_at", nullable = false)
+    private OffsetDateTime dueAt;
+
     @Column(name = "status", nullable = false)
     private String status;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "fsrs_card_json", columnDefinition = "jsonb")
+    private String fsrsCardJson;
+
+    @Column(name = "review_count", nullable = false)
+    private Integer reviewCount;
+
+    @Column(name = "last_reviewed_at")
+    private OffsetDateTime lastReviewedAt;
 
     @Column(name = "weak_flag", nullable = false)
     private boolean weakFlag;
@@ -71,14 +87,46 @@ public class CardInstanceEntity extends AuditableEntity {
         entity.sequenceNo = sequenceNo;
         entity.stageNo = stageNo;
         entity.dueDate = dueDate;
+        entity.dueAt = dueDate.atStartOfDay().atOffset(ZoneOffset.UTC);
         entity.status = status;
+        entity.reviewCount = 0;
         entity.weakFlag = false;
         entity.weakReviewCount = 0;
         return entity;
     }
 
-    public void markDone() {
+    public static CardInstanceEntity createFsrsCard(
+            Long planId,
+            Long wordEntryId,
+            String cardType,
+            Integer sequenceNo,
+            Integer stageNo,
+            OffsetDateTime dueAt,
+            String status,
+            String fsrsCardJson,
+            Integer reviewCount,
+            OffsetDateTime lastReviewedAt
+    ) {
+        CardInstanceEntity entity = new CardInstanceEntity();
+        entity.planId = planId;
+        entity.wordEntryId = wordEntryId;
+        entity.cardType = cardType;
+        entity.sequenceNo = sequenceNo;
+        entity.stageNo = stageNo;
+        entity.dueAt = dueAt;
+        entity.dueDate = dueAt.toLocalDate();
+        entity.status = status;
+        entity.fsrsCardJson = fsrsCardJson;
+        entity.reviewCount = reviewCount;
+        entity.lastReviewedAt = lastReviewedAt;
+        entity.weakFlag = false;
+        entity.weakReviewCount = 0;
+        return entity;
+    }
+
+    public void markDone(OffsetDateTime reviewedAt) {
         this.status = "DONE";
+        this.lastReviewedAt = reviewedAt;
     }
 
     public void applyReviewResult(String rating, Integer sessionAgainCount, OffsetDateTime reviewedAt) {
@@ -90,6 +138,25 @@ public class CardInstanceEntity extends AuditableEntity {
         } else if (weakFlag) {
             weakReviewCount = weakReviewCount + 1;
         }
+    }
+
+    public CardInstanceEntity createNextReviewCard(
+            String nextFsrsCardJson,
+            Integer nextReviewCount,
+            OffsetDateTime nextDueAt
+    ) {
+        return createFsrsCard(
+                planId,
+                wordEntryId,
+                "REVIEW",
+                sequenceNo,
+                stageNo + 1,
+                nextDueAt,
+                "PENDING",
+                nextFsrsCardJson,
+                nextReviewCount,
+                lastReviewedAt
+        );
     }
 
     public void clearWeak() {
@@ -136,8 +203,24 @@ public class CardInstanceEntity extends AuditableEntity {
         return dueDate;
     }
 
+    public OffsetDateTime getDueAt() {
+        return dueAt;
+    }
+
     public String getStatus() {
         return status;
+    }
+
+    public String getFsrsCardJson() {
+        return fsrsCardJson;
+    }
+
+    public Integer getReviewCount() {
+        return reviewCount;
+    }
+
+    public OffsetDateTime getLastReviewedAt() {
+        return lastReviewedAt;
     }
 
     public boolean isWeakFlag() {

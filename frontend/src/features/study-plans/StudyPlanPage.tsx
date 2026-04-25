@@ -205,7 +205,7 @@ export function StudyPlanPage() {
     <div className="page-stack">
       <PageHeader
         title="学习计划"
-        description="配置每日新词、复习偏移和模板，并通过显式生命周期动作管理计划状态。"
+        description="配置每日新词引入节奏和模板。单词复习排期已切到 FSRS，复习偏移字段仅保留兼容。"
         extra={<Tag color="blue">study_plan</Tag>}
       />
 
@@ -266,11 +266,11 @@ export function StudyPlanPage() {
             <InputNumber min={1} disabled={isEditLocked} />
           </Form.Item>
           <Form.Item
-            label="复习偏移"
+            label="复习偏移（兼容字段）"
             name="reviewOffsetsText"
             rules={[{ required: true, message: "请输入复习偏移" }]}
           >
-            <Input disabled={isEditLocked} placeholder="例如：0,1,3,7,14,30" />
+            <Input disabled={isEditLocked} placeholder="保留旧计划兼容，例如：0,1,3,7,14,30" />
           </Form.Item>
           <Form.Item label="Anki 模板" name="ankiTemplateId">
             <Select

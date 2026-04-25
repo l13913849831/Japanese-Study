@@ -176,6 +176,82 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 
 ---
 
+## Scenario: Word-review FSRS runtime
+
+### 1. Scope / Trigger
+
+- Trigger: change touches word-review scheduling, `card_instance` runtime semantics, card generation, card review, or dashboard/card queries.
+- Packages: `com.jp.vocab.studyplan`, `com.jp.vocab.card`, `com.jp.vocab.dashboard`, frontend `/study-plans`, `/cards`.
+
+### 2. Signatures
+
+- DB migration:
+  - `V9__migrate_word_cards_to_fsrs.sql`
+- `POST /api/study-plans`
+- `PUT /api/study-plans/{id}`
+- `GET /api/study-plans/{planId}/cards/today?date=YYYY-MM-DD`
+- `GET /api/study-plans/{planId}/cards/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD`
+- `POST /api/cards/{cardId}/review`
+- `GET /api/dashboard?date=YYYY-MM-DD`
+
+### 3. Contracts
+
+- `study_plan.dailyNewCount` still controls new-word introduction cadence.
+- `study_plan.reviewOffsets` is now a compatibility field; it no longer drives long-term review scheduling.
+- New plans generate one initial pending `card_instance` per word instead of pre-generating all review stages.
+- `card_instance` runtime fields now include:
+  - `due_at`
+  - `fsrs_card_json`
+  - `review_count`
+  - `last_reviewed_at`
+- A reviewed word keeps its current row as historical `DONE` state and appends one next pending row with `stage_no + 1`.
+- `GET /api/study-plans/{planId}/cards/today` returns pending rows whose `due_at` is before the selected date's day-end, so overdue cards are included.
+- `POST /api/cards/{cardId}/review` now:
+  - writes one `review_log`
+  - marks the current row `DONE`
+  - appends one next pending FSRS row
+  - still returns weak-item fields and `todayAction`
+- Dashboard word-study aggregates read pending rows from `due_at` instead of pre-generated offset rows.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| invalid rating | reject with validation error |
+| unknown card id | reject with standard `NOT_FOUND` envelope |
+| plan create/update with invalid compatibility `reviewOffsets` | reject with field-level validation error |
+| reviewing a card with missing legacy FSRS state | initialize from default FSRS card state and continue |
+| legacy plan has multiple future pending rows for one word | migration keeps the earliest pending row and drops extra unreviewed future rows |
+
+### 5. Good / Base / Bad Cases
+
+- Good: create a new plan, get one initial pending row per word, review a word, and observe exactly one next pending FSRS row.
+- Base: legacy plan keeps its earliest pending row and adopts FSRS scheduling from the next review onward.
+- Bad: continue pre-generating all future review rows or let today queries include both historical `DONE` rows and new pending rows for the same review state.
+
+### 6. Tests Required
+
+- card FSRS scheduler coverage for initial state and review advancement
+- card review service coverage for next pending-row creation and weak-state compatibility
+- card query/dashboard coverage for `due_at`-based pending selection
+- regression verification that weak-item recovery still passes after FSRS migration
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- keep `reviewOffsets` as the active long-term schedule while also claiming FSRS is enabled
+- mutate the current pending row into the next pending row and lose review history
+- keep multiple future pending rows for the same word after migration
+
+#### Correct
+
+- treat `reviewOffsets` as compatibility only and let FSRS own next due time
+- append one next pending row after each review so history remains queryable
+- keep exactly one pending runtime row per word
+
+---
+
 ## Scenario: Note knowledge capture, Markdown import, note review, and dashboard
 
 ### 1. Scope / Trigger

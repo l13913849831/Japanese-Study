@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,13 +19,16 @@ public class CardGenerationService {
 
     private final WordEntryRepository wordEntryRepository;
     private final CardInstanceRepository cardInstanceRepository;
+    private final CardFsrsScheduler cardFsrsScheduler;
 
     public CardGenerationService(
             WordEntryRepository wordEntryRepository,
-            CardInstanceRepository cardInstanceRepository
+            CardInstanceRepository cardInstanceRepository,
+            CardFsrsScheduler cardFsrsScheduler
     ) {
         this.wordEntryRepository = wordEntryRepository;
         this.cardInstanceRepository = cardInstanceRepository;
+        this.cardFsrsScheduler = cardFsrsScheduler;
     }
 
     @Transactional
@@ -37,19 +42,20 @@ public class CardGenerationService {
             WordEntryEntity wordEntry = wordEntries.get(index);
             int sequenceNo = (index / studyPlan.getDailyNewCount()) + 1;
             LocalDate sequenceBaseDate = studyPlan.getStartDate().plusDays(sequenceNo - 1L);
-
-            for (int stageNo = 0; stageNo < studyPlan.getReviewOffsets().size(); stageNo++) {
-                Integer offset = studyPlan.getReviewOffsets().get(stageNo);
-                instances.add(CardInstanceEntity.create(
-                        studyPlan.getId(),
-                        wordEntry.getId(),
-                        offset == 0 ? "NEW" : "REVIEW",
-                        sequenceNo,
-                        stageNo,
-                        sequenceBaseDate.plusDays(offset),
-                        "PENDING"
-                ));
-            }
+            OffsetDateTime dueAt = sequenceBaseDate.atStartOfDay().atOffset(ZoneOffset.UTC);
+            CardFsrsScheduler.InitialCardState initialState = cardFsrsScheduler.createInitialState();
+            instances.add(CardInstanceEntity.createFsrsCard(
+                    studyPlan.getId(),
+                    wordEntry.getId(),
+                    "NEW",
+                    sequenceNo,
+                    0,
+                    dueAt,
+                    "PENDING",
+                    initialState.fsrsCardJson(),
+                    0,
+                    null
+            ));
         }
 
         cardInstanceRepository.saveAll(instances);

@@ -45,14 +45,15 @@ public class CardQueryService {
     @Transactional(readOnly = true)
     public List<CardCalendarItemResponse> getCalendar(Long planId, LocalDate start, LocalDate end) {
         String sql = """
-                select due_date,
+                select ci.due_at::date as due_date,
                        sum(case when card_type = 'NEW' then 1 else 0 end) as new_cards,
                        sum(case when card_type = 'REVIEW' then 1 else 0 end) as review_cards
-                from card_instance
-                where plan_id = :planId
-                  and due_date between :start and :end
-                group by due_date
-                order by due_date asc
+                from card_instance ci
+                where ci.plan_id = :planId
+                  and ci.status = 'PENDING'
+                  and ci.due_at::date between :start and :end
+                group by ci.due_at::date
+                order by ci.due_at::date asc
                 """;
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
@@ -69,6 +70,7 @@ public class CardQueryService {
 
     @Transactional(readOnly = true)
     public List<GeneratedCardRecord> queryDetailedCards(Long planId, LocalDate date) {
+        LocalDate nextDate = date.plusDays(1);
         String sql = """
                 select ci.id,
                        ci.plan_id,
@@ -88,13 +90,14 @@ public class CardQueryService {
                 from card_instance ci
                 join word_entry we on we.id = ci.word_entry_id
                 where ci.plan_id = :planId
-                  and ci.due_date = :date
-                order by ci.sequence_no asc, ci.stage_no asc, ci.id asc
+                  and ci.status = 'PENDING'
+                  and ci.due_at < :endExclusive
+                order by ci.due_at asc, ci.sequence_no asc, ci.stage_no asc, ci.id asc
                 """;
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
                 .addValue("planId", planId)
-                .addValue("date", date);
+                .addValue("endExclusive", nextDate.atStartOfDay());
 
         return jdbcTemplate.query(sql, parameters, (rs, rowNum) -> new GeneratedCardRecord(
                 rs.getLong("id"),

@@ -31,6 +31,7 @@ public class StudyDashboardService {
     }
 
     private DashboardOverviewResponse getOverview(LocalDate targetDate) {
+        LocalDate endExclusive = targetDate.plusDays(1);
         String sql = """
                 select
                     (select count(*)
@@ -51,12 +52,14 @@ public class StudyDashboardService {
                 from study_plan sp
                 left join card_instance ci
                     on ci.plan_id = sp.id
-                   and ci.due_date = :targetDate
+                   and ci.status = 'PENDING'
+                   and ci.due_at < :endExclusive
                 where sp.status = 'ACTIVE'
                 """;
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("targetDate", targetDate);
+                .addValue("targetDate", targetDate)
+                .addValue("endExclusive", endExclusive.atStartOfDay());
 
         return jdbcTemplate.queryForObject(sql, parameters, (rs, rowNum) -> new DashboardOverviewResponse(
                 targetDate,
@@ -70,6 +73,7 @@ public class StudyDashboardService {
     }
 
     private List<DashboardPlanSummaryResponse> getActivePlans(LocalDate targetDate) {
+        LocalDate endExclusive = targetDate.plusDays(1);
         String sql = """
                 select
                     sp.id as plan_id,
@@ -97,14 +101,15 @@ public class StudyDashboardService {
                         sum(case when card_type = 'REVIEW' then 1 else 0 end) as review_today,
                         sum(case when status = 'PENDING' then 1 else 0 end) as pending_today
                     from card_instance
-                    where due_date = :targetDate
+                    where status = 'PENDING'
+                      and due_at < :endExclusive
                     group by plan_id
                 ) today on today.plan_id = sp.id
                 left join (
                     select
                         plan_id,
-                        count(*) as total_cards,
-                        sum(case when status = 'DONE' then 1 else 0 end) as completed_cards
+                        count(distinct word_entry_id) as total_cards,
+                        count(distinct case when review_count > 0 or last_reviewed_at is not null then word_entry_id end) as completed_cards
                     from card_instance
                     group by plan_id
                 ) progress on progress.plan_id = sp.id
@@ -122,7 +127,8 @@ public class StudyDashboardService {
                 """;
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("targetDate", targetDate);
+                .addValue("targetDate", targetDate)
+                .addValue("endExclusive", endExclusive.atStartOfDay());
 
         return jdbcTemplate.query(sql, parameters, (rs, rowNum) -> new DashboardPlanSummaryResponse(
                 rs.getLong("plan_id"),
@@ -148,14 +154,15 @@ public class StudyDashboardService {
                 ),
                 due as (
                     select
-                        ci.due_date as day,
+                        ci.due_at::date as day,
                         sum(case when ci.card_type = 'NEW' then 1 else 0 end) as new_cards,
                         sum(case when ci.card_type = 'REVIEW' then 1 else 0 end) as review_cards
                     from card_instance ci
                     join study_plan sp on sp.id = ci.plan_id
                     where sp.status = 'ACTIVE'
-                      and ci.due_date between :startDate and :endDate
-                    group by ci.due_date
+                      and ci.status = 'PENDING'
+                      and ci.due_at::date between :startDate and :endDate
+                    group by ci.due_at::date
                 ),
                 reviewed as (
                     select

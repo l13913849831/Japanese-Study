@@ -307,6 +307,11 @@ Markdown 模板关键字段：
 - `reviewOffsets` 必须从 `0` 开始
 - `reviewOffsets` 必须升序
 
+说明：
+
+- `dailyNewCount` 继续控制新词引入节奏
+- `reviewOffsets` 现在是兼容字段，不再驱动单词长期复习排期
+
 ### `PUT /api/study-plans/{id}`
 
 更新学习计划。
@@ -336,6 +341,11 @@ Markdown 模板关键字段：
 
 当前返回是 `TodayCard[]`，不是旧版“按天聚合 + cards 字段”的包裹结构。
 
+说明：
+
+- 返回的是当前仍处于 `PENDING` 的运行时卡片
+- 查询条件是“`dueAt` 早于所选日期结束时刻”，所以会包含逾期卡
+
 ### `GET /api/study-plans/{planId}/cards/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD`
 
 查询某计划某时间段的学习量预览。
@@ -356,6 +366,7 @@ Markdown 模板关键字段：
 {
   "rating": "GOOD",
   "responseTimeMs": 3200,
+  "sessionAgainCount": 0,
   "note": "能认出但造句不稳"
 }
 ```
@@ -367,11 +378,15 @@ Markdown 模板关键字段：
 - `rating`
 - `cardStatus`
 - `reviewedAt`
+- `weak`
+- `weakMarkedAt`
+- `todayAction`
 
 说明：
 
 - 当前实现会写入 `review_log`
-- 当前实现会把对应卡片标记为 `DONE`
+- 当前实现会把当前卡片标记为 `DONE`
+- 当前实现会追加一条新的待复习 FSRS 卡片实例，作为下次长期复习入口
 
 ### `GET /api/cards/{cardId}/reviews`
 
@@ -398,6 +413,10 @@ Markdown 模板关键字段：
 - `reviewDueToday`
 - `pendingDueToday`
 - `reviewedToday`
+
+说明：
+
+- 单词线统计基于当前 `PENDING` 且 `dueAt` 已到期的运行时卡片
 
 ## 9. 知识点接口
 

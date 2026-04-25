@@ -17,12 +17,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,11 +38,13 @@ class CardReviewServiceTest {
     @Mock
     private ReviewLogRepository reviewLogRepository;
 
+    private final CardFsrsScheduler cardFsrsScheduler = new CardFsrsScheduler();
+
     private CardReviewService cardReviewService;
 
     @BeforeEach
     void setUp() {
-        cardReviewService = new CardReviewService(cardInstanceRepository, reviewLogRepository);
+        cardReviewService = new CardReviewService(cardInstanceRepository, reviewLogRepository, cardFsrsScheduler);
     }
 
     @Test
@@ -67,12 +72,22 @@ class CardReviewServiceTest {
         assertEquals("DONE", response.todayAction());
         assertEquals(false, response.weak());
         assertEquals("DONE", card.getStatus());
+        assertNotNull(card.getLastReviewedAt());
 
         ArgumentCaptor<ReviewLogEntity> logCaptor = ArgumentCaptor.forClass(ReviewLogEntity.class);
         verify(reviewLogRepository).save(logCaptor.capture());
         assertEquals("GOOD", logCaptor.getValue().getRating());
         assertEquals(2400L, logCaptor.getValue().getResponseTimeMs());
         assertEquals("recalled after one second", logCaptor.getValue().getNote());
+
+        ArgumentCaptor<CardInstanceEntity> cardCaptor = ArgumentCaptor.forClass(CardInstanceEntity.class);
+        verify(cardInstanceRepository, times(2)).save(cardCaptor.capture());
+        CardInstanceEntity nextCard = cardCaptor.getAllValues().get(1);
+        assertEquals("PENDING", nextCard.getStatus());
+        assertEquals("REVIEW", nextCard.getCardType());
+        assertEquals(1, nextCard.getReviewCount());
+        assertNotNull(nextCard.getFsrsCardJson());
+        assertNotNull(nextCard.getDueAt());
     }
 
     @Test
@@ -114,5 +129,12 @@ class CardReviewServiceTest {
         assertEquals("MOVE_TO_WEAK_ROUND", response.todayAction());
         assertEquals("AGAIN", card.getLastReviewRating());
         assertEquals(true, card.isWeakFlag());
+
+        ArgumentCaptor<CardInstanceEntity> cardCaptor = ArgumentCaptor.forClass(CardInstanceEntity.class);
+        verify(cardInstanceRepository, times(2)).save(cardCaptor.capture());
+        CardInstanceEntity nextCard = cardCaptor.getAllValues().get(1);
+        assertEquals("PENDING", nextCard.getStatus());
+        assertEquals(1, nextCard.getReviewCount());
+        assertNotNull(nextCard.getDueAt());
     }
 }

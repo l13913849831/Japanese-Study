@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -24,13 +25,16 @@ public class CardReviewService {
 
     private final CardInstanceRepository cardInstanceRepository;
     private final ReviewLogRepository reviewLogRepository;
+    private final CardFsrsScheduler cardFsrsScheduler;
 
     public CardReviewService(
             CardInstanceRepository cardInstanceRepository,
-            ReviewLogRepository reviewLogRepository
+            ReviewLogRepository reviewLogRepository,
+            CardFsrsScheduler cardFsrsScheduler
     ) {
         this.cardInstanceRepository = cardInstanceRepository;
         this.reviewLogRepository = reviewLogRepository;
+        this.cardFsrsScheduler = cardFsrsScheduler;
     }
 
     @Transactional
@@ -38,7 +42,18 @@ public class CardReviewService {
         CardInstanceEntity card = getCard(cardId);
         String rating = normalizeRating(request.rating());
         String note = normalizeNote(request.note());
-        OffsetDateTime reviewedAt = OffsetDateTime.now();
+        OffsetDateTime reviewedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        String currentFsrsCardJson = card.getFsrsCardJson();
+        int currentReviewCount = card.getFsrsCardJson() == null ? 0 : card.getReviewCount();
+        if (currentFsrsCardJson == null || currentFsrsCardJson.isBlank()) {
+            currentFsrsCardJson = cardFsrsScheduler.createInitialState().fsrsCardJson();
+        }
+        CardFsrsScheduler.ScheduledCardReview scheduled = cardFsrsScheduler.review(
+                currentFsrsCardJson,
+                rating,
+                currentReviewCount,
+                reviewedAt
+        );
 
         ReviewLogEntity saved = reviewLogRepository.save(ReviewLogEntity.create(
                 card.getId(),
@@ -49,8 +64,13 @@ public class CardReviewService {
         ));
 
         card.applyReviewResult(rating, request.sessionAgainCount(), reviewedAt);
-        card.markDone();
+        card.markDone(reviewedAt);
         cardInstanceRepository.save(card);
+        cardInstanceRepository.save(card.createNextReviewCard(
+                scheduled.fsrsCardJson(),
+                scheduled.reviewCount(),
+                scheduled.dueAt()
+        ));
 
         return ReviewCardResponse.from(
                 saved,
