@@ -1,0 +1,29 @@
+{
+  "id": "language-learning-product-enhancement-roadmap",
+  "name": "language-learning-product-enhancement-roadmap",
+  "title": "brainstorm: language learning product enhancement roadmap",
+  "description": "",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "rikka",
+  "assignee": "rikka",
+  "createdAt": "2026-04-25",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "04-25-language-learning-feature-gaps",
+    "04-25-migrate-word-review-scheduling-to-fsrs"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
