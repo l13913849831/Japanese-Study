@@ -65,6 +65,7 @@ function sortNotes(items: NoteReviewQueueItem[]) {
 }
 
 export function NoteReviewPage() {
+  const [searchForm] = Form.useForm<SearchFormValues>();
   const [search, setSearch] = useState<{ date: string }>({ date: dayjs().format("YYYY-MM-DD") });
   const [mainQueue, setMainQueue] = useState<SessionNoteRow[]>([]);
   const [weakQueue, setWeakQueue] = useState<SessionNoteRow[]>([]);
@@ -197,6 +198,10 @@ export function NoteReviewPage() {
 
   const latestReview = reviewLogsQuery.data?.[0];
 
+  useEffect(() => {
+    searchForm.setFieldsValue({ date: dayjs(search.date) });
+  }, [search.date, searchForm]);
+
   function handleSubmitReview(rating: NoteReviewRating) {
     if (!currentNote || !currentRow) {
       message.warning("No current knowledge point in this session.");
@@ -231,29 +236,9 @@ export function NoteReviewPage() {
     <div className="page-stack">
       <PageHeader
         title="Note Review Session"
-        description="Stay on one knowledge point at a time: recall from the title, reveal the content when needed, score it, then continue forward."
+        description="默认进入今天的知识点会话。先看标题回忆，需要时再展开内容，然后评分继续。"
         extra={<Tag color="purple">fsrs</Tag>}
       />
-
-      <PageSection title="Session Setup">
-        <Form<SearchFormValues>
-          layout="inline"
-          initialValues={{ date: dayjs(search.date) }}
-          onFinish={(values) => {
-            setCurrentRowKey(undefined);
-            setRevealed(false);
-            reviewForm.resetFields();
-            setSearch({ date: values.date?.format("YYYY-MM-DD") ?? dayjs().format("YYYY-MM-DD") });
-          }}
-        >
-          <Form.Item label="Date" name="date" rules={[{ required: true, message: "Select a date." }]}>
-            <DatePicker />
-          </Form.Item>
-          <Button type="primary" htmlType="submit">
-            Start Session
-          </Button>
-        </Form>
-      </PageSection>
 
       {todayReviewsQuery.isLoading ? (
         <StatusState mode="loading" />
@@ -261,127 +246,180 @@ export function NoteReviewPage() {
         <StatusState mode="error" description={(todayReviewsQuery.error as Error).message} />
       ) : (
         <>
-          <PageSection title="Session Progress">
-            <div className="dashboard-overview-grid">
-              <ReviewStat title="Queue Size" value={sessionSummary.totalCount} />
-              <ReviewStat title="Current Position" value={currentNote ? resolvedCurrentIndex + 1 : 0} suffix={sessionSummary.totalCount ? `/ ${sessionSummary.totalCount}` : ""} />
-              <ReviewStat title="Remaining" value={remainingCount} />
-              <ReviewStat title="Weak Round" value={pendingWeakCount} />
-              <ReviewStat title="Revealed" value={revealed ? 1 : 0} suffix={currentNote ? "/ 1" : ""} />
-            </div>
-            {sessionSummary.totalCount === 0 ? (
-              <Alert
-                style={{ marginTop: 16 }}
-                type={weakRoundStarted ? "success" : "info"}
-                showIcon
-                message={weakRoundStarted ? "薄弱轮已完成。" : "No note is due for the selected date."}
-                description={weakRoundStarted ? "今日主队列和薄弱轮都已完成。" : "Choose another date if you want to inspect a different queue."}
-              />
-            ) : shouldPromptWeakRound ? (
-              <Alert
-                style={{ marginTop: 16 }}
-                type="success"
-                showIcon
-                message="主队列已完成。"
-                description={
-                  <Space wrap>
-                    <Typography.Text>还有 {weakQueue.length} 个薄弱知识点可再练一轮。</Typography.Text>
-                    <Button type="primary" size="small" onClick={() => setWeakRoundStarted(true)}>
-                      开始薄弱轮
-                    </Button>
-                    <Button size="small" onClick={() => setWeakRoundSkipped(true)}>
-                      稍后再说
-                    </Button>
-                  </Space>
-                }
-              />
-            ) : sessionSummary.pendingCount === 0 ? (
-              <Alert
-                style={{ marginTop: 16 }}
-                type="success"
-                showIcon
-                message="Current queue is complete."
-                description="All knowledge points in the current queue have been reviewed."
-              />
-            ) : (
-              <Alert
-                style={{ marginTop: 16 }}
-                type="info"
-                showIcon
-                message="Current flow"
-                description={
-                  weakRoundStarted
-                    ? "现在是薄弱轮。优先把刚才没稳住的知识点再过一遍。"
-                    : "Look at the title first, try to recall actively, reveal the content only when needed, then score and move on."
-                }
-              />
-            )}
-          </PageSection>
-
-          <PageSection title="Current Note">
-            {!currentNote ? (
-              <StatusState mode="empty" description="No current knowledge point is available for this session." />
-            ) : (
-              <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Space wrap>
-                  <Tag color={currentRow?.mode === "WEAK" ? "volcano" : currentRow?.mode === "RECOVERY" ? "cyan" : "blue"}>
-                    {currentRow?.mode}
-                  </Tag>
-                  <Tag color="blue">{NOTE_MASTERY_LABELS[currentNote.masteryStatus]}</Tag>
-                  <Tag>{`Review ${currentNote.reviewCount}`}</Tag>
-                  <Tag>{dayjs(currentNote.dueAt).format("YYYY-MM-DD HH:mm")}</Tag>
-                </Space>
-
-                <Typography.Title level={3} style={{ margin: 0 }}>
-                  {currentNote.title}
-                </Typography.Title>
-                <Typography.Text type="secondary">
-                  {currentNote.tags.length ? currentNote.tags.join(", ") : "No tags"}
-                </Typography.Text>
-
-                {!revealed ? (
-                  <Button type="primary" onClick={() => setRevealed(true)}>
-                    显示内容
-                  </Button>
+          <div className="session-focus-layout">
+            <div className="session-focus-main">
+              <PageSection title="Current Note">
+                {!currentNote ? (
+                  <StatusState mode="empty" description="今天没有可继续的知识点，或者这轮会话已经走完。"/>
                 ) : (
-                  <Typography.Paragraph style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
-                    {currentNote.content}
-                  </Typography.Paragraph>
+                  <div className="session-primary-stack">
+                    <div className="dashboard-overview-grid">
+                      <ReviewStat title="Current" value={currentNote ? resolvedCurrentIndex + 1 : 0} suffix={sessionSummary.totalCount ? `/ ${sessionSummary.totalCount}` : ""} />
+                      <ReviewStat title="Remaining" value={remainingCount} />
+                      <ReviewStat title="Weak Round" value={pendingWeakCount} />
+                      <ReviewStat title="Revealed" value={revealed ? 1 : 0} suffix={currentNote ? "/ 1" : ""} />
+                    </div>
+
+                    <div className="session-meta-stack">
+                      <Space wrap>
+                        <Tag color={currentRow?.mode === "WEAK" ? "volcano" : currentRow?.mode === "RECOVERY" ? "cyan" : "blue"}>
+                          {currentRow?.mode}
+                        </Tag>
+                        <Tag color="blue">{NOTE_MASTERY_LABELS[currentNote.masteryStatus]}</Tag>
+                        <Tag>{`Review ${currentNote.reviewCount}`}</Tag>
+                        <Tag>{dayjs(currentNote.dueAt).format("YYYY-MM-DD HH:mm")}</Tag>
+                      </Space>
+
+                      <div>
+                        <Typography.Title level={2} style={{ margin: 0 }}>
+                          {currentNote.title}
+                        </Typography.Title>
+                        <Typography.Text type="secondary">
+                          {currentNote.tags.length ? currentNote.tags.join(", ") : "No tags"}
+                        </Typography.Text>
+                      </div>
+
+                      {!revealed ? (
+                        <Button type="primary" onClick={() => setRevealed(true)}>
+                          显示内容
+                        </Button>
+                      ) : (
+                        <Typography.Paragraph style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
+                          {currentNote.content}
+                        </Typography.Paragraph>
+                      )}
+                    </div>
+
+                    <div className="session-action-row">
+                      <Button onClick={() => moveCurrentNote(-1)} disabled={resolvedCurrentIndex <= 0}>
+                        Previous
+                      </Button>
+                      <Button onClick={() => moveCurrentNote(1)} disabled={resolvedCurrentIndex >= activeQueue.length - 1}>
+                        Next
+                      </Button>
+                    </div>
+
+                    <Form<ReviewFormValues> form={reviewForm} layout="vertical">
+                      <Form.Item label="Response Time (ms)" name="responseTimeMs">
+                        <InputNumber min={0} style={{ width: "100%" }} placeholder="3200" />
+                      </Form.Item>
+                      <Form.Item label="Review Note" name="note">
+                        <Input.TextArea rows={3} placeholder="Optional reflection for this review" />
+                      </Form.Item>
+                    </Form>
+
+                    <Space wrap>
+                      {REVIEW_ACTIONS.map((action) => (
+                        <Button
+                          key={action.rating}
+                          type={action.type ?? "default"}
+                          loading={reviewMutation.isPending}
+                          onClick={() => handleSubmitReview(action.rating)}
+                        >
+                          {action.label}
+                        </Button>
+                      ))}
+                    </Space>
+                  </div>
                 )}
+              </PageSection>
 
-                <Space wrap>
-                  <Button onClick={() => moveCurrentNote(-1)} disabled={resolvedCurrentIndex <= 0}>
-                    Previous
-                  </Button>
-                  <Button onClick={() => moveCurrentNote(1)} disabled={resolvedCurrentIndex >= activeQueue.length - 1}>
-                    Next
-                  </Button>
-                </Space>
+              <PageSection title="Review History">
+                {!currentNote ? (
+                  <StatusState mode="empty" description="No current knowledge point selected." />
+                ) : reviewLogsQuery.isLoading ? (
+                  <StatusState mode="loading" />
+                ) : reviewLogsQuery.isError ? (
+                  <StatusState mode="error" description={(reviewLogsQuery.error as Error).message} />
+                ) : (
+                  <Table<NoteReviewLogItem>
+                    rowKey="id"
+                    size="small"
+                    pagination={false}
+                    dataSource={reviewLogsQuery.data ?? []}
+                    columns={[
+                      {
+                        title: "Reviewed At",
+                        dataIndex: "reviewedAt",
+                        render: (value: string) => dayjs(value).format("YYYY-MM-DD HH:mm:ss")
+                      },
+                      { title: "Rating", dataIndex: "rating", width: 100 },
+                      {
+                        title: "Response Time",
+                        dataIndex: "responseTimeMs",
+                        render: (value?: number) => (value === undefined ? "-" : `${value} ms`)
+                      },
+                      {
+                        title: "Note",
+                        dataIndex: "note",
+                        render: (value?: string) => value || "-"
+                      }
+                    ]}
+                    locale={{
+                      emptyText: "No review history for the current note."
+                    }}
+                  />
+                )}
+              </PageSection>
+            </div>
 
-                <Form<ReviewFormValues> form={reviewForm} layout="vertical">
-                  <Form.Item label="Response Time (ms)" name="responseTimeMs">
-                    <InputNumber min={0} style={{ width: "100%" }} placeholder="3200" />
-                  </Form.Item>
-                  <Form.Item label="Review Note" name="note">
-                    <Input.TextArea rows={3} placeholder="Optional reflection for this review" />
-                  </Form.Item>
-                </Form>
-
-                <Space wrap>
-                  {REVIEW_ACTIONS.map((action) => (
-                    <Button
-                      key={action.rating}
-                      type={action.type ?? "default"}
-                      loading={reviewMutation.isPending}
-                      onClick={() => handleSubmitReview(action.rating)}
-                    >
-                      {action.label}
-                    </Button>
-                  ))}
-                </Space>
+            <div className="session-focus-side">
+              <PageSection title="Session Progress">
+                <div className="dashboard-overview-grid">
+                  <ReviewStat title="Queue Size" value={sessionSummary.totalCount} />
+                  <ReviewStat title="Pending" value={sessionSummary.pendingCount} />
+                </div>
+                {sessionSummary.totalCount === 0 ? (
+                  <Alert
+                    style={{ marginTop: 16 }}
+                    type={weakRoundStarted ? "success" : "info"}
+                    showIcon
+                    message={weakRoundStarted ? "薄弱轮已完成。" : "今天没有待复习知识点。"}
+                    description={weakRoundStarted ? "今日主队列和薄弱轮都已完成。" : "可以换个日期，或者回工作台继续别的学习线。"}
+                  />
+                ) : shouldPromptWeakRound ? (
+                  <Alert
+                    style={{ marginTop: 16 }}
+                    type="success"
+                    showIcon
+                    message="主队列已完成。"
+                    description={
+                      <Space wrap>
+                        <Typography.Text>还有 {weakQueue.length} 个薄弱知识点可再练一轮。</Typography.Text>
+                        <Button type="primary" size="small" onClick={() => setWeakRoundStarted(true)}>
+                          开始薄弱轮
+                        </Button>
+                        <Button size="small" onClick={() => setWeakRoundSkipped(true)}>
+                          稍后再说
+                        </Button>
+                      </Space>
+                    }
+                  />
+                ) : sessionSummary.pendingCount === 0 ? (
+                  <Alert
+                    style={{ marginTop: 16 }}
+                    type="success"
+                    showIcon
+                    message="这轮会话已完成。"
+                    description="当前队列里的知识点都已经评完分。"
+                  />
+                ) : (
+                  <Alert
+                    style={{ marginTop: 16 }}
+                    type="info"
+                    showIcon
+                    message={weakRoundStarted ? "正在进行薄弱轮。" : "当前流程"}
+                    description={
+                      weakRoundStarted
+                        ? "先把刚才没稳住的知识点再过一遍。"
+                        : "先看标题回忆，需要时再展开内容，评分后系统会自动推进。"
+                    }
+                  />
+                )}
 
                 {latestReview ? (
                   <Alert
+                    style={{ marginTop: 16 }}
                     type="success"
                     showIcon
                     message={`Latest review: ${latestReview.rating}`}
@@ -393,14 +431,32 @@ export function NoteReviewPage() {
                       .filter(Boolean)
                       .join(" | ")}
                   />
-                ) : (
-                  <Typography.Text type="secondary">No review history for the current note yet.</Typography.Text>
-                )}
-              </Space>
-            )}
-          </PageSection>
+                ) : null}
+              </PageSection>
 
-          <PageSection title="Queue">
+              <PageSection title="Session Controls">
+                <Form<SearchFormValues>
+                  form={searchForm}
+                  layout="vertical"
+                  onFinish={(values) => {
+                    setCurrentRowKey(undefined);
+                    setRevealed(false);
+                    reviewForm.resetFields();
+                    setSearch({ date: values.date?.format("YYYY-MM-DD") ?? dayjs().format("YYYY-MM-DD") });
+                  }}
+                >
+                  <Form.Item label="Date" name="date" rules={[{ required: true, message: "Select a date." }]}>
+                    <DatePicker style={{ width: "100%" }} />
+                  </Form.Item>
+                  <Button type="primary" htmlType="submit" block>
+                    Reload Session
+                  </Button>
+                </Form>
+              </PageSection>
+            </div>
+          </div>
+
+          <PageSection title="Session Queue">
             <Table<SessionNoteTableRow>
               rowKey="rowKey"
               size="small"
@@ -452,44 +508,6 @@ export function NoteReviewPage() {
                 emptyText: "No knowledge point is due for this queue."
               }}
             />
-          </PageSection>
-
-          <PageSection title="Review History">
-            {!currentNote ? (
-              <StatusState mode="empty" description="No current knowledge point selected." />
-            ) : reviewLogsQuery.isLoading ? (
-              <StatusState mode="loading" />
-            ) : reviewLogsQuery.isError ? (
-              <StatusState mode="error" description={(reviewLogsQuery.error as Error).message} />
-            ) : (
-              <Table<NoteReviewLogItem>
-                rowKey="id"
-                size="small"
-                pagination={false}
-                dataSource={reviewLogsQuery.data ?? []}
-                columns={[
-                  {
-                    title: "Reviewed At",
-                    dataIndex: "reviewedAt",
-                    render: (value: string) => dayjs(value).format("YYYY-MM-DD HH:mm:ss")
-                  },
-                  { title: "Rating", dataIndex: "rating", width: 100 },
-                  {
-                    title: "Response Time",
-                    dataIndex: "responseTimeMs",
-                    render: (value?: number) => (value === undefined ? "-" : `${value} ms`)
-                  },
-                  {
-                    title: "Note",
-                    dataIndex: "note",
-                    render: (value?: string) => value || "-"
-                  }
-                ]}
-                locale={{
-                  emptyText: "No review history for the current note."
-                }}
-              />
-            )}
           </PageSection>
         </>
       )}

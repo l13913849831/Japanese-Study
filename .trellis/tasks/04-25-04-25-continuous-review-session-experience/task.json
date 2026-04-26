@@ -1,17 +1,17 @@
 {
   "id": "04-25-continuous-review-session-experience",
   "name": "04-25-continuous-review-session-experience",
-  "title": "brainstorm: continuous review session experience",
+  "title": "implement: continuous review session experience",
   "description": "收紧单词与知识点复习主路径，把当前后台式复习页改成连续复习会话体验。",
-  "status": "planning",
-  "dev_type": null,
+  "status": "completed",
+  "dev_type": "frontend",
   "scope": null,
   "package": null,
   "priority": "P2",
   "creator": "rikka",
   "assignee": "rikka",
   "createdAt": "2026-04-25",
-  "completedAt": null,
+  "completedAt": "2026-04-26",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -20,7 +20,14 @@
   "subtasks": [],
   "children": [],
   "parent": "04-25-language-learning-product-enhancement-roadmap",
-  "relatedFiles": [],
-  "notes": "下次先从 TodayCardsPage 的布局收紧开始，目标是默认直达今天会话。",
+  "relatedFiles": [
+    "frontend/src/features/cards/TodayCardsPage.tsx",
+    "frontend/src/features/notes/NoteReviewPage.tsx",
+    "frontend/src/features/dashboard/StudyDashboardPage.tsx",
+    "frontend/src/styles.css",
+    ".trellis/spec/frontend/current-feature-workflows.md",
+    "docs/system-usage-guide.md"
+  ],
+  "notes": "默认直达今天会话，收紧了 /cards 与 /notes/review 的主区层级，并同步更新工作台入口文案与前端契约文档。",
   "meta": {}
 }

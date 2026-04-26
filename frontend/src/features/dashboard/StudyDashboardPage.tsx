@@ -105,15 +105,15 @@ export function StudyDashboardPage() {
     <div className="page-stack">
       <PageHeader
         title="Today Workbench"
-        description="See today's workload across word study and note review, then jump straight into the next action."
+        description="先看今天还剩什么，再直接接上当前学习会话。"
         extra={
           <Space wrap>
             <DatePicker value={selectedDate} onChange={(value) => value && setSelectedDate(value)} />
             <Button onClick={() => setSelectedDate(dayjs())}>Today</Button>
             <Button type="primary" onClick={startWordReview} disabled={!primaryPlan}>
-              Start Word Review
+              Continue Word Review
             </Button>
-            <Button onClick={() => navigate("/notes/review")}>Start Note Review</Button>
+            <Button onClick={() => navigate("/notes/review")}>Continue Note Review</Button>
             <Tag color="gold">workbench</Tag>
           </Space>
         }
@@ -183,7 +183,7 @@ export function StudyDashboardPage() {
                   </Row>
                   <Space wrap>
                     <Button type="primary" onClick={startWordReview} disabled={!primaryPlan}>
-                      Start Word Review
+                      Continue Word Review
                     </Button>
                     <Button onClick={() => navigate("/study-plans")}>Open Plans</Button>
                     <Button onClick={() => navigate("/word-sets")}>Open Word Sets</Button>
@@ -209,7 +209,7 @@ export function StudyDashboardPage() {
                   </Row>
                   <Space wrap>
                     <Button type="primary" onClick={() => navigate("/notes/review")}>
-                      Start Note Review
+                      Continue Note Review
                     </Button>
                     <Button onClick={() => navigate("/notes")}>Open Notes</Button>
                     <Button onClick={() => navigate("/notes/dashboard")}>Open Note Dashboard</Button>

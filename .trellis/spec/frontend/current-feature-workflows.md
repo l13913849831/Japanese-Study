@@ -133,11 +133,12 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 - Study-plan page refreshes shared plan data after create, update, or lifecycle action.
 - Template selectors reuse the same template list query keys as the template page.
-- `/cards` starts from plan/date selection, then stays in a focused review-session layout instead of a table-first management flow.
+- `/cards` defaults to the remembered active plan when one exists; if that plan is gone, it falls back to the first available active plan, then the first available plan.
+- `/cards` opens with the current card as the visual primary area; plan/date controls and queue details stay available, but as secondary session controls.
 - The current card resolves from the first pending item by default, but the queue still allows manual jumps without leaving the page.
 - Review submission invalidates the current today-card query and current history, then advances the session to the next pending card when one exists.
 - Word-study aggregates still come from the study dashboard API, but the learner-facing `/dashboard` page now combines them with note-review aggregates into one workbench.
-- The workbench keeps direct jump actions into `/cards` with the relevant plan context.
+- The workbench keeps direct jump actions into `/cards` with the relevant plan context and frames them as continuing today's session instead of opening a setup page.
 - Word-study sections inside the workbench still show:
   - overview stats
   - active plan summary cards
@@ -146,7 +147,7 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 ### Tests Required
 
 - study-plan form validation and lifecycle-action coverage
-- today-card fetch, current-card resolution, and review-submit invalidation coverage
+- today-card fetch, default-plan fallback, current-card resolution, and review-submit invalidation coverage
 - workbench empty/loading/error state coverage
 - dashboard navigation jump coverage
 
@@ -229,6 +230,7 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
   - note-review quick start
   - deep links into plans, word sets, notes, and note dashboard
 - Word review entry should reuse `currentPlanId` when the user jumps from the workbench into `/cards`.
+- Quick-start labels should make it clear that the user is continuing today's review session.
 
 ### Tests Required
 
@@ -282,6 +284,7 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
   - second `AGAIN` appends one `WEAK` row to the weak round
   - after the main queue ends, the page prompts whether to enter the weak round
 - Review submission sends `sessionAgainCount` so the backend can decide whether to mark the item `WEAK`.
+- Both `/cards` and `/notes/review` keep their setup controls and compact queue visible as supporting tools, but the current item remains the visual primary area.
 - `/weak-items` shows:
   - summary cards
   - `易错词` tab
@@ -379,6 +382,7 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 - Upload always opens preview first; preview rows can be edited or removed before apply.
 - Common tags prefill each preview item and remain editable per row on the page side.
 - `/notes/review` uses the same focused session shape as `/cards`: one current item, one compact queue, one history area.
+- `/notes/review` defaults straight into today's queue for the selected date instead of making the user start from a setup-first layout.
 - `/notes/review` starts with title recall, then reveals content on demand, then submits one of the four ratings.
 - Queue clicks can switch the current note, but scoring should keep the main path moving forward instead of returning to a table-driven workflow.
 - Review submit invalidates note list, dashboard, queue, and selected history data.

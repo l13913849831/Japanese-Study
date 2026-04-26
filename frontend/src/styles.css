@@ -53,12 +53,47 @@ a {
   gap: 16px;
 }
 
+.session-focus-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.session-focus-main,
+.session-focus-side {
+  display: grid;
+  gap: 16px;
+}
+
+.session-primary-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.session-meta-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.session-action-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .note-preview-table textarea {
   resize: vertical;
 }
 
 .review-session-row-active > td {
   background: rgba(140, 93, 32, 0.08) !important;
+}
+
+@media (max-width: 960px) {
+  .session-focus-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
