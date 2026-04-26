@@ -210,3 +210,36 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: 连续复习会话体验收尾
+
+**Date**: 2026-04-26
+**Task**: 连续复习会话体验收尾
+**Branch**: `main`
+
+### Summary
+
+完成 /cards 与 /notes/review 连续会话收紧，归档任务并同步文档契约。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7e7d0c0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
