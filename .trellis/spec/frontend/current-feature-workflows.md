@@ -133,11 +133,15 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 - Study-plan page refreshes shared plan data after create, update, or lifecycle action.
 - Template selectors reuse the same template list query keys as the template page.
-- `/cards` starts from plan/date selection, then stays in a focused review-session layout instead of a table-first management flow.
+- `/cards` should auto-resolve into the current session when possible:
+  - reuse `currentPlanId` first when it still points to an existing plan
+  - otherwise fall back to the first active plan
+  - only show the no-plan empty state when no current plan and no active plan are available
+- `/cards` keeps the plan/date form as a compact helper rail instead of the primary entry step.
 - The current card resolves from the first pending item by default, but the queue still allows manual jumps without leaving the page.
 - Review submission invalidates the current today-card query and current history, then advances the session to the next pending card when one exists.
 - Word-study aggregates still come from the study dashboard API, but the learner-facing `/dashboard` page now combines them with note-review aggregates into one workbench.
-- The workbench keeps direct jump actions into `/cards` with the relevant plan context.
+- The workbench keeps direct jump actions into `/cards` with the relevant `planId` and `date` in the URL search params.
 - Word-study sections inside the workbench still show:
   - overview stats
   - active plan summary cards
@@ -228,7 +232,8 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
   - word-study quick start
   - note-review quick start
   - deep links into plans, word sets, notes, and note dashboard
-- Word review entry should reuse `currentPlanId` when the user jumps from the workbench into `/cards`.
+- Word review entry should reuse `currentPlanId` and carry the selected workbench date when the user jumps into `/cards`.
+- Note review quick start should carry the selected workbench date into `/notes/review`.
 
 ### Tests Required
 
@@ -378,7 +383,7 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 - `/notes` owns both manual CRUD and Markdown preview-first import.
 - Upload always opens preview first; preview rows can be edited or removed before apply.
 - Common tags prefill each preview item and remain editable per row on the page side.
-- `/notes/review` uses the same focused session shape as `/cards`: one current item, one compact queue, one history area.
+- `/notes/review` uses the same focused session shape as `/cards`: one current item, one compact queue helper area, one history area, and one side rail for session controls.
 - `/notes/review` starts with title recall, then reveals content on demand, then submits one of the four ratings.
 - Queue clicks can switch the current note, but scoring should keep the main path moving forward instead of returning to a table-driven workflow.
 - Review submit invalidates note list, dashboard, queue, and selected history data.

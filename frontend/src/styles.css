@@ -53,6 +53,58 @@ a {
   gap: 16px;
 }
 
+.review-session-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.review-session-main,
+.review-session-side,
+.review-session-support-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.review-session-support-grid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.review-session-focus {
+  display: grid;
+  gap: 18px;
+}
+
+.review-session-copy,
+.review-session-answer,
+.review-session-side-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.review-session-answer {
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(140, 93, 32, 0.08);
+}
+
+.review-session-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.review-session-rating-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.review-session-rating-grid .ant-btn {
+  min-height: 48px;
+}
+
 .note-preview-table textarea {
   resize: vertical;
 }
@@ -64,5 +116,9 @@ a {
 @media (max-width: 768px) {
   .app-content {
     padding: 16px;
+  }
+
+  .review-session-layout {
+    grid-template-columns: 1fr;
   }
 }

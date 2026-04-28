@@ -210,3 +210,34 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: 连续复习会话体验改造
+
+**Date**: 2026-04-28
+**Task**: 连续复习会话体验改造
+**Branch**: `main`
+
+### Summary
+
+完成 /cards 与 /notes/review 的连续会话布局改造；/dashboard 入口会透传日期与计划上下文；同步更新前端 spec 与使用文档。frontend npm run build 已通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
