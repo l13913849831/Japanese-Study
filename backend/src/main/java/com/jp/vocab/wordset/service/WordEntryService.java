@@ -14,8 +14,8 @@ import com.jp.vocab.wordset.dto.WordEntryImportPreviewRow;
 import com.jp.vocab.wordset.dto.WordEntryImportResponse;
 import com.jp.vocab.wordset.dto.WordEntryResponse;
 import com.jp.vocab.wordset.entity.WordEntryEntity;
+import com.jp.vocab.wordset.entity.WordSetEntity;
 import com.jp.vocab.wordset.repository.WordEntryRepository;
-import com.jp.vocab.wordset.repository.WordSetRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,18 +34,18 @@ import java.util.stream.Collectors;
 public class WordEntryService {
 
     private final WordEntryRepository wordEntryRepository;
-    private final WordSetRepository wordSetRepository;
+    private final WordSetAccessService wordSetAccessService;
     private final SimpleCsvParser csvParser;
     private final AnkiApkgImportService ankiApkgImportService;
 
     public WordEntryService(
             WordEntryRepository wordEntryRepository,
-            WordSetRepository wordSetRepository,
+            WordSetAccessService wordSetAccessService,
             SimpleCsvParser csvParser,
             AnkiApkgImportService ankiApkgImportService
     ) {
         this.wordEntryRepository = wordEntryRepository;
-        this.wordSetRepository = wordSetRepository;
+        this.wordSetAccessService = wordSetAccessService;
         this.csvParser = csvParser;
         this.ankiApkgImportService = ankiApkgImportService;
     }
@@ -59,7 +59,7 @@ public class WordEntryService {
             String level,
             String tag
     ) {
-        ensureWordSetExists(wordSetId);
+        wordSetAccessService.getAccessibleWordSet(wordSetId);
         List<WordEntryResponse> filteredEntries = wordEntryRepository.findByWordSetIdOrderBySourceOrderAsc(wordSetId)
                 .stream()
                 .filter(entry -> matchesKeyword(entry, keyword))
@@ -85,19 +85,19 @@ public class WordEntryService {
 
     @Transactional
     public WordEntryResponse create(Long wordSetId, SaveWordEntryRequest request) {
-        ensureWordSetExists(wordSetId);
+        WordSetEntity wordSet = wordSetAccessService.getEditableWordSet(wordSetId);
 
         SanitizedWordEntry sanitized = sanitize(request);
-        ensureNoDuplicate(wordSetId, sanitized.expression(), sanitized.reading(), null);
+        ensureNoDuplicate(wordSet.getId(), sanitized.expression(), sanitized.reading(), null);
 
-        int nextSourceOrder = wordEntryRepository.findByWordSetIdOrderBySourceOrderAsc(wordSetId)
+        int nextSourceOrder = wordEntryRepository.findByWordSetIdOrderBySourceOrderAsc(wordSet.getId())
                 .stream()
                 .map(WordEntryEntity::getSourceOrder)
                 .max(Integer::compareTo)
                 .orElse(0) + 1;
 
         WordEntryEntity saved = wordEntryRepository.save(WordEntryEntity.create(
-                wordSetId,
+                wordSet.getId(),
                 sanitized.expression(),
                 sanitized.reading(),
                 sanitized.meaning(),
@@ -114,6 +114,7 @@ public class WordEntryService {
     @Transactional
     public WordEntryResponse update(Long wordId, SaveWordEntryRequest request) {
         WordEntryEntity entity = getEntity(wordId);
+        wordSetAccessService.getEditableWordSet(entity.getWordSetId());
         SanitizedWordEntry sanitized = sanitize(request);
         ensureNoDuplicate(entity.getWordSetId(), sanitized.expression(), sanitized.reading(), entity.getId());
 
@@ -134,27 +135,28 @@ public class WordEntryService {
     @Transactional
     public DeleteWordEntryResponse delete(Long wordId) {
         WordEntryEntity entity = getEntity(wordId);
+        wordSetAccessService.getEditableWordSet(entity.getWordSetId());
         wordEntryRepository.delete(entity);
         return new DeleteWordEntryResponse(true);
     }
 
     @Transactional
     public WordEntryImportResponse importEntries(Long wordSetId, MultipartFile file) {
-        ensureWordSetExists(wordSetId);
+        WordSetEntity wordSet = wordSetAccessService.getEditableWordSet(wordSetId);
         validateUpload(file);
 
         ParsedImportPayload payload = parseUpload(file);
-        ImportAnalysis analysis = analyzeRows(wordSetId, payload.rows());
-        return persistRows(wordSetId, analysis);
+        ImportAnalysis analysis = analyzeRows(wordSet.getId(), payload.rows());
+        return persistRows(wordSet.getId(), analysis);
     }
 
     @Transactional(readOnly = true)
     public WordEntryImportPreviewResponse previewImport(Long wordSetId, MultipartFile file) {
-        ensureWordSetExists(wordSetId);
+        WordSetEntity wordSet = wordSetAccessService.getEditableWordSet(wordSetId);
         validateUpload(file);
 
         ParsedImportPayload payload = parseUpload(file);
-        ImportAnalysis analysis = analyzeRows(wordSetId, payload.rows());
+        ImportAnalysis analysis = analyzeRows(wordSet.getId(), payload.rows());
 
         return new WordEntryImportPreviewResponse(
                 payload.sourceType(),
@@ -335,12 +337,6 @@ public class WordEntryService {
 
         wordEntryRepository.saveAll(toSave);
         return new WordEntryImportResponse(toSave.size(), analysis.duplicateCount(), errors);
-    }
-
-    private void ensureWordSetExists(Long wordSetId) {
-        if (!wordSetRepository.existsById(wordSetId)) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "Word set not found: " + wordSetId);
-        }
     }
 
     private WordEntryEntity getEntity(Long wordId) {

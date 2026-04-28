@@ -22,6 +22,12 @@ public class MarkdownTemplateEntity extends AuditableEntity {
     @Column(name = "description", length = 512)
     private String description;
 
+    @Column(name = "scope", nullable = false, length = 32)
+    private String scope;
+
+    @Column(name = "owner_user_id")
+    private Long ownerUserId;
+
     @Column(name = "template_content", nullable = false)
     private String templateContent;
 
@@ -31,11 +37,15 @@ public class MarkdownTemplateEntity extends AuditableEntity {
     public static MarkdownTemplateEntity create(
             String name,
             String description,
+            String scope,
+            Long ownerUserId,
             String templateContent
     ) {
         MarkdownTemplateEntity entity = new MarkdownTemplateEntity();
         entity.name = name;
         entity.description = description;
+        entity.scope = scope;
+        entity.ownerUserId = ownerUserId;
         entity.templateContent = templateContent;
         return entity;
     }
@@ -60,6 +70,14 @@ public class MarkdownTemplateEntity extends AuditableEntity {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
     }
 
     public String getTemplateContent() {

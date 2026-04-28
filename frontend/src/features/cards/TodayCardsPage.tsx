@@ -3,6 +3,7 @@ import { Alert, App, Button, DatePicker, Form, Input, InputNumber, Select, Space
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getCardReviews,
   getTodayCards,
@@ -43,6 +44,8 @@ type SessionCardTableRow = TodayCard & {
   queueMode: SessionRowMode;
 };
 
+const SESSION_DATE_FORMAT = "YYYY-MM-DD";
+
 const reviewRatings: Array<{ rating: ReviewRating; label: string; type?: "primary" | "default" }> = [
   { rating: "AGAIN", label: "AGAIN" },
   { rating: "HARD", label: "HARD" },
@@ -66,29 +69,42 @@ function buildPlanLabel(plan: StudyPlan) {
   return `${plan.name} (${plan.status})`;
 }
 
-function resolvePreferredPlanId(plans: StudyPlan[], currentPlanId?: number, selectedPlanId?: number) {
-  if (!plans.length) {
+function parsePlanId(value: string | null) {
+  if (!value) {
     return undefined;
   }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
 
-  const candidateIds = [selectedPlanId, currentPlanId];
-  for (const candidateId of candidateIds) {
-    if (candidateId !== undefined && plans.some((plan) => plan.id === candidateId)) {
-      return candidateId;
-    }
+function normalizeDate(value: string | null | undefined) {
+  if (!value) {
+    return dayjs().format(SESSION_DATE_FORMAT);
   }
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format(SESSION_DATE_FORMAT) : dayjs().format(SESSION_DATE_FORMAT);
+}
 
-  return plans[0]?.id;
+function buildSearchParams(planId: number | undefined, date: string) {
+  const params = new URLSearchParams();
+  if (planId) {
+    params.set("planId", String(planId));
+  }
+  params.set("date", date);
+  return params;
 }
 
 export function TodayCardsPage() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const currentPlanId = useUiStore((state) => state.currentPlanId);
   const setCurrentPlanId = useUiStore((state) => state.setCurrentPlanId);
   const [searchForm] = Form.useForm<SearchFormValues>();
-  const [search, setSearch] = useState<{ planId?: number; date: string }>({
-    planId: currentPlanId,
-    date: dayjs().format("YYYY-MM-DD")
-  });
+  const [reviewForm] = Form.useForm<ReviewFormValues>();
+  const [search, setSearch] = useState<{ planId?: number; date: string }>(() => ({
+    planId: parsePlanId(searchParams.get("planId")) ?? currentPlanId,
+    date: normalizeDate(searchParams.get("date"))
+  }));
   const [mainQueue, setMainQueue] = useState<SessionCardRow[]>([]);
   const [weakQueue, setWeakQueue] = useState<SessionCardRow[]>([]);
   const [completedRowKeys, setCompletedRowKeys] = useState<string[]>([]);
@@ -96,7 +112,6 @@ export function TodayCardsPage() {
   const [weakRoundStarted, setWeakRoundStarted] = useState(false);
   const [weakRoundSkipped, setWeakRoundSkipped] = useState(false);
   const [currentRowKey, setCurrentRowKey] = useState<string>();
-  const [reviewForm] = Form.useForm<ReviewFormValues>();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
@@ -105,7 +120,42 @@ export function TodayCardsPage() {
     queryFn: listStudyPlans
   });
 
+  const allPlans = studyPlansQuery.data?.items ?? [];
+  const activePlans = allPlans.filter((plan) => plan.status === "ACTIVE");
+  const currentStoredPlan = currentPlanId ? allPlans.find((plan) => plan.id === currentPlanId) : undefined;
+  const selectedPlan = search.planId ? allPlans.find((plan) => plan.id === search.planId) : undefined;
+  const autoPlanId = currentStoredPlan?.id ?? activePlans[0]?.id;
+  const canAutoStart = Boolean(selectedPlan || autoPlanId);
   const enabled = Boolean(search.planId && search.date);
+
+  useEffect(() => {
+    if (selectedPlan || studyPlansQuery.isLoading) {
+      return;
+    }
+    if (!autoPlanId) {
+      if (search.planId !== undefined) {
+        setSearch((previous) => ({ ...previous, planId: undefined }));
+      }
+      return;
+    }
+    setCurrentPlanId(autoPlanId);
+    setSearch((previous) => (previous.planId === autoPlanId ? previous : { ...previous, planId: autoPlanId }));
+  }, [autoPlanId, search.planId, selectedPlan, setCurrentPlanId, studyPlansQuery.isLoading]);
+
+  useEffect(() => {
+    searchForm.setFieldsValue({
+      planId: search.planId,
+      date: dayjs(search.date)
+    });
+  }, [search.date, search.planId, searchForm]);
+
+  useEffect(() => {
+    const nextParams = buildSearchParams(search.planId, search.date).toString();
+    if (nextParams !== searchParams.toString()) {
+      setSearchParams(buildSearchParams(search.planId, search.date), { replace: true });
+    }
+  }, [search.date, search.planId, searchParams, setSearchParams]);
+
   const cardsQuery = useQuery({
     queryKey: ["todayCards", search.planId, search.date],
     queryFn: () => getTodayCards(search.planId!, search.date),
@@ -117,6 +167,17 @@ export function TodayCardsPage() {
   const cardById = useMemo(() => new Map(orderedCards.map((card) => [card.id, card])), [orderedCards]);
   const completedRowKeySet = useMemo(() => new Set(completedRowKeys), [completedRowKeys]);
   const activeQueue = weakRoundStarted ? weakQueue : mainQueue;
+  const queueRows = useMemo(
+    () =>
+      activeQueue
+        .map((item) => ({
+          ...cardById.get(item.cardId),
+          rowKey: item.rowKey,
+          queueMode: item.mode
+        }))
+        .filter((item): item is SessionCardTableRow => Boolean(item?.id)),
+    [activeQueue, cardById]
+  );
   const pendingWeakCount = weakQueue.filter((item) => !completedRowKeySet.has(item.rowKey)).length;
   const sessionSummary = useMemo(
     () => buildReviewSessionSummary(activeQueue, (item) => !completedRowKeySet.has(item.rowKey)),
@@ -183,27 +244,27 @@ export function TodayCardsPage() {
       nextAgainCount: number;
     }) => submitCardReview(cardId, payload),
     onSuccess: async (result, variables) => {
-      setCompletedRowKeys((prev) => (prev.includes(variables.queueRowKey) ? prev : [...prev, variables.queueRowKey]));
+      setCompletedRowKeys((previous) => (previous.includes(variables.queueRowKey) ? previous : [...previous, variables.queueRowKey]));
       if (result.rating === "AGAIN") {
-        setAgainCountByCardId((prev) => ({
-          ...prev,
+        setAgainCountByCardId((previous) => ({
+          ...previous,
           [result.cardId]: variables.nextAgainCount
         }));
       }
       if (result.todayAction === "REQUEUE_TODAY") {
-        setMainQueue((prev) => {
+        setMainQueue((previous) => {
           const rowKey = `requeue-${result.cardId}`;
-          return prev.some((item) => item.rowKey === rowKey)
-            ? prev
-            : [...prev, { rowKey, cardId: result.cardId, mode: "REQUEUE" }];
+          return previous.some((item) => item.rowKey === rowKey)
+            ? previous
+            : [...previous, { rowKey, cardId: result.cardId, mode: "REQUEUE" }];
         });
       }
       if (result.todayAction === "MOVE_TO_WEAK_ROUND") {
-        setWeakQueue((prev) => {
+        setWeakQueue((previous) => {
           const rowKey = `weak-${result.cardId}`;
-          return prev.some((item) => item.rowKey === rowKey)
-            ? prev
-            : [...prev, { rowKey, cardId: result.cardId, mode: "WEAK" }];
+          return previous.some((item) => item.rowKey === rowKey)
+            ? previous
+            : [...previous, { rowKey, cardId: result.cardId, mode: "WEAK" }];
         });
       }
       message.success(resolveCardReviewMessage(result.todayAction));
@@ -221,39 +282,17 @@ export function TodayCardsPage() {
   });
 
   const latestReview = reviewsQuery.data?.[0];
-  const allPlans = studyPlansQuery.data?.items ?? [];
-  const activePlans = allPlans.filter((plan) => plan.status === "ACTIVE");
-  const planOptions = activePlans.length > 0 ? activePlans : allPlans;
-  const preferredPlanId = resolvePreferredPlanId(planOptions, currentPlanId, search.planId);
-  const hasPlanOptions = planOptions.length > 0;
+  const planOptions = allPlans.map((plan) => ({
+    label: buildPlanLabel(plan),
+    value: plan.id
+  }));
 
-  useEffect(() => {
-    if (studyPlansQuery.isLoading) {
-      return;
-    }
-
-    if (preferredPlanId === search.planId && preferredPlanId === currentPlanId) {
-      return;
-    }
-
-    setSearch((prev) => {
-      if (prev.planId === preferredPlanId) {
-        return prev;
-      }
-      return {
-        ...prev,
-        planId: preferredPlanId
-      };
-    });
-    setCurrentPlanId(preferredPlanId);
-  }, [currentPlanId, preferredPlanId, search.planId, setCurrentPlanId, studyPlansQuery.isLoading]);
-
-  useEffect(() => {
-    searchForm.setFieldsValue({
-      planId: search.planId,
-      date: dayjs(search.date)
-    });
-  }, [search.date, search.planId, searchForm]);
+  function updateSearch(nextSearch: { planId?: number; date: string }) {
+    setCurrentPlanId(nextSearch.planId);
+    setSearch(nextSearch);
+    setCurrentRowKey(undefined);
+    reviewForm.resetFields();
+  }
 
   function handleReviewSubmit(rating: ReviewRating) {
     if (!currentCard || !currentRow) {
@@ -289,62 +328,76 @@ export function TodayCardsPage() {
     <div className="page-stack">
       <PageHeader
         title="Word Review Session"
-        description="默认接上今天这组卡片，盯住当前一张，评分后继续往前走。"
-        extra={<Tag color="purple">card_instance / review_log</Tag>}
+        description="Open the current plan directly, stay on the current card, and only drop into queue details when you need manual control."
+        extra={
+          <Space wrap>
+            <Tag color="gold">{search.date}</Tag>
+            {selectedPlan ? <Tag color="blue">{selectedPlan.name}</Tag> : null}
+            <Tag color="purple">card_instance / review_log</Tag>
+          </Space>
+        }
       />
 
-      {studyPlansQuery.isLoading ? (
+      {studyPlansQuery.isLoading && !canAutoStart ? (
         <StatusState mode="loading" />
-      ) : !hasPlanOptions ? (
-        <StatusState
-          mode="empty"
-          description="还没有可用学习计划。先去创建并激活一个计划，再回来开始今天复习。"
-        />
-      ) : !enabled ? (
-        <StatusState mode="empty" description="当前没有可进入的复习会话。换个计划或日期再试。" />
-      ) : cardsQuery.isLoading ? (
-        <StatusState mode="loading" />
-      ) : cardsQuery.isError ? (
-        <StatusState mode="error" description={(cardsQuery.error as Error).message} />
+      ) : !canAutoStart ? (
+        <PageSection title="Session Entry">
+          <StatusState
+            mode="empty"
+            description="No active study plan is ready. Create or activate a plan first, then this page will open the current session directly."
+            extra={
+              <Space wrap>
+                <Button type="primary" onClick={() => navigate("/study-plans")}>
+                  Open Study Plans
+                </Button>
+                <Button onClick={() => navigate("/word-sets")}>Open Word Sets</Button>
+              </Space>
+            }
+          />
+        </PageSection>
       ) : (
         <>
-          <div className="session-focus-layout">
-            <div className="session-focus-main">
+          <div className="review-session-layout">
+            <div className="review-session-main">
               <PageSection title="Current Card">
-                {!currentCard ? (
-                  <StatusState mode="empty" description="今天这组卡片已经走完，或者当前没有可继续的卡。"/>
+                {cardsQuery.isLoading ? (
+                  <StatusState mode="loading" />
+                ) : cardsQuery.isError ? (
+                  <StatusState mode="error" description={(cardsQuery.error as Error).message} />
+                ) : sessionSummary.totalCount === 0 ? (
+                  <StatusState
+                    mode="empty"
+                    description={
+                      weakRoundStarted
+                        ? "Today's main queue and weak round are both complete."
+                        : "No cards are due for this plan on the selected date."
+                    }
+                  />
+                ) : !currentCard ? (
+                  <StatusState mode="empty" description="No current card is available for this session." />
                 ) : (
-                  <div className="session-primary-stack">
-                    <div className="dashboard-overview-grid">
-                      <CardStat title="Current" value={currentPendingPosition || 0} suffix={sessionSummary.pendingCount ? `/ ${sessionSummary.pendingCount}` : ""} />
-                      <CardStat title="Total Due" value={sessionSummary.totalCount} />
-                      <CardStat title="Completed" value={sessionSummary.completedCount} />
-                      <CardStat title="Weak Round" value={pendingWeakCount} />
+                  <div className="review-session-focus">
+                    <Space wrap>
+                      <Tag color={currentRow?.mode === "WEAK" ? "volcano" : currentRow?.mode === "REQUEUE" ? "cyan" : "gold"}>
+                        {currentRow?.mode}
+                      </Tag>
+                      <Tag>{currentCard.cardType}</Tag>
+                      <Tag>Stage {currentCard.stageNo}</Tag>
+                      <Tag>Due {currentCard.dueDate}</Tag>
+                    </Space>
+
+                    <div className="review-session-copy">
+                      <Typography.Text type="secondary">当前题目</Typography.Text>
+                      <Typography.Title level={2} style={{ margin: 0 }}>
+                        {currentCard.expression || "-"}
+                      </Typography.Title>
+                      <Typography.Text type="secondary">{currentCard.reading || "No reading"}</Typography.Text>
                     </div>
 
-                    <div className="session-meta-stack">
-                      <Space wrap>
-                        <Tag color={currentRow?.mode === "WEAK" ? "volcano" : currentRow?.mode === "REQUEUE" ? "cyan" : "gold"}>
-                          {currentRow?.mode}
-                        </Tag>
-                        <Tag>{currentCard.cardType}</Tag>
-                        <Tag>Stage {currentCard.stageNo}</Tag>
-                        <Tag>Due {currentCard.dueDate}</Tag>
-                      </Space>
-
-                      <div>
-                        <Typography.Title level={2} style={{ margin: 0 }}>
-                          {currentCard.expression || "-"}
-                        </Typography.Title>
-                        <Typography.Text type="secondary">
-                          {currentCard.reading || "No reading"}
-                        </Typography.Text>
-                      </div>
-
+                    <div className="review-session-answer">
                       <Typography.Paragraph style={{ marginBottom: 0 }}>
                         {currentCard.meaning || "No meaning"}
                       </Typography.Paragraph>
-
                       {currentCard.exampleJp ? (
                         <Typography.Paragraph style={{ marginBottom: 0 }}>
                           <Typography.Text strong>Example JP: </Typography.Text>
@@ -359,28 +412,22 @@ export function TodayCardsPage() {
                       ) : null}
                     </div>
 
-                    <div className="session-action-row">
-                      <Button onClick={() => moveCurrentCard(-1)} disabled={resolvedCurrentIndex <= 0}>
-                        Previous
-                      </Button>
-                      <Button onClick={() => moveCurrentCard(1)} disabled={resolvedCurrentIndex >= activeQueue.length - 1}>
-                        Next
-                      </Button>
-                    </div>
-
                     <Form<ReviewFormValues> form={reviewForm} layout="vertical">
-                      <Form.Item label="Response Time (ms)" name="responseTimeMs">
-                        <InputNumber min={0} style={{ width: "100%" }} placeholder="3200" />
-                      </Form.Item>
-                      <Form.Item label="Note" name="note">
-                        <Input.TextArea rows={3} placeholder="Optional note for this review result" />
-                      </Form.Item>
+                      <div className="review-session-form-grid">
+                        <Form.Item label="Response Time (ms)" name="responseTimeMs">
+                          <InputNumber min={0} style={{ width: "100%" }} placeholder="3200" />
+                        </Form.Item>
+                        <Form.Item label="Note" name="note">
+                          <Input.TextArea rows={3} placeholder="Optional note for this review result" />
+                        </Form.Item>
+                      </div>
                     </Form>
 
-                    <Space wrap>
+                    <div className="review-session-rating-grid">
                       {reviewRatings.map((item) => (
                         <Button
                           key={item.rating}
+                          size="large"
                           type={item.type ?? "default"}
                           loading={reviewMutation.isPending}
                           onClick={() => handleReviewSubmit(item.rating)}
@@ -388,213 +435,212 @@ export function TodayCardsPage() {
                           {item.label}
                         </Button>
                       ))}
-                    </Space>
+                    </div>
                   </div>
-                )}
-              </PageSection>
-
-              <PageSection title="Review History">
-                {!currentCard ? (
-                  <StatusState mode="empty" description="No current card selected." />
-                ) : reviewsQuery.isLoading ? (
-                  <StatusState mode="loading" />
-                ) : reviewsQuery.isError ? (
-                  <StatusState mode="error" description={(reviewsQuery.error as Error).message} />
-                ) : (
-                  <Table<ReviewLogItem>
-                    rowKey="id"
-                    pagination={false}
-                    size="small"
-                    dataSource={reviewsQuery.data ?? []}
-                    columns={[
-                      {
-                        title: "Reviewed At",
-                        dataIndex: "reviewedAt",
-                        render: (value: string) => dayjs(value).format("YYYY-MM-DD HH:mm:ss")
-                      },
-                      { title: "Rating", dataIndex: "rating", width: 100 },
-                      {
-                        title: "Response Time",
-                        dataIndex: "responseTimeMs",
-                        width: 140,
-                        render: (value?: number) => (value === undefined ? "-" : `${value} ms`)
-                      },
-                      {
-                        title: "Note",
-                        dataIndex: "note",
-                        render: (value?: string) => value || "-"
-                      }
-                    ]}
-                    locale={{
-                      emptyText: "No review history for the current card."
-                    }}
-                  />
                 )}
               </PageSection>
             </div>
 
-            <div className="session-focus-side">
-              <PageSection title="Session Progress">
-                <div className="dashboard-overview-grid">
-                  <CardStat title="Pending" value={sessionSummary.pendingCount} />
-                  <CardStat title="Position" value={currentQueuePosition} suffix={sessionSummary.totalCount ? `/ ${sessionSummary.totalCount}` : ""} />
-                </div>
-                {sessionSummary.totalCount === 0 ? (
-                  <Alert
-                    style={{ marginTop: 16 }}
-                    type={weakRoundStarted ? "success" : "info"}
-                    showIcon
-                    message={weakRoundStarted ? "薄弱轮已完成。" : "今天没有待复习卡片。"}
-                    description={weakRoundStarted ? "主队列和薄弱轮都已完成。" : "可以换个计划，或者回工作台看别的学习线。"}
-                  />
-                ) : shouldPromptWeakRound ? (
-                  <Alert
-                    style={{ marginTop: 16 }}
-                    type="success"
-                    showIcon
-                    message="主队列已完成。"
-                    description={
-                      <Space wrap>
-                        <Typography.Text>还有 {weakQueue.length} 个薄弱项可再练一轮。</Typography.Text>
-                        <Button type="primary" size="small" onClick={() => setWeakRoundStarted(true)}>
-                          开始薄弱轮
-                        </Button>
-                        <Button size="small" onClick={() => setWeakRoundSkipped(true)}>
-                          稍后再说
-                        </Button>
-                      </Space>
-                    }
-                  />
-                ) : sessionSummary.pendingCount === 0 ? (
-                  <Alert
-                    style={{ marginTop: 16 }}
-                    type="success"
-                    showIcon
-                    message="这轮会话已完成。"
-                    description="当前队列里的卡片都已经评完分。"
-                  />
-                ) : (
-                  <Alert
-                    style={{ marginTop: 16 }}
-                    type="info"
-                    showIcon
-                    message={weakRoundStarted ? "正在进行薄弱轮。" : "当前流程"}
-                    description={
-                      weakRoundStarted
-                        ? `先把薄弱项过完。当前待处理位置：${currentPendingPosition} / ${sessionSummary.pendingCount}`
-                        : `看当前卡片，直接评分，系统会自动推进。当前待处理位置：${currentPendingPosition} / ${sessionSummary.pendingCount}`
-                    }
-                  />
-                )}
+            <div className="review-session-side">
+              <PageSection title="Session Rail">
+                <div className="review-session-side-stack">
+                  <div className="dashboard-overview-grid">
+                    <CardStat title="Queue" value={sessionSummary.totalCount} />
+                    <CardStat title="Pending" value={sessionSummary.pendingCount} />
+                    <CardStat title="Completed" value={sessionSummary.completedCount} />
+                    <CardStat title="Weak Round" value={pendingWeakCount} />
+                    <CardStat title="Position" value={currentQueuePosition} suffix={sessionSummary.totalCount ? `/ ${sessionSummary.totalCount}` : ""} />
+                  </div>
 
-                {latestReview ? (
-                  <Alert
-                    style={{ marginTop: 16 }}
-                    type="success"
-                    showIcon
-                    message={`Latest review: ${latestReview.rating}`}
-                    description={[
-                      `Reviewed at: ${dayjs(latestReview.reviewedAt).format("YYYY-MM-DD HH:mm:ss")}`,
-                      latestReview.responseTimeMs !== undefined ? `Response time: ${latestReview.responseTimeMs} ms` : undefined,
-                      latestReview.note ? `Note: ${latestReview.note}` : undefined
-                    ]
-                      .filter(Boolean)
-                      .join(" | ")}
-                  />
-                ) : null}
-              </PageSection>
-
-              <PageSection title="Session Controls">
-                <Form<SearchFormValues>
-                  form={searchForm}
-                  layout="vertical"
-                  onFinish={(values) => {
-                    const nextPlanId = values.planId;
-                    setCurrentPlanId(nextPlanId);
-                    reviewForm.resetFields();
-                    setSearch({
-                      planId: nextPlanId,
-                      date: values.date?.format("YYYY-MM-DD") ?? dayjs().format("YYYY-MM-DD")
-                    });
-                    setCurrentRowKey(undefined);
-                  }}
-                >
-                  <Form.Item label="Plan" name="planId" rules={[{ required: true, message: "Select a study plan." }]}>
-                    <Select
-                      loading={studyPlansQuery.isLoading}
-                      options={planOptions.map((plan) => ({
-                        label: buildPlanLabel(plan),
-                        value: plan.id
-                      }))}
-                      placeholder="Select a study plan"
+                  {shouldPromptWeakRound ? (
+                    <Alert
+                      type="success"
+                      showIcon
+                      message="主队列已完成。"
+                      description={
+                        <Space wrap>
+                          <Typography.Text>还有 {weakQueue.length} 个薄弱项可再练一轮。</Typography.Text>
+                          <Button type="primary" size="small" onClick={() => setWeakRoundStarted(true)}>
+                            开始薄弱轮
+                          </Button>
+                          <Button size="small" onClick={() => setWeakRoundSkipped(true)}>
+                            稍后再说
+                          </Button>
+                        </Space>
+                      }
                     />
-                  </Form.Item>
-                  <Form.Item label="Date" name="date" rules={[{ required: true, message: "Select a date." }]}>
-                    <DatePicker style={{ width: "100%" }} />
-                  </Form.Item>
-                  <Button type="primary" htmlType="submit" block>
-                    Reload Session
-                  </Button>
-                </Form>
+                  ) : sessionSummary.pendingCount === 0 && sessionSummary.totalCount > 0 ? (
+                    <Alert type="success" showIcon message="This session is complete." description="All cards in the current queue have been reviewed." />
+                  ) : (
+                    <Alert
+                      type="info"
+                      showIcon
+                      message={weakRoundStarted ? "当前处于薄弱轮" : "当前处于主复习流"}
+                      description={
+                        weakRoundStarted
+                          ? `Pending position: ${currentPendingPosition} / ${sessionSummary.pendingCount}`
+                          : "Submit a rating and the session will advance automatically. Manual jumps stay in the helper area."
+                      }
+                    />
+                  )}
+
+                  <Form<SearchFormValues>
+                    form={searchForm}
+                    layout="vertical"
+                    onFinish={(values) => {
+                      updateSearch({
+                        planId: values.planId,
+                        date: values.date?.format(SESSION_DATE_FORMAT) ?? dayjs().format(SESSION_DATE_FORMAT)
+                      });
+                    }}
+                  >
+                    <div className="review-session-form-grid">
+                      <Form.Item label="Plan" name="planId" rules={[{ required: true, message: "Select a study plan." }]}>
+                        <Select loading={studyPlansQuery.isLoading} options={planOptions} placeholder="Select a study plan" />
+                      </Form.Item>
+                      <Form.Item label="Date" name="date" rules={[{ required: true, message: "Select a date." }]}>
+                        <DatePicker />
+                      </Form.Item>
+                    </div>
+                    <Space wrap>
+                      <Button type="primary" htmlType="submit">
+                        Refresh Session
+                      </Button>
+                      <Button
+                        onClick={() =>
+                          updateSearch({
+                            planId: selectedPlan?.id ?? autoPlanId,
+                            date: dayjs().format(SESSION_DATE_FORMAT)
+                          })
+                        }
+                      >
+                        Back To Today
+                      </Button>
+                    </Space>
+                  </Form>
+
+                  <Space wrap>
+                    <Button onClick={() => moveCurrentCard(-1)} disabled={resolvedCurrentIndex <= 0}>
+                      Previous
+                    </Button>
+                    <Button onClick={() => moveCurrentCard(1)} disabled={resolvedCurrentIndex >= activeQueue.length - 1}>
+                      Next
+                    </Button>
+                  </Space>
+
+                  {latestReview ? (
+                    <Alert
+                      type="success"
+                      showIcon
+                      message={`Latest review: ${latestReview.rating}`}
+                      description={[
+                        `Reviewed at: ${dayjs(latestReview.reviewedAt).format("YYYY-MM-DD HH:mm:ss")}`,
+                        latestReview.responseTimeMs !== undefined ? `Response time: ${latestReview.responseTimeMs} ms` : undefined,
+                        latestReview.note ? `Note: ${latestReview.note}` : undefined
+                      ]
+                        .filter(Boolean)
+                        .join(" | ")}
+                    />
+                  ) : currentCard ? (
+                    <Typography.Text type="secondary">No review has been submitted for this card yet.</Typography.Text>
+                  ) : null}
+                </div>
               </PageSection>
             </div>
           </div>
 
-          <PageSection title="Session Queue">
-            <Table<SessionCardTableRow>
-              rowKey="rowKey"
-              size="small"
-              pagination={false}
-              dataSource={activeQueue.map((item) => ({
-                ...cardById.get(item.cardId),
-                rowKey: item.rowKey,
-                queueMode: item.mode
-              })).filter((item): item is SessionCardTableRow => Boolean(item?.id))}
-              onRow={(record) => ({
-                onClick: () => {
-                  setCurrentRowKey(record.rowKey);
-                  reviewForm.resetFields();
-                }
-              })}
-              rowClassName={(record) => (record.rowKey === currentRow?.rowKey ? "review-session-row-active" : "")}
-              columns={[
-                {
-                  title: "#",
-                  width: 70,
-                  render: (_, __, index) => index + 1
-                },
-                {
-                  title: "Expression",
-                  dataIndex: "expression",
-                  render: (value?: string) => value || "-"
-                },
-                {
-                  title: "Type",
-                  dataIndex: "cardType",
-                  width: 100
-                },
-                {
-                  title: "Queue",
-                  dataIndex: "queueMode",
-                  width: 110,
-                  render: (value: SessionRowMode) => <Tag color={value === "WEAK" ? "volcano" : value === "REQUEUE" ? "cyan" : "default"}>{value}</Tag>
-                },
-                {
-                  title: "Status",
-                  dataIndex: "rowKey",
-                  width: 110,
-                  render: (value: string) => (
-                    <Tag color={completedRowKeySet.has(value) ? "green" : "default"}>
-                      {completedRowKeySet.has(value) ? "DONE" : "PENDING"}
-                    </Tag>
-                  )
-                }
-              ]}
-              locale={{
-                emptyText: "No cards in this queue."
-              }}
-            />
-          </PageSection>
+          <div className="review-session-support-grid">
+            <PageSection title="Queue Assistant">
+              <Table<SessionCardTableRow>
+                rowKey="rowKey"
+                size="small"
+                pagination={false}
+                dataSource={queueRows}
+                onRow={(record) => ({
+                  onClick: () => {
+                    setCurrentRowKey(record.rowKey);
+                    reviewForm.resetFields();
+                  }
+                })}
+                rowClassName={(record) => (record.rowKey === currentRow?.rowKey ? "review-session-row-active" : "")}
+                columns={[
+                  {
+                    title: "#",
+                    width: 70,
+                    render: (_, __, index) => index + 1
+                  },
+                  {
+                    title: "Expression",
+                    dataIndex: "expression",
+                    render: (value?: string) => value || "-"
+                  },
+                  {
+                    title: "Type",
+                    dataIndex: "cardType",
+                    width: 100
+                  },
+                  {
+                    title: "Queue",
+                    dataIndex: "queueMode",
+                    width: 110,
+                    render: (value: SessionRowMode) => <Tag color={value === "WEAK" ? "volcano" : value === "REQUEUE" ? "cyan" : "default"}>{value}</Tag>
+                  },
+                  {
+                    title: "Status",
+                    dataIndex: "rowKey",
+                    width: 110,
+                    render: (value: string) => (
+                      <Tag color={completedRowKeySet.has(value) ? "green" : "default"}>
+                        {completedRowKeySet.has(value) ? "DONE" : "PENDING"}
+                      </Tag>
+                    )
+                  }
+                ]}
+                locale={{
+                  emptyText: "No cards in this queue."
+                }}
+              />
+            </PageSection>
+
+            <PageSection title="Review History">
+              {!currentCard ? (
+                <StatusState mode="empty" description="No current card selected." />
+              ) : reviewsQuery.isLoading ? (
+                <StatusState mode="loading" />
+              ) : reviewsQuery.isError ? (
+                <StatusState mode="error" description={(reviewsQuery.error as Error).message} />
+              ) : (
+                <Table<ReviewLogItem>
+                  rowKey="id"
+                  pagination={false}
+                  size="small"
+                  dataSource={reviewsQuery.data ?? []}
+                  columns={[
+                    {
+                      title: "Reviewed At",
+                      dataIndex: "reviewedAt",
+                      render: (value: string) => dayjs(value).format("YYYY-MM-DD HH:mm:ss")
+                    },
+                    { title: "Rating", dataIndex: "rating", width: 100 },
+                    {
+                      title: "Response Time",
+                      dataIndex: "responseTimeMs",
+                      width: 140,
+                      render: (value?: number) => (value === undefined ? "-" : `${value} ms`)
+                    },
+                    {
+                      title: "Note",
+                      dataIndex: "note",
+                      render: (value?: string) => value || "-"
+                    }
+                  ]}
+                  locale={{
+                    emptyText: "No review history for the current card."
+                  }}
+                />
+              )}
+            </PageSection>
+          </div>
         </>
       )}
     </div>
@@ -608,19 +654,15 @@ interface CardStatProps {
 }
 
 function CardStat({ title, value, suffix }: CardStatProps) {
-  return (
-    <div style={{ minWidth: 0 }}>
-      <Statistic title={title} value={value} suffix={suffix} />
-    </div>
-  );
+  return <Statistic title={title} value={value} suffix={suffix} />;
 }
 
 function resolveCardReviewMessage(todayAction: "DONE" | "REQUEUE_TODAY" | "MOVE_TO_WEAK_ROUND") {
   if (todayAction === "REQUEUE_TODAY") {
-    return "已回到今日队尾。";
+    return "This card was added back to today's queue.";
   }
   if (todayAction === "MOVE_TO_WEAK_ROUND") {
-    return "已加入薄弱项再练一轮。";
+    return "This card was moved to the weak-item round.";
   }
-  return "已记录评分。";
+  return "Review recorded.";
 }

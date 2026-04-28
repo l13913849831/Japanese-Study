@@ -35,6 +35,15 @@ function getTodayReviewedNotes(recentTrend: NoteDashboardTrendItem[], formattedD
   return recentTrend.find((item) => item.date === formattedDate)?.reviewedNotes ?? 0;
 }
 
+function buildSessionSearch(date: string, planId?: number) {
+  const params = new URLSearchParams();
+  params.set("date", date);
+  if (planId) {
+    params.set("planId", String(planId));
+  }
+  return `?${params.toString()}`;
+}
+
 export function StudyDashboardPage() {
   const navigate = useNavigate();
   const setCurrentPlanId = useUiStore((state) => state.setCurrentPlanId);
@@ -86,7 +95,10 @@ export function StudyDashboardPage() {
 
   function openTodayCards(planId: number) {
     setCurrentPlanId(planId);
-    navigate("/cards");
+    navigate({
+      pathname: "/cards",
+      search: buildSessionSearch(formattedDate, planId)
+    });
   }
 
   function startWordReview() {
@@ -94,6 +106,13 @@ export function StudyDashboardPage() {
       return;
     }
     openTodayCards(primaryPlan.planId);
+  }
+
+  function startNoteReview() {
+    navigate({
+      pathname: "/notes/review",
+      search: buildSessionSearch(formattedDate)
+    });
   }
 
   const studyError = dashboardQuery.isError ? (dashboardQuery.error as Error).message : null;
@@ -105,15 +124,15 @@ export function StudyDashboardPage() {
     <div className="page-stack">
       <PageHeader
         title="Today Workbench"
-        description="先看今天还剩什么，再直接接上当前学习会话。"
+        description="See today's workload across word study and note review, then jump straight into the next action."
         extra={
           <Space wrap>
             <DatePicker value={selectedDate} onChange={(value) => value && setSelectedDate(value)} />
             <Button onClick={() => setSelectedDate(dayjs())}>Today</Button>
             <Button type="primary" onClick={startWordReview} disabled={!primaryPlan}>
-              Continue Word Review
+              Continue Word Session
             </Button>
-            <Button onClick={() => navigate("/notes/review")}>Continue Note Review</Button>
+            <Button onClick={startNoteReview}>Continue Note Session</Button>
             <Tag color="gold">workbench</Tag>
           </Space>
         }
@@ -183,7 +202,7 @@ export function StudyDashboardPage() {
                   </Row>
                   <Space wrap>
                     <Button type="primary" onClick={startWordReview} disabled={!primaryPlan}>
-                      Continue Word Review
+                      Continue Session
                     </Button>
                     <Button onClick={() => navigate("/study-plans")}>Open Plans</Button>
                     <Button onClick={() => navigate("/word-sets")}>Open Word Sets</Button>
@@ -208,8 +227,8 @@ export function StudyDashboardPage() {
                     </Col>
                   </Row>
                   <Space wrap>
-                    <Button type="primary" onClick={() => navigate("/notes/review")}>
-                      Continue Note Review
+                    <Button type="primary" onClick={startNoteReview}>
+                      Continue Session
                     </Button>
                     <Button onClick={() => navigate("/notes")}>Open Notes</Button>
                     <Button onClick={() => navigate("/notes/dashboard")}>Open Note Dashboard</Button>
@@ -267,7 +286,7 @@ export function StudyDashboardPage() {
                       <Space wrap>
                         <Typography.Text type="secondary">Start date: {plan.startDate}</Typography.Text>
                         <Button type="primary" onClick={() => openTodayCards(plan.planId)}>
-                          Open Today Cards
+                          Open Session
                         </Button>
                       </Space>
                     </Space>
@@ -329,8 +348,8 @@ export function StudyDashboardPage() {
                       </Col>
                     </Row>
                     <Space wrap>
-                      <Button type="primary" onClick={() => navigate("/notes/review")}>
-                        Open Note Review
+                      <Button type="primary" onClick={startNoteReview}>
+                        Open Session
                       </Button>
                       <Button onClick={() => navigate("/notes")}>Manage Notes</Button>
                     </Space>
@@ -444,7 +463,7 @@ export function StudyDashboardPage() {
                     title: "Action",
                     render: (_, record) => (
                       <Button type="link" onClick={() => openTodayCards(record.planId)}>
-                        Open Cards
+                        Open Session
                       </Button>
                     )
                   }

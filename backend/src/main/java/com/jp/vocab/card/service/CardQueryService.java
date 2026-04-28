@@ -3,6 +3,7 @@ package com.jp.vocab.card.service;
 import com.jp.vocab.card.dto.CardCalendarItemResponse;
 import com.jp.vocab.card.dto.GeneratedCardRecord;
 import com.jp.vocab.card.dto.TodayCardResponse;
+import com.jp.vocab.studyplan.service.StudyPlanAccessService;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -16,13 +17,19 @@ import java.util.Map;
 public class CardQueryService {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final StudyPlanAccessService studyPlanAccessService;
 
-    public CardQueryService(NamedParameterJdbcTemplate jdbcTemplate) {
+    public CardQueryService(
+            NamedParameterJdbcTemplate jdbcTemplate,
+            StudyPlanAccessService studyPlanAccessService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.studyPlanAccessService = studyPlanAccessService;
     }
 
     @Transactional(readOnly = true)
     public List<TodayCardResponse> getTodayCards(Long planId, LocalDate date) {
+        studyPlanAccessService.getOwnedPlan(planId);
         return queryDetailedCards(planId, date).stream()
                 .map(card -> new TodayCardResponse(
                         card.id(),
@@ -44,6 +51,7 @@ public class CardQueryService {
 
     @Transactional(readOnly = true)
     public List<CardCalendarItemResponse> getCalendar(Long planId, LocalDate start, LocalDate end) {
+        studyPlanAccessService.getOwnedPlan(planId);
         String sql = """
                 select ci.due_at::date as due_date,
                        sum(case when card_type = 'NEW' then 1 else 0 end) as new_cards,
@@ -70,6 +78,7 @@ public class CardQueryService {
 
     @Transactional(readOnly = true)
     public List<GeneratedCardRecord> queryDetailedCards(Long planId, LocalDate date) {
+        studyPlanAccessService.getOwnedPlan(planId);
         LocalDate nextDate = date.plusDays(1);
         String sql = """
                 select ci.id,

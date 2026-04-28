@@ -34,6 +34,35 @@ a {
   gap: 16px;
 }
 
+.auth-page-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 420px);
+  gap: 24px;
+  align-items: center;
+  padding: 32px;
+}
+
+.auth-page-copy {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-page-title {
+  margin: 0 !important;
+  max-width: 12ch;
+}
+
+.auth-page-description {
+  max-width: 56ch;
+  margin-bottom: 0 !important;
+}
+
+.auth-card {
+  border-radius: 24px !important;
+  box-shadow: 0 24px 60px rgba(24, 34, 47, 0.12);
+}
+
 .table-toolbar {
   display: flex;
   justify-content: space-between;
@@ -53,33 +82,56 @@ a {
   gap: 16px;
 }
 
-.session-focus-layout {
+.review-session-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1fr);
   gap: 16px;
   align-items: start;
 }
 
-.session-focus-main,
-.session-focus-side {
+.review-session-main,
+.review-session-side,
+.review-session-support-grid {
   display: grid;
   gap: 16px;
 }
 
-.session-primary-stack {
-  display: grid;
-  gap: 20px;
+.review-session-support-grid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
-.session-meta-stack {
+.review-session-focus {
+  display: grid;
+  gap: 18px;
+}
+
+.review-session-copy,
+.review-session-answer,
+.review-session-side-stack {
   display: grid;
   gap: 12px;
 }
 
-.session-action-row {
-  display: flex;
+.review-session-answer {
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(140, 93, 32, 0.08);
+}
+
+.review-session-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-  flex-wrap: wrap;
+}
+
+.review-session-rating-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.review-session-rating-grid .ant-btn {
+  min-height: 48px;
 }
 
 .note-preview-table textarea {
@@ -90,14 +142,17 @@ a {
   background: rgba(140, 93, 32, 0.08) !important;
 }
 
-@media (max-width: 960px) {
-  .session-focus-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 768px) {
   .app-content {
     padding: 16px;
+  }
+
+  .auth-page-shell {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .review-session-layout {
+    grid-template-columns: 1fr;
   }
 }

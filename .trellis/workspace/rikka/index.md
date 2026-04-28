@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
-- **Last Active**: 2026-04-26
+- **Total Sessions**: 8
+- **Last Active**: 2026-04-28
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~245 | Active |
+| `journal-1.md` | ~274 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,7 +29,8 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
-| 7 | 2026-04-26 | 连续复习会话体验收尾 | `7e7d0c0` | `main` |
+| 8 | 2026-04-28 | 最小用户归属底座首批落地 | - | `main` |
+| 7 | 2026-04-28 | 连续复习会话体验改造 | - | `main` |
 | 6 | 2026-04-25 | 切换到连续复习会话任务 | `c3ea7f7` | `main` |
 | 5 | 2026-04-25 | FSRS迁移收尾 | `bc66fb7`, `94774ab` | `main` |
 | 4 | 2026-04-25 | daily weak item recovery loop complete | `690dfbf` | `main` |

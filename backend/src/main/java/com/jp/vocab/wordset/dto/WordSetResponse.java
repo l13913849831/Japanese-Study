@@ -8,6 +8,7 @@ public record WordSetResponse(
         Long id,
         String name,
         String description,
+        String scope,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
@@ -16,6 +17,7 @@ public record WordSetResponse(
                 entity.getId(),
                 entity.getName(),
                 entity.getDescription(),
+                entity.getScope(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );

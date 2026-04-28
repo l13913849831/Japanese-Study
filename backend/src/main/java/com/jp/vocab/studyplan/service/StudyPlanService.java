@@ -1,6 +1,7 @@
 package com.jp.vocab.studyplan.service;
 
 import com.jp.vocab.shared.api.PageResponse;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import com.jp.vocab.card.service.CardGenerationService;
@@ -9,9 +10,8 @@ import com.jp.vocab.studyplan.dto.StudyPlanResponse;
 import com.jp.vocab.studyplan.dto.UpdateStudyPlanRequest;
 import com.jp.vocab.studyplan.entity.StudyPlanEntity;
 import com.jp.vocab.studyplan.repository.StudyPlanRepository;
-import com.jp.vocab.template.repository.AnkiTemplateRepository;
-import com.jp.vocab.template.repository.MarkdownTemplateRepository;
-import com.jp.vocab.wordset.repository.WordSetRepository;
+import com.jp.vocab.template.service.TemplateAccessService;
+import com.jp.vocab.wordset.service.WordSetAccessService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -23,29 +23,34 @@ import java.util.List;
 public class StudyPlanService {
 
     private final StudyPlanRepository studyPlanRepository;
-    private final WordSetRepository wordSetRepository;
-    private final AnkiTemplateRepository ankiTemplateRepository;
-    private final MarkdownTemplateRepository markdownTemplateRepository;
+    private final CurrentUserService currentUserService;
+    private final StudyPlanAccessService studyPlanAccessService;
+    private final WordSetAccessService wordSetAccessService;
+    private final TemplateAccessService templateAccessService;
     private final CardGenerationService cardGenerationService;
 
     public StudyPlanService(
             StudyPlanRepository studyPlanRepository,
-            WordSetRepository wordSetRepository,
-            AnkiTemplateRepository ankiTemplateRepository,
-            MarkdownTemplateRepository markdownTemplateRepository,
+            CurrentUserService currentUserService,
+            StudyPlanAccessService studyPlanAccessService,
+            WordSetAccessService wordSetAccessService,
+            TemplateAccessService templateAccessService,
             CardGenerationService cardGenerationService
     ) {
         this.studyPlanRepository = studyPlanRepository;
-        this.wordSetRepository = wordSetRepository;
-        this.ankiTemplateRepository = ankiTemplateRepository;
-        this.markdownTemplateRepository = markdownTemplateRepository;
+        this.currentUserService = currentUserService;
+        this.studyPlanAccessService = studyPlanAccessService;
+        this.wordSetAccessService = wordSetAccessService;
+        this.templateAccessService = templateAccessService;
         this.cardGenerationService = cardGenerationService;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<StudyPlanResponse> list(int page, int pageSize) {
+        Long userId = currentUserService.getCurrentUserId();
         return PageResponse.from(
-                studyPlanRepository.findAll(
+                studyPlanRepository.findByUserId(
+                                userId,
                                 PageRequest.of(Math.max(page - 1, 0), pageSize, Sort.by(Sort.Direction.ASC, "id")))
                         .map(StudyPlanResponse::from)
         );
@@ -53,7 +58,7 @@ public class StudyPlanService {
 
     @Transactional(readOnly = true)
     public StudyPlanResponse get(Long id) {
-        return StudyPlanResponse.from(getEntity(id));
+        return StudyPlanResponse.from(studyPlanAccessService.getOwnedPlan(id));
     }
 
     @Transactional
@@ -67,6 +72,7 @@ public class StudyPlanService {
 
         StudyPlanEntity entity = StudyPlanEntity.create(
                 request.name().trim(),
+                currentUserService.getCurrentUserId(),
                 request.wordSetId(),
                 request.startDate(),
                 request.dailyNewCount(),
@@ -82,7 +88,7 @@ public class StudyPlanService {
 
     @Transactional
     public StudyPlanResponse update(Long id, UpdateStudyPlanRequest request) {
-        StudyPlanEntity entity = getEntity(id);
+        StudyPlanEntity entity = studyPlanAccessService.getOwnedPlan(id);
         validateEditable(entity);
         validateRequest(
                 request.wordSetId(),
@@ -108,7 +114,7 @@ public class StudyPlanService {
 
     @Transactional
     public StudyPlanResponse activate(Long id) {
-        StudyPlanEntity entity = getEntity(id);
+        StudyPlanEntity entity = studyPlanAccessService.getOwnedPlan(id);
         if (!entity.canActivate()) {
             throw new BusinessException(ErrorCode.CONFLICT, "Only draft or paused study plans can be activated");
         }
@@ -119,7 +125,7 @@ public class StudyPlanService {
 
     @Transactional
     public StudyPlanResponse pause(Long id) {
-        StudyPlanEntity entity = getEntity(id);
+        StudyPlanEntity entity = studyPlanAccessService.getOwnedPlan(id);
         if (!entity.canPause()) {
             throw new BusinessException(ErrorCode.CONFLICT, "Only active study plans can be paused");
         }
@@ -130,7 +136,7 @@ public class StudyPlanService {
 
     @Transactional
     public StudyPlanResponse archive(Long id) {
-        StudyPlanEntity entity = getEntity(id);
+        StudyPlanEntity entity = studyPlanAccessService.getOwnedPlan(id);
         if (!entity.canArchive()) {
             throw new BusinessException(ErrorCode.CONFLICT, "Archived study plans cannot be archived again");
         }
@@ -139,25 +145,18 @@ public class StudyPlanService {
         return StudyPlanResponse.from(studyPlanRepository.save(entity));
     }
 
-    private StudyPlanEntity getEntity(Long id) {
-        return studyPlanRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Study plan not found: " + id));
-    }
-
     private void validateRequest(
             Long wordSetId,
             List<Integer> reviewOffsets,
             Long ankiTemplateId,
             Long mdTemplateId
     ) {
-        if (!wordSetRepository.existsById(wordSetId)) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "Word set not found: " + wordSetId);
+        wordSetAccessService.getAccessibleWordSet(wordSetId);
+        if (ankiTemplateId != null) {
+            templateAccessService.getAccessibleAnkiTemplate(ankiTemplateId);
         }
-        if (ankiTemplateId != null && !ankiTemplateRepository.existsById(ankiTemplateId)) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "Anki template not found: " + ankiTemplateId);
-        }
-        if (mdTemplateId != null && !markdownTemplateRepository.existsById(mdTemplateId)) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "Markdown template not found: " + mdTemplateId);
+        if (mdTemplateId != null) {
+            templateAccessService.getAccessibleMarkdownTemplate(mdTemplateId);
         }
         if (reviewOffsets.isEmpty() || reviewOffsets.getFirst() != 0) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "reviewOffsets must start with 0");

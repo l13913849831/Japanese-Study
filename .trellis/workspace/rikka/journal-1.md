@@ -212,15 +212,15 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 - None - task complete
 
 
-## Session 7: 连续复习会话体验收尾
+## Session 7: 连续复习会话体验改造
 
-**Date**: 2026-04-26
-**Task**: 连续复习会话体验收尾
+**Date**: 2026-04-28
+**Task**: 连续复习会话体验改造
 **Branch**: `main`
 
 ### Summary
 
-完成 /cards 与 /notes/review 连续会话收紧，归档任务并同步文档契约。
+完成 /cards 与 /notes/review 的连续会话布局改造；/dashboard 入口会透传日期与计划上下文；同步更新前端 spec 与使用文档。frontend npm run build 已通过。
 
 ### Main Changes
 
@@ -228,9 +228,38 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 
 ### Git Commits
 
-| Hash | Message |
-|------|---------|
-| `7e7d0c0` | (see git log) |
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 8: 最小用户归属底座首批落地
+
+**Date**: 2026-04-28
+**Task**: 最小用户归属底座首批落地
+**Branch**: `main`
+
+### Summary
+
+完成 P0-a 第一批闭环：后端用户/身份/设置模型、本地 session 登录、/api/auth/login|logout、/api/me、/api/me/settings；词库/模板/学习计划/导出/单词看板按当前用户收口；前端补登录页、鉴权守卫、偏好切换。并记录剩余缺口：知识点线尚未拆成用户独立归属，Keycloak/微信仅预留。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
 
 ### Testing
 

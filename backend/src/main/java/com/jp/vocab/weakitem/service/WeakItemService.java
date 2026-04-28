@@ -5,6 +5,7 @@ import com.jp.vocab.card.repository.CardInstanceRepository;
 import com.jp.vocab.note.entity.NoteEntity;
 import com.jp.vocab.note.repository.NoteRepository;
 import com.jp.vocab.shared.api.PageResponse;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import com.jp.vocab.weakitem.dto.WeakItemSummaryResponse;
@@ -23,22 +24,33 @@ public class WeakItemService {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final CardInstanceRepository cardInstanceRepository;
     private final NoteRepository noteRepository;
+    private final CurrentUserService currentUserService;
 
     public WeakItemService(
             NamedParameterJdbcTemplate jdbcTemplate,
             CardInstanceRepository cardInstanceRepository,
-            NoteRepository noteRepository
+            NoteRepository noteRepository,
+            CurrentUserService currentUserService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.cardInstanceRepository = cardInstanceRepository;
         this.noteRepository = noteRepository;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional(readOnly = true)
     public WeakItemSummaryResponse getSummary() {
+        MapSqlParameterSource wordParameters = new MapSqlParameterSource()
+                .addValue("userId", currentUserService.getCurrentUserId());
         Integer weakWordCount = jdbcTemplate.queryForObject(
-                "select count(*) from card_instance where weak_flag = true",
-                new MapSqlParameterSource(),
+                """
+                        select count(*)
+                        from card_instance ci
+                        join study_plan sp on sp.id = ci.plan_id
+                        where ci.weak_flag = true
+                          and sp.user_id = :userId
+                        """,
+                wordParameters,
                 Integer.class
         );
         Integer weakNoteCount = jdbcTemplate.queryForObject(
@@ -56,13 +68,21 @@ public class WeakItemService {
     public PageResponse<WeakWordItemResponse> listWeakWords(int page, int pageSize) {
         int safePage = Math.max(page, 1);
         int safePageSize = Math.max(pageSize, 1);
+        Long userId = currentUserService.getCurrentUserId();
         MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("userId", userId)
                 .addValue("limit", safePageSize)
                 .addValue("offset", (safePage - 1) * safePageSize);
 
         Long total = jdbcTemplate.queryForObject(
-                "select count(*) from card_instance where weak_flag = true",
-                new MapSqlParameterSource(),
+                """
+                        select count(*)
+                        from card_instance ci
+                        join study_plan sp on sp.id = ci.plan_id
+                        where ci.weak_flag = true
+                          and sp.user_id = :userId
+                        """,
+                new MapSqlParameterSource().addValue("userId", userId),
                 Long.class
         );
 
@@ -82,6 +102,7 @@ public class WeakItemService {
                 join study_plan sp on sp.id = ci.plan_id
                 join word_entry we on we.id = ci.word_entry_id
                 where ci.weak_flag = true
+                  and sp.user_id = :userId
                 order by ci.weak_marked_at desc nulls last, ci.id desc
                 limit :limit offset :offset
                 """;
@@ -138,7 +159,7 @@ public class WeakItemService {
 
     @Transactional
     public void dismissWeakWord(Long cardId) {
-        CardInstanceEntity entity = cardInstanceRepository.findById(cardId)
+        CardInstanceEntity entity = cardInstanceRepository.findOwnedById(cardId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Card not found: " + cardId));
         entity.clearWeak();
         cardInstanceRepository.save(entity);

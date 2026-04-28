@@ -95,6 +95,7 @@ export function WordSetPage() {
   const [wordEntryModalOpen, setWordEntryModalOpen] = useState(false);
   const [editingWordEntry, setEditingWordEntry] = useState<WordEntry | null>(null);
   const [filters, setFilters] = useState<WordEntryFilters>({ page: 1, pageSize: 20 });
+  const selectedWordSetEditable = selectedWordSet?.scope === "USER";
 
   const wordSetsQuery = useQuery({
     queryKey: ["wordSets"],
@@ -206,6 +207,11 @@ export function WordSetPage() {
         return Upload.LIST_IGNORE;
       }
 
+      if (selectedWordSet.scope !== "USER") {
+        message.warning("System word sets are read-only.");
+        return Upload.LIST_IGNORE;
+      }
+
       if (!/\.(csv|apkg)$/i.test(file.name)) {
         message.error("Only .csv and .apkg files are supported.");
         return Upload.LIST_IGNORE;
@@ -235,12 +241,22 @@ export function WordSetPage() {
       return;
     }
 
+    if (selectedWordSet.scope !== "USER") {
+      message.warning("System word sets are read-only.");
+      return;
+    }
+
     setEditingWordEntry(null);
     wordEntryForm.resetFields();
     setWordEntryModalOpen(true);
   };
 
   const handleOpenEditWordEntry = (wordEntry: WordEntry) => {
+    if (!selectedWordSetEditable) {
+      message.warning("System word sets are read-only.");
+      return;
+    }
+
     setEditingWordEntry(wordEntry);
     wordEntryForm.setFieldsValue({
       expression: wordEntry.expression,
@@ -258,6 +274,11 @@ export function WordSetPage() {
   const handleWordEntrySubmit = (values: WordEntryFormValues) => {
     if (!selectedWordSet) {
       message.warning("Select a word set first.");
+      return;
+    }
+
+    if (!selectedWordSetEditable) {
+      message.warning("System word sets are read-only.");
       return;
     }
 
@@ -297,7 +318,7 @@ export function WordSetPage() {
   };
 
   const handleConfirmImport = () => {
-    if (!selectedWordSet || !pendingImportFile) {
+    if (!selectedWordSet || !pendingImportFile || !selectedWordSetEditable) {
       return;
     }
 
@@ -313,7 +334,7 @@ export function WordSetPage() {
     <div className="page-stack">
       <PageHeader
         title="Word Sets"
-        description="Manage source data, preview CSV / APKG imports before saving, and maintain individual word entries."
+        description="Manage user-owned source data, preview CSV / APKG imports before saving, and browse built-in system word sets in read-only mode."
         extra={<Tag color="gold">word_set / word_entry</Tag>}
       />
 
@@ -352,6 +373,14 @@ export function WordSetPage() {
             columns={[
               { title: "ID", dataIndex: "id", width: 80 },
               { title: "Name", dataIndex: "name" },
+              {
+                title: "Scope",
+                dataIndex: "scope",
+                width: 110,
+                render: (scope: WordSet["scope"]) => (
+                  <Tag color={scope === "SYSTEM" ? "blue" : "green"}>{scope === "SYSTEM" ? "SYSTEM" : "MY"}</Tag>
+                )
+              },
               { title: "Description", dataIndex: "description", render: (value?: string) => value || "-" },
               { title: "Created At", dataIndex: "createdAt" }
             ]}
@@ -366,11 +395,11 @@ export function WordSetPage() {
         title={selectedWordSet ? `Word Entries: ${selectedWordSet.name}` : "Word Entries"}
         extra={
           <Space wrap>
-            <Button onClick={handleOpenCreateWordEntry} disabled={!selectedWordSet}>
+            <Button onClick={handleOpenCreateWordEntry} disabled={!selectedWordSet || !selectedWordSetEditable}>
               New Entry
             </Button>
             <Upload {...uploadProps}>
-              <Button loading={previewMutation.isPending} disabled={!selectedWordSet}>
+              <Button loading={previewMutation.isPending} disabled={!selectedWordSet || !selectedWordSetEditable}>
                 Preview Import
               </Button>
             </Upload>
@@ -402,6 +431,11 @@ export function WordSetPage() {
           <StatusState mode="empty" description="Select a word set to browse or import entries." />
         ) : (
           <Space direction="vertical" style={{ width: "100%" }} size={16}>
+            {!selectedWordSetEditable ? (
+              <Typography.Text type="secondary">
+                当前选中的是系统词库，只能浏览，不能导入或编辑词条。
+              </Typography.Text>
+            ) : null}
             <Form form={filterForm} layout="inline" onFinish={handleFilterSubmit}>
               <Form.Item label="Keyword" name="keyword">
                 <Input allowClear placeholder="expression / reading / meaning" />
@@ -455,7 +489,11 @@ export function WordSetPage() {
                     width: 180,
                     render: (_, record: WordEntry) => (
                       <Space>
-                        <Button type="link" onClick={() => handleOpenEditWordEntry(record)}>
+                        <Button
+                          type="link"
+                          disabled={!selectedWordSetEditable}
+                          onClick={() => handleOpenEditWordEntry(record)}
+                        >
                           Edit
                         </Button>
                         <Popconfirm
@@ -465,7 +503,12 @@ export function WordSetPage() {
                           cancelText="Cancel"
                           onConfirm={() => deleteWordEntryMutation.mutate(record.id)}
                         >
-                          <Button type="link" danger loading={deleteWordEntryMutation.isPending}>
+                          <Button
+                            type="link"
+                            danger
+                            disabled={!selectedWordSetEditable}
+                            loading={deleteWordEntryMutation.isPending}
+                          >
                             Delete
                           </Button>
                         </Popconfirm>
@@ -577,6 +620,7 @@ export function WordSetPage() {
         }}
         onOk={() => wordEntryForm.submit()}
         confirmLoading={wordEntryMutationPending}
+        okButtonProps={{ disabled: !selectedWordSetEditable }}
         destroyOnHidden
       >
         <Form form={wordEntryForm} layout="vertical" onFinish={handleWordEntrySubmit}>

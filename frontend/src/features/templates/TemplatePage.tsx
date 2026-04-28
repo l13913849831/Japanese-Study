@@ -119,6 +119,10 @@ function fillMarkdownForm(form: FormInstance<MarkdownTemplateFormValues>, templa
   });
 }
 
+function renderScopeTag(scope: "SYSTEM" | "USER") {
+  return <Tag color={scope === "SYSTEM" ? "blue" : "green"}>{scope === "SYSTEM" ? "SYSTEM" : "MY"}</Tag>;
+}
+
 export function TemplatePage() {
   const [ankiForm] = Form.useForm<AnkiTemplateFormValues>();
   const [markdownForm] = Form.useForm<MarkdownTemplateFormValues>();
@@ -381,7 +385,12 @@ export function TemplatePage() {
                       renderItem={(item) => (
                         <List.Item
                           actions={[
-                            <Button key="edit" type="link" onClick={() => handleEditAnki(item)}>
+                            <Button
+                              key="edit"
+                              type="link"
+                              disabled={item.scope !== "USER"}
+                              onClick={() => handleEditAnki(item)}
+                            >
                               Edit
                             </Button>
                           ]}
@@ -390,6 +399,7 @@ export function TemplatePage() {
                             title={
                               <Space wrap>
                                 <span>{item.name}</span>
+                                {renderScopeTag(item.scope)}
                                 {editingAnkiId === item.id ? <Tag color="blue">Editing</Tag> : null}
                               </Space>
                             }
@@ -457,7 +467,12 @@ export function TemplatePage() {
                       renderItem={(item) => (
                         <List.Item
                           actions={[
-                            <Button key="edit" type="link" onClick={() => handleEditMarkdown(item)}>
+                            <Button
+                              key="edit"
+                              type="link"
+                              disabled={item.scope !== "USER"}
+                              onClick={() => handleEditMarkdown(item)}
+                            >
                               Edit
                             </Button>
                           ]}
@@ -466,6 +481,7 @@ export function TemplatePage() {
                             title={
                               <Space wrap>
                                 <span>{item.name}</span>
+                                {renderScopeTag(item.scope)}
                                 {editingMarkdownId === item.id ? <Tag color="blue">Editing</Tag> : null}
                               </Space>
                             }
