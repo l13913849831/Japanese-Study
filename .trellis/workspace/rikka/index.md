@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 9
+- **Total Sessions**: 10
 - **Last Active**: 2026-04-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~303 | Active |
+| `journal-1.md` | ~340 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 10 | 2026-04-28 | P0-a/P1-A/P1-B/P1-C 收尾 | `4410692a97a86fa24ae3e91b8a44e23e1a457cb9` | `main` |
 | 9 | 2026-04-28 | 最小用户归属底座首批落地 | - | `main` |
 | 8 | 2026-04-26 | 拆分学习模式与导出提案 | - | `main` |
 | 7 | 2026-04-26 | 连续复习会话体验收尾 | `7e7d0c0` | `main` |
