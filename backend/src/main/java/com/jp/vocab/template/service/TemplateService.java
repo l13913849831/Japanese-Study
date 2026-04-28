@@ -1,7 +1,10 @@
 package com.jp.vocab.template.service;
 
+import com.jp.vocab.shared.auth.ContentScope;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
+import com.jp.vocab.shared.template.SimpleTemplateEngine;
 import com.jp.vocab.template.dto.AnkiTemplateResponse;
 import com.jp.vocab.template.dto.AnkiTemplatePreviewRequest;
 import com.jp.vocab.template.dto.AnkiTemplatePreviewResponse;
@@ -15,7 +18,6 @@ import com.jp.vocab.template.entity.AnkiTemplateEntity;
 import com.jp.vocab.template.entity.MarkdownTemplateEntity;
 import com.jp.vocab.template.repository.AnkiTemplateRepository;
 import com.jp.vocab.template.repository.MarkdownTemplateRepository;
-import com.jp.vocab.shared.template.SimpleTemplateEngine;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,21 +31,27 @@ public class TemplateService {
 
     private final AnkiTemplateRepository ankiTemplateRepository;
     private final MarkdownTemplateRepository markdownTemplateRepository;
+    private final CurrentUserService currentUserService;
+    private final TemplateAccessService templateAccessService;
     private final SimpleTemplateEngine templateEngine;
 
     public TemplateService(
             AnkiTemplateRepository ankiTemplateRepository,
             MarkdownTemplateRepository markdownTemplateRepository,
+            CurrentUserService currentUserService,
+            TemplateAccessService templateAccessService,
             SimpleTemplateEngine templateEngine
     ) {
         this.ankiTemplateRepository = ankiTemplateRepository;
         this.markdownTemplateRepository = markdownTemplateRepository;
+        this.currentUserService = currentUserService;
+        this.templateAccessService = templateAccessService;
         this.templateEngine = templateEngine;
     }
 
     @Transactional(readOnly = true)
     public List<AnkiTemplateResponse> listAnkiTemplates() {
-        return ankiTemplateRepository.findAll()
+        return ankiTemplateRepository.findAccessible(ContentScope.SYSTEM, currentUserService.getCurrentUserId())
                 .stream()
                 .map(AnkiTemplateResponse::from)
                 .toList();
@@ -51,7 +59,7 @@ public class TemplateService {
 
     @Transactional(readOnly = true)
     public List<MarkdownTemplateResponse> listMarkdownTemplates() {
-        return markdownTemplateRepository.findAll()
+        return markdownTemplateRepository.findAccessible(ContentScope.SYSTEM, currentUserService.getCurrentUserId())
                 .stream()
                 .map(MarkdownTemplateResponse::from)
                 .toList();
@@ -59,13 +67,16 @@ public class TemplateService {
 
     @Transactional
     public AnkiTemplateResponse createAnkiTemplate(SaveAnkiTemplateRequest request) {
+        Long userId = currentUserService.getCurrentUserId();
         String normalizedName = normalizeRequired(request.name(), "name");
-        ensureAnkiTemplateNameAvailable(normalizedName, null);
+        ensureAnkiTemplateNameAvailable(userId, normalizedName, null);
         validateAnkiTemplates(request.frontTemplate(), request.backTemplate());
 
         AnkiTemplateEntity saved = ankiTemplateRepository.save(AnkiTemplateEntity.create(
                 normalizedName,
                 normalizeOptional(request.description()),
+                ContentScope.USER,
+                userId,
                 copyFieldMapping(request.fieldMapping()),
                 request.frontTemplate().trim(),
                 request.backTemplate().trim(),
@@ -76,11 +87,11 @@ public class TemplateService {
 
     @Transactional
     public AnkiTemplateResponse updateAnkiTemplate(Long id, SaveAnkiTemplateRequest request) {
-        AnkiTemplateEntity entity = ankiTemplateRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Anki template not found: " + id));
+        Long userId = currentUserService.getCurrentUserId();
+        AnkiTemplateEntity entity = templateAccessService.getEditableAnkiTemplate(id);
 
         String normalizedName = normalizeRequired(request.name(), "name");
-        ensureAnkiTemplateNameAvailable(normalizedName, id);
+        ensureAnkiTemplateNameAvailable(userId, normalizedName, id);
         validateAnkiTemplates(request.frontTemplate(), request.backTemplate());
 
         entity.update(
@@ -96,13 +107,16 @@ public class TemplateService {
 
     @Transactional
     public MarkdownTemplateResponse createMarkdownTemplate(SaveMarkdownTemplateRequest request) {
+        Long userId = currentUserService.getCurrentUserId();
         String normalizedName = normalizeRequired(request.name(), "name");
-        ensureMarkdownTemplateNameAvailable(normalizedName, null);
+        ensureMarkdownTemplateNameAvailable(userId, normalizedName, null);
         validateMarkdownTemplate(request.templateContent());
 
         MarkdownTemplateEntity saved = markdownTemplateRepository.save(MarkdownTemplateEntity.create(
                 normalizedName,
                 normalizeOptional(request.description()),
+                ContentScope.USER,
+                userId,
                 request.templateContent().trim()
         ));
         return MarkdownTemplateResponse.from(saved);
@@ -110,11 +124,11 @@ public class TemplateService {
 
     @Transactional
     public MarkdownTemplateResponse updateMarkdownTemplate(Long id, SaveMarkdownTemplateRequest request) {
-        MarkdownTemplateEntity entity = markdownTemplateRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Markdown template not found: " + id));
+        Long userId = currentUserService.getCurrentUserId();
+        MarkdownTemplateEntity entity = templateAccessService.getEditableMarkdownTemplate(id);
 
         String normalizedName = normalizeRequired(request.name(), "name");
-        ensureMarkdownTemplateNameAvailable(normalizedName, id);
+        ensureMarkdownTemplateNameAvailable(userId, normalizedName, id);
         validateMarkdownTemplate(request.templateContent());
 
         entity.update(
@@ -172,19 +186,19 @@ public class TemplateService {
         );
     }
 
-    private void ensureAnkiTemplateNameAvailable(String name, Long currentId) {
+    private void ensureAnkiTemplateNameAvailable(Long userId, String name, Long currentId) {
         boolean exists = currentId == null
-                ? ankiTemplateRepository.existsByName(name)
-                : ankiTemplateRepository.existsByNameAndIdNot(name, currentId);
+                ? ankiTemplateRepository.existsByOwnerUserIdAndName(userId, name)
+                : ankiTemplateRepository.existsByOwnerUserIdAndNameAndIdNot(userId, name, currentId);
         if (exists) {
             throw new BusinessException(ErrorCode.CONFLICT, "Anki template name already exists: " + name);
         }
     }
 
-    private void ensureMarkdownTemplateNameAvailable(String name, Long currentId) {
+    private void ensureMarkdownTemplateNameAvailable(Long userId, String name, Long currentId) {
         boolean exists = currentId == null
-                ? markdownTemplateRepository.existsByName(name)
-                : markdownTemplateRepository.existsByNameAndIdNot(name, currentId);
+                ? markdownTemplateRepository.existsByOwnerUserIdAndName(userId, name)
+                : markdownTemplateRepository.existsByOwnerUserIdAndNameAndIdNot(userId, name, currentId);
         if (exists) {
             throw new BusinessException(ErrorCode.CONFLICT, "Markdown template name already exists: " + name);
         }

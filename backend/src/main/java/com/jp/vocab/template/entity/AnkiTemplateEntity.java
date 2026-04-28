@@ -27,6 +27,12 @@ public class AnkiTemplateEntity extends AuditableEntity {
     @Column(name = "description", length = 512)
     private String description;
 
+    @Column(name = "scope", nullable = false, length = 32)
+    private String scope;
+
+    @Column(name = "owner_user_id")
+    private Long ownerUserId;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "field_mapping", nullable = false, columnDefinition = "jsonb")
     private Map<String, List<String>> fieldMapping;
@@ -46,6 +52,8 @@ public class AnkiTemplateEntity extends AuditableEntity {
     public static AnkiTemplateEntity create(
             String name,
             String description,
+            String scope,
+            Long ownerUserId,
             Map<String, List<String>> fieldMapping,
             String frontTemplate,
             String backTemplate,
@@ -54,6 +62,8 @@ public class AnkiTemplateEntity extends AuditableEntity {
         AnkiTemplateEntity entity = new AnkiTemplateEntity();
         entity.name = name;
         entity.description = description;
+        entity.scope = scope;
+        entity.ownerUserId = ownerUserId;
         entity.fieldMapping = fieldMapping;
         entity.frontTemplate = frontTemplate;
         entity.backTemplate = backTemplate;
@@ -87,6 +97,14 @@ public class AnkiTemplateEntity extends AuditableEntity {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
     }
 
     public Map<String, List<String>> getFieldMapping() {

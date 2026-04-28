@@ -4,6 +4,7 @@ import com.jp.vocab.dashboard.dto.DashboardOverviewResponse;
 import com.jp.vocab.dashboard.dto.DashboardPlanSummaryResponse;
 import com.jp.vocab.dashboard.dto.DashboardTrendItemResponse;
 import com.jp.vocab.dashboard.dto.StudyDashboardResponse;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -16,27 +17,34 @@ import java.util.List;
 public class StudyDashboardService {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final CurrentUserService currentUserService;
 
-    public StudyDashboardService(NamedParameterJdbcTemplate jdbcTemplate) {
+    public StudyDashboardService(
+            NamedParameterJdbcTemplate jdbcTemplate,
+            CurrentUserService currentUserService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional(readOnly = true)
     public StudyDashboardResponse getDashboard(LocalDate targetDate) {
+        Long userId = currentUserService.getCurrentUserId();
         return new StudyDashboardResponse(
-                getOverview(targetDate),
-                getActivePlans(targetDate),
-                getRecentTrend(targetDate.minusDays(6), targetDate)
+                getOverview(userId, targetDate),
+                getActivePlans(userId, targetDate),
+                getRecentTrend(userId, targetDate.minusDays(6), targetDate)
         );
     }
 
-    private DashboardOverviewResponse getOverview(LocalDate targetDate) {
+    private DashboardOverviewResponse getOverview(Long userId, LocalDate targetDate) {
         LocalDate endExclusive = targetDate.plusDays(1);
         String sql = """
                 select
                     (select count(*)
                      from study_plan
-                     where status = 'ACTIVE') as active_plan_count,
+                     where status = 'ACTIVE'
+                       and user_id = :userId) as active_plan_count,
                     count(ci.id) as total_due_today,
                     coalesce(sum(case when ci.card_type = 'NEW' then 1 else 0 end), 0) as new_due_today,
                     coalesce(sum(case when ci.card_type = 'REVIEW' then 1 else 0 end), 0) as review_due_today,
@@ -47,6 +55,7 @@ public class StudyDashboardService {
                         join card_instance reviewed_ci on reviewed_ci.id = rl.card_instance_id
                         join study_plan reviewed_sp on reviewed_sp.id = reviewed_ci.plan_id
                         where reviewed_sp.status = 'ACTIVE'
+                          and reviewed_sp.user_id = :userId
                           and rl.reviewed_at::date = :targetDate
                     ) as reviewed_today
                 from study_plan sp
@@ -55,9 +64,11 @@ public class StudyDashboardService {
                    and ci.status = 'PENDING'
                    and ci.due_at < :endExclusive
                 where sp.status = 'ACTIVE'
+                  and sp.user_id = :userId
                 """;
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("userId", userId)
                 .addValue("targetDate", targetDate)
                 .addValue("endExclusive", endExclusive.atStartOfDay());
 
@@ -72,7 +83,7 @@ public class StudyDashboardService {
         ));
     }
 
-    private List<DashboardPlanSummaryResponse> getActivePlans(LocalDate targetDate) {
+    private List<DashboardPlanSummaryResponse> getActivePlans(Long userId, LocalDate targetDate) {
         LocalDate endExclusive = targetDate.plusDays(1);
         String sql = """
                 select
@@ -123,10 +134,12 @@ public class StudyDashboardService {
                     group by ci.plan_id
                 ) reviewed on reviewed.plan_id = sp.id
                 where sp.status = 'ACTIVE'
+                  and sp.user_id = :userId
                 order by due_today desc, reviewed_today desc, sp.start_date asc, sp.id asc
                 """;
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("userId", userId)
                 .addValue("targetDate", targetDate)
                 .addValue("endExclusive", endExclusive.atStartOfDay());
 
@@ -147,7 +160,7 @@ public class StudyDashboardService {
         ));
     }
 
-    private List<DashboardTrendItemResponse> getRecentTrend(LocalDate startDate, LocalDate endDate) {
+    private List<DashboardTrendItemResponse> getRecentTrend(Long userId, LocalDate startDate, LocalDate endDate) {
         String sql = """
                 with days as (
                     select generate_series(cast(:startDate as date), cast(:endDate as date), interval '1 day')::date as day
@@ -160,6 +173,7 @@ public class StudyDashboardService {
                     from card_instance ci
                     join study_plan sp on sp.id = ci.plan_id
                     where sp.status = 'ACTIVE'
+                      and sp.user_id = :userId
                       and ci.status = 'PENDING'
                       and ci.due_at::date between :startDate and :endDate
                     group by ci.due_at::date
@@ -172,6 +186,7 @@ public class StudyDashboardService {
                     join card_instance ci on ci.id = rl.card_instance_id
                     join study_plan sp on sp.id = ci.plan_id
                     where sp.status = 'ACTIVE'
+                      and sp.user_id = :userId
                       and rl.reviewed_at::date between :startDate and :endDate
                     group by rl.reviewed_at::date
                 )
@@ -187,6 +202,7 @@ public class StudyDashboardService {
                 """;
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("userId", userId)
                 .addValue("startDate", startDate)
                 .addValue("endDate", endDate);
 

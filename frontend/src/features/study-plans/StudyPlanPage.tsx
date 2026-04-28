@@ -256,7 +256,17 @@ export function StudyPlanPage() {
           <Form.Item label="词库" name="wordSetId" rules={[{ required: true, message: "请选择词库" }]}>
             <Select
               disabled={isEditLocked}
-              options={(wordSetsQuery.data?.items ?? []).map((item) => ({ label: item.name, value: item.id }))}
+              options={(wordSetsQuery.data?.items ?? []).map((item) => ({
+                label: (
+                  <Space size={8}>
+                    <span>{item.name}</span>
+                    <Tag color={item.scope === "SYSTEM" ? "blue" : "green"}>
+                      {item.scope === "SYSTEM" ? "SYSTEM" : "MY"}
+                    </Tag>
+                  </Space>
+                ),
+                value: item.id
+              }))}
             />
           </Form.Item>
           <Form.Item label="开始日期" name="startDate" rules={[{ required: true, message: "请选择开始日期" }]}>
@@ -276,14 +286,34 @@ export function StudyPlanPage() {
             <Select
               allowClear
               disabled={isEditLocked}
-              options={(ankiTemplatesQuery.data ?? []).map((item) => ({ label: item.name, value: item.id }))}
+              options={(ankiTemplatesQuery.data ?? []).map((item) => ({
+                label: (
+                  <Space size={8}>
+                    <span>{item.name}</span>
+                    <Tag color={item.scope === "SYSTEM" ? "blue" : "green"}>
+                      {item.scope === "SYSTEM" ? "SYSTEM" : "MY"}
+                    </Tag>
+                  </Space>
+                ),
+                value: item.id
+              }))}
             />
           </Form.Item>
           <Form.Item label="Markdown 模板" name="mdTemplateId">
             <Select
               allowClear
               disabled={isEditLocked}
-              options={(markdownTemplatesQuery.data ?? []).map((item) => ({ label: item.name, value: item.id }))}
+              options={(markdownTemplatesQuery.data ?? []).map((item) => ({
+                label: (
+                  <Space size={8}>
+                    <span>{item.name}</span>
+                    <Tag color={item.scope === "SYSTEM" ? "blue" : "green"}>
+                      {item.scope === "SYSTEM" ? "SYSTEM" : "MY"}
+                    </Tag>
+                  </Space>
+                ),
+                value: item.id
+              }))}
             />
           </Form.Item>
           <Space>

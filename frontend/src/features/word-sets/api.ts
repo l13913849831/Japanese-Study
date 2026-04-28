@@ -5,6 +5,7 @@ export interface WordSet {
   id: number;
   name: string;
   description?: string;
+  scope: "SYSTEM" | "USER";
   createdAt: string;
   updatedAt: string;
 }

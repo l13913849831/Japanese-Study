@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
+- **Total Sessions**: 8
 - **Last Active**: 2026-04-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~243 | Active |
+| `journal-1.md` | ~274 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-04-28 | 最小用户归属底座首批落地 | - | `main` |
 | 7 | 2026-04-28 | 连续复习会话体验改造 | - | `main` |
 | 6 | 2026-04-25 | 切换到连续复习会话任务 | `c3ea7f7` | `main` |
 | 5 | 2026-04-25 | FSRS迁移收尾 | `bc66fb7`, `94774ab` | `main` |

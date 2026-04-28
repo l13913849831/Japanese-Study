@@ -22,16 +22,24 @@ public class WordSetEntity extends AuditableEntity {
     @Column(name = "description", length = 512)
     private String description;
 
+    @Column(name = "scope", nullable = false, length = 32)
+    private String scope;
+
+    @Column(name = "owner_user_id")
+    private Long ownerUserId;
+
     protected WordSetEntity() {
     }
 
-    private WordSetEntity(String name, String description) {
+    private WordSetEntity(String name, String description, String scope, Long ownerUserId) {
         this.name = name;
         this.description = description;
+        this.scope = scope;
+        this.ownerUserId = ownerUserId;
     }
 
-    public static WordSetEntity create(String name, String description) {
-        return new WordSetEntity(name, description);
+    public static WordSetEntity createUserOwned(String name, String description, Long ownerUserId) {
+        return new WordSetEntity(name, description, "USER", ownerUserId);
     }
 
     public Long getId() {
@@ -44,5 +52,13 @@ public class WordSetEntity extends AuditableEntity {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
     }
 }

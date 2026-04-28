@@ -4,6 +4,7 @@ export interface AnkiTemplate {
   id: number;
   name: string;
   description?: string;
+  scope: "SYSTEM" | "USER";
   fieldMapping: Record<string, string[]>;
   frontTemplate: string;
   backTemplate: string;
@@ -16,6 +17,7 @@ export interface MarkdownTemplate {
   id: number;
   name: string;
   description?: string;
+  scope: "SYSTEM" | "USER";
   templateContent: string;
   createdAt: string;
   updatedAt: string;

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShellLayout } from "@/app/shell/AppShellLayout";
+import { RequireAuth } from "@/features/auth/RequireAuth";
 import { StatusState } from "@/shared/components/StatusState";
 
 const StudyDashboardPage = lazy(async () => {
@@ -53,6 +54,11 @@ const WeakItemsPage = lazy(async () => {
   return { default: module.WeakItemsPage };
 });
 
+const LoginPage = lazy(async () => {
+  const module = await import("@/features/auth/LoginPage");
+  return { default: module.LoginPage };
+});
+
 function withPageFallback(element: React.JSX.Element) {
   return (
     <Suspense fallback={<StatusState mode="loading" />}>
@@ -63,20 +69,29 @@ function withPageFallback(element: React.JSX.Element) {
 
 export const router = createBrowserRouter([
   {
-    path: "/",
-    element: <AppShellLayout />,
+    path: "/login",
+    element: withPageFallback(<LoginPage />)
+  },
+  {
+    element: <RequireAuth />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: "dashboard", element: withPageFallback(<StudyDashboardPage />) },
-      { path: "word-sets", element: withPageFallback(<WordSetPage />) },
-      { path: "study-plans", element: withPageFallback(<StudyPlanPage />) },
-      { path: "cards", element: withPageFallback(<TodayCardsPage />) },
-      { path: "notes/dashboard", element: withPageFallback(<NoteDashboardPage />) },
-      { path: "notes", element: withPageFallback(<NotesPage />) },
-      { path: "notes/review", element: withPageFallback(<NoteReviewPage />) },
-      { path: "weak-items", element: withPageFallback(<WeakItemsPage />) },
-      { path: "templates", element: withPageFallback(<TemplatePage />) },
-      { path: "export-jobs", element: withPageFallback(<ExportJobPage />) }
+      {
+        path: "/",
+        element: <AppShellLayout />,
+        children: [
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: "dashboard", element: withPageFallback(<StudyDashboardPage />) },
+          { path: "word-sets", element: withPageFallback(<WordSetPage />) },
+          { path: "study-plans", element: withPageFallback(<StudyPlanPage />) },
+          { path: "cards", element: withPageFallback(<TodayCardsPage />) },
+          { path: "notes/dashboard", element: withPageFallback(<NoteDashboardPage />) },
+          { path: "notes", element: withPageFallback(<NotesPage />) },
+          { path: "notes/review", element: withPageFallback(<NoteReviewPage />) },
+          { path: "weak-items", element: withPageFallback(<WeakItemsPage />) },
+          { path: "templates", element: withPageFallback(<TemplatePage />) },
+          { path: "export-jobs", element: withPageFallback(<ExportJobPage />) }
+        ]
+      }
     ]
   }
 ]);

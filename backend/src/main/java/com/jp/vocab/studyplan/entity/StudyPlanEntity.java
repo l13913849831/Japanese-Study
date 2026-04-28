@@ -32,6 +32,9 @@ public class StudyPlanEntity extends AuditableEntity {
     @Column(name = "name", nullable = false, length = 128)
     private String name;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Column(name = "word_set_id", nullable = false)
     private Long wordSetId;
 
@@ -59,6 +62,7 @@ public class StudyPlanEntity extends AuditableEntity {
 
     public static StudyPlanEntity create(
             String name,
+            Long userId,
             Long wordSetId,
             LocalDate startDate,
             Integer dailyNewCount,
@@ -68,6 +72,7 @@ public class StudyPlanEntity extends AuditableEntity {
     ) {
         StudyPlanEntity entity = new StudyPlanEntity();
         entity.name = name;
+        entity.userId = userId;
         entity.wordSetId = wordSetId;
         entity.startDate = startDate;
         entity.dailyNewCount = dailyNewCount;
@@ -134,6 +139,10 @@ public class StudyPlanEntity extends AuditableEntity {
 
     public Long getWordSetId() {
         return wordSetId;
+    }
+
+    public Long getUserId() {
+        return userId;
     }
 
     public LocalDate getStartDate() {

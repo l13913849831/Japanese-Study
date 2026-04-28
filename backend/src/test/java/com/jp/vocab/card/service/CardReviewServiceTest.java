@@ -6,6 +6,7 @@ import com.jp.vocab.card.entity.CardInstanceEntity;
 import com.jp.vocab.card.entity.ReviewLogEntity;
 import com.jp.vocab.card.repository.CardInstanceRepository;
 import com.jp.vocab.card.repository.ReviewLogRepository;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,13 +39,22 @@ class CardReviewServiceTest {
     @Mock
     private ReviewLogRepository reviewLogRepository;
 
+    @Mock
+    private CurrentUserService currentUserService;
+
     private final CardFsrsScheduler cardFsrsScheduler = new CardFsrsScheduler();
 
     private CardReviewService cardReviewService;
 
     @BeforeEach
     void setUp() {
-        cardReviewService = new CardReviewService(cardInstanceRepository, reviewLogRepository, cardFsrsScheduler);
+        when(currentUserService.getCurrentUserId()).thenReturn(11L);
+        cardReviewService = new CardReviewService(
+                cardInstanceRepository,
+                reviewLogRepository,
+                cardFsrsScheduler,
+                currentUserService
+        );
     }
 
     @Test
@@ -52,7 +62,7 @@ class CardReviewServiceTest {
         CardInstanceEntity card = CardInstanceEntity.create(1L, 2L, "NEW", 1, 0, LocalDate.of(2026, 4, 24), "PENDING");
         ReflectionTestUtils.setField(card, "id", 7L);
 
-        when(cardInstanceRepository.findById(7L)).thenReturn(Optional.of(card));
+        when(cardInstanceRepository.findOwnedById(7L, 11L)).thenReturn(Optional.of(card));
         when(reviewLogRepository.save(any(ReviewLogEntity.class))).thenAnswer(invocation -> {
             ReviewLogEntity saved = invocation.getArgument(0);
             ReflectionTestUtils.setField(saved, "id", 88L);
@@ -94,7 +104,7 @@ class CardReviewServiceTest {
     void shouldRejectInvalidRatingBeforeSavingReview() {
         CardInstanceEntity card = CardInstanceEntity.create(1L, 2L, "NEW", 1, 0, LocalDate.of(2026, 4, 24), "PENDING");
         ReflectionTestUtils.setField(card, "id", 7L);
-        when(cardInstanceRepository.findById(7L)).thenReturn(Optional.of(card));
+        when(cardInstanceRepository.findOwnedById(7L, 11L)).thenReturn(Optional.of(card));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -112,7 +122,7 @@ class CardReviewServiceTest {
         CardInstanceEntity card = CardInstanceEntity.create(1L, 2L, "NEW", 1, 0, LocalDate.of(2026, 4, 24), "PENDING");
         ReflectionTestUtils.setField(card, "id", 7L);
 
-        when(cardInstanceRepository.findById(7L)).thenReturn(Optional.of(card));
+        when(cardInstanceRepository.findOwnedById(7L, 11L)).thenReturn(Optional.of(card));
         when(reviewLogRepository.save(any(ReviewLogEntity.class))).thenAnswer(invocation -> {
             ReviewLogEntity saved = invocation.getArgument(0);
             ReflectionTestUtils.setField(saved, "id", 89L);

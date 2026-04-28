@@ -24,6 +24,7 @@ async function unwrapResponse<T>(response: Response): Promise<T> {
 export async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(buildUrl(path), {
     method: "GET",
+    credentials: "include",
     headers: {
       Accept: "application/json"
     }
@@ -35,6 +36,7 @@ export async function getJson<T>(path: string): Promise<T> {
 export async function postJson<TResponse, TRequest>(path: string, body: TRequest): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json"
@@ -48,6 +50,7 @@ export async function postJson<TResponse, TRequest>(path: string, body: TRequest
 export async function putJson<TResponse, TRequest>(path: string, body: TRequest): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: "PUT",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json"
@@ -61,6 +64,7 @@ export async function putJson<TResponse, TRequest>(path: string, body: TRequest)
 export async function deleteJson<TResponse>(path: string): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: "DELETE",
+    credentials: "include",
     headers: {
       Accept: "application/json"
     }
@@ -72,6 +76,7 @@ export async function deleteJson<TResponse>(path: string): Promise<TResponse> {
 export async function postFormData<TResponse>(path: string, formData: FormData): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: "POST",
+    credentials: "include",
     body: formData
   });
 
@@ -80,7 +85,8 @@ export async function postFormData<TResponse>(path: string, formData: FormData):
 
 export async function downloadFile(path: string): Promise<Blob> {
   const response = await fetch(buildUrl(path), {
-    method: "GET"
+    method: "GET",
+    credentials: "include"
   });
 
   if (!response.ok) {

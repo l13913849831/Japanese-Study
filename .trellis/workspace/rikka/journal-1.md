@@ -241,3 +241,34 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: 最小用户归属底座首批落地
+
+**Date**: 2026-04-28
+**Task**: 最小用户归属底座首批落地
+**Branch**: `main`
+
+### Summary
+
+完成 P0-a 第一批闭环：后端用户/身份/设置模型、本地 session 登录、/api/auth/login|logout、/api/me、/api/me/settings；词库/模板/学习计划/导出/单词看板按当前用户收口；前端补登录页、鉴权守卫、偏好切换。并记录剩余缺口：知识点线尚未拆成用户独立归属，Keycloak/微信仅预留。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

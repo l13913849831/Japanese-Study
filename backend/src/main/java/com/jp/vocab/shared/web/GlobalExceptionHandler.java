@@ -61,6 +61,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
         HttpStatus status = switch (ex.getErrorCode()) {
+            case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case CONFLICT -> HttpStatus.CONFLICT;
             case BAD_REQUEST, IMPORT_ERROR, TEMPLATE_RENDER_ERROR, EXPORT_ERROR, VALIDATION_ERROR -> HttpStatus.BAD_REQUEST;

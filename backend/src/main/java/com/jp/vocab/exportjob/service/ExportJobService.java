@@ -6,15 +6,16 @@ import com.jp.vocab.exportjob.dto.CreateExportJobRequest;
 import com.jp.vocab.exportjob.dto.ExportJobResponse;
 import com.jp.vocab.exportjob.entity.ExportJobEntity;
 import com.jp.vocab.exportjob.repository.ExportJobRepository;
+import com.jp.vocab.shared.api.PageResponse;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.config.ExportProperties;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import com.jp.vocab.shared.template.SimpleTemplateEngine;
 import com.jp.vocab.studyplan.entity.StudyPlanEntity;
-import com.jp.vocab.studyplan.repository.StudyPlanRepository;
+import com.jp.vocab.studyplan.service.StudyPlanAccessService;
 import com.jp.vocab.template.entity.MarkdownTemplateEntity;
-import com.jp.vocab.template.repository.MarkdownTemplateRepository;
-import com.jp.vocab.shared.api.PageResponse;
+import com.jp.vocab.template.service.TemplateAccessService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.core.io.FileSystemResource;
@@ -35,32 +36,37 @@ import java.util.Set;
 public class ExportJobService {
 
     private final ExportJobRepository exportJobRepository;
-    private final StudyPlanRepository studyPlanRepository;
+    private final CurrentUserService currentUserService;
+    private final StudyPlanAccessService studyPlanAccessService;
     private final CardQueryService cardQueryService;
-    private final MarkdownTemplateRepository markdownTemplateRepository;
+    private final TemplateAccessService templateAccessService;
     private final ExportProperties exportProperties;
     private final SimpleTemplateEngine templateEngine;
 
     public ExportJobService(
             ExportJobRepository exportJobRepository,
-            StudyPlanRepository studyPlanRepository,
+            CurrentUserService currentUserService,
+            StudyPlanAccessService studyPlanAccessService,
             CardQueryService cardQueryService,
-            MarkdownTemplateRepository markdownTemplateRepository,
+            TemplateAccessService templateAccessService,
             ExportProperties exportProperties,
             SimpleTemplateEngine templateEngine
     ) {
         this.exportJobRepository = exportJobRepository;
-        this.studyPlanRepository = studyPlanRepository;
+        this.currentUserService = currentUserService;
+        this.studyPlanAccessService = studyPlanAccessService;
         this.cardQueryService = cardQueryService;
-        this.markdownTemplateRepository = markdownTemplateRepository;
+        this.templateAccessService = templateAccessService;
         this.exportProperties = exportProperties;
         this.templateEngine = templateEngine;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<ExportJobResponse> list(int page, int pageSize) {
+        Long userId = currentUserService.getCurrentUserId();
         return PageResponse.from(
-                exportJobRepository.findAll(
+                exportJobRepository.findByUserId(
+                                userId,
                                 PageRequest.of(Math.max(page - 1, 0), pageSize, Sort.by(Sort.Direction.DESC, "createdAt")))
                         .map(ExportJobResponse::from)
         );
@@ -68,8 +74,7 @@ public class ExportJobService {
 
     @Transactional
     public ExportJobResponse create(CreateExportJobRequest request) {
-        StudyPlanEntity plan = studyPlanRepository.findById(request.planId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Study plan not found: " + request.planId()));
+        StudyPlanEntity plan = studyPlanAccessService.getOwnedPlan(request.planId());
 
         List<GeneratedCardRecord> cards = cardQueryService.queryDetailedCards(plan.getId(), request.targetDate());
         String exportType = request.exportType();
@@ -120,8 +125,7 @@ public class ExportJobService {
 
     @Transactional(readOnly = true)
     public Resource getDownloadResource(Long exportJobId) {
-        ExportJobEntity exportJob = exportJobRepository.findById(exportJobId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Export job not found: " + exportJobId));
+        ExportJobEntity exportJob = getEntity(exportJobId);
         if (exportJob.getFilePath() == null || exportJob.getFilePath().isBlank()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Export file not found for job: " + exportJobId);
         }
@@ -135,7 +139,7 @@ public class ExportJobService {
 
     @Transactional(readOnly = true)
     public ExportJobEntity getEntity(Long exportJobId) {
-        return exportJobRepository.findById(exportJobId)
+        return exportJobRepository.findOwnedById(exportJobId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Export job not found: " + exportJobId));
     }
 
@@ -171,8 +175,8 @@ public class ExportJobService {
 
     private String buildMarkdown(StudyPlanEntity plan, java.time.LocalDate targetDate, List<GeneratedCardRecord> cards) {
         MarkdownTemplateEntity template = plan.getMdTemplateId() != null
-                ? markdownTemplateRepository.findById(plan.getMdTemplateId()).orElseGet(this::getDefaultMarkdownTemplate)
-                : getDefaultMarkdownTemplate();
+                ? templateAccessService.getAccessibleMarkdownTemplate(plan.getMdTemplateId())
+                : templateAccessService.getDefaultMarkdownTemplate();
 
         templateEngine.validate(
                 template.getTemplateContent(),
@@ -187,13 +191,6 @@ public class ExportJobService {
                 "reviewCards", cards.stream().filter(card -> "REVIEW".equals(card.cardType())).map(this::toTemplateMap).toList()
         );
         return templateEngine.render(template.getTemplateContent(), context);
-    }
-
-    private MarkdownTemplateEntity getDefaultMarkdownTemplate() {
-        return markdownTemplateRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
-                .stream()
-                .findFirst()
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Markdown template not found"));
     }
 
     private Map<String, Object> toTemplateMap(GeneratedCardRecord card) {

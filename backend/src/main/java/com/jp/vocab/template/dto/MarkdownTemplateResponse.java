@@ -8,6 +8,7 @@ public record MarkdownTemplateResponse(
         Long id,
         String name,
         String description,
+        String scope,
         String templateContent,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
@@ -17,6 +18,7 @@ public record MarkdownTemplateResponse(
                 entity.getId(),
                 entity.getName(),
                 entity.getDescription(),
+                entity.getScope(),
                 entity.getTemplateContent(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()

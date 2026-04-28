@@ -7,6 +7,7 @@ import com.jp.vocab.card.entity.CardInstanceEntity;
 import com.jp.vocab.card.entity.ReviewLogEntity;
 import com.jp.vocab.card.repository.CardInstanceRepository;
 import com.jp.vocab.card.repository.ReviewLogRepository;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -26,15 +27,18 @@ public class CardReviewService {
     private final CardInstanceRepository cardInstanceRepository;
     private final ReviewLogRepository reviewLogRepository;
     private final CardFsrsScheduler cardFsrsScheduler;
+    private final CurrentUserService currentUserService;
 
     public CardReviewService(
             CardInstanceRepository cardInstanceRepository,
             ReviewLogRepository reviewLogRepository,
-            CardFsrsScheduler cardFsrsScheduler
+            CardFsrsScheduler cardFsrsScheduler,
+            CurrentUserService currentUserService
     ) {
         this.cardInstanceRepository = cardInstanceRepository;
         this.reviewLogRepository = reviewLogRepository;
         this.cardFsrsScheduler = cardFsrsScheduler;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional
@@ -91,7 +95,7 @@ public class CardReviewService {
     }
 
     private CardInstanceEntity getCard(Long cardId) {
-        return cardInstanceRepository.findById(cardId)
+        return cardInstanceRepository.findOwnedById(cardId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Card not found: " + cardId));
     }
 
