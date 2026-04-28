@@ -6,12 +6,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import jakarta.persistence.FetchType;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "note")
@@ -21,15 +21,12 @@ public class NoteEntity extends AuditableEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "title", nullable = false)
-    private String title;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "note_source_id", nullable = false)
+    private NoteSourceEntity noteSource;
 
-    @Column(name = "content", nullable = false)
-    private String content;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "tags", nullable = false, columnDefinition = "jsonb")
-    private List<String> tags;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Column(name = "review_count", nullable = false)
     private Integer reviewCount;
@@ -59,18 +56,16 @@ public class NoteEntity extends AuditableEntity {
     }
 
     private NoteEntity(
-            String title,
-            String content,
-            List<String> tags,
+            NoteSourceEntity noteSource,
+            Long userId,
             Integer reviewCount,
             String masteryStatus,
             OffsetDateTime dueAt,
             OffsetDateTime lastReviewedAt,
             String fsrsCardJson
     ) {
-        this.title = title;
-        this.content = content;
-        this.tags = tags;
+        this.noteSource = noteSource;
+        this.userId = userId;
         this.reviewCount = reviewCount;
         this.masteryStatus = masteryStatus;
         this.dueAt = dueAt;
@@ -79,32 +74,20 @@ public class NoteEntity extends AuditableEntity {
     }
 
     public static NoteEntity create(
-            String title,
-            String content,
-            List<String> tags,
+            NoteSourceEntity noteSource,
+            Long userId,
             OffsetDateTime dueAt,
             String fsrsCardJson
     ) {
         return new NoteEntity(
-                title,
-                content,
-                tags,
+                noteSource,
+                userId,
                 0,
                 "UNSTARTED",
                 dueAt,
                 null,
                 fsrsCardJson
         );
-    }
-
-    public void update(
-            String title,
-            String content,
-            List<String> tags
-    ) {
-        this.title = title;
-        this.content = content;
-        this.tags = tags;
     }
 
     public void applyReview(
@@ -145,16 +128,24 @@ public class NoteEntity extends AuditableEntity {
         return id;
     }
 
+    public NoteSourceEntity getNoteSource() {
+        return noteSource;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
     public String getTitle() {
-        return title;
+        return noteSource.getTitle();
     }
 
     public String getContent() {
-        return content;
+        return noteSource.getContent();
     }
 
-    public List<String> getTags() {
-        return tags;
+    public java.util.List<String> getTags() {
+        return noteSource.getTags();
     }
 
     public Integer getReviewCount() {
@@ -187,5 +178,13 @@ public class NoteEntity extends AuditableEntity {
 
     public String getLastReviewRating() {
         return lastReviewRating;
+    }
+
+    public OffsetDateTime getDisplayCreatedAt() {
+        return noteSource.getCreatedAt().isBefore(getCreatedAt()) ? noteSource.getCreatedAt() : getCreatedAt();
+    }
+
+    public OffsetDateTime getDisplayUpdatedAt() {
+        return noteSource.getUpdatedAt().isAfter(getUpdatedAt()) ? noteSource.getUpdatedAt() : getUpdatedAt();
     }
 }

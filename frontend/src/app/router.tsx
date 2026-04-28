@@ -59,6 +59,11 @@ const LoginPage = lazy(async () => {
   return { default: module.LoginPage };
 });
 
+const AccountPage = lazy(async () => {
+  const module = await import("@/features/auth/AccountPage");
+  return { default: module.AccountPage };
+});
+
 function withPageFallback(element: React.JSX.Element) {
   return (
     <Suspense fallback={<StatusState mode="loading" />}>
@@ -89,7 +94,8 @@ export const router = createBrowserRouter([
           { path: "notes/review", element: withPageFallback(<NoteReviewPage />) },
           { path: "weak-items", element: withPageFallback(<WeakItemsPage />) },
           { path: "templates", element: withPageFallback(<TemplatePage />) },
-          { path: "export-jobs", element: withPageFallback(<ExportJobPage />) }
+          { path: "export-jobs", element: withPageFallback(<ExportJobPage />) },
+          { path: "account", element: withPageFallback(<AccountPage />) }
         ]
       }
     ]

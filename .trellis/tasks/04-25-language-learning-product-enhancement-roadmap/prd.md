@@ -36,14 +36,33 @@
 * 这轮不直接实现功能
 * 这轮不展开所有方向的详细实现设计
 
-## Child Tasks
+## Active Child Tasks
+
+当前主线收敛为 5 个仍可独立推进的任务：
+
+* `04-28-04-28-minimal-user-ownership-foundation`
+  * `P0-a`：最小用户归属底座
+* `04-28-04-28-unify-learning-main-path`
+  * `P1-A`：统一每日学习主路径
+* `04-28-04-28-closure-presentation-and-completion-feedback`
+  * `P1-B`：闭环呈现与完成反馈
+* `04-28-04-28-long-term-feedback-and-retrospective`
+  * `P1-C`：长期反馈与复盘
+* `04-28-04-28-sync-and-productization-extension`
+  * `P0-b`：同步、备份、恢复与产品化延伸
+
+## Archived Decision / Planning Inputs
+
+以下任务不再作为独立活跃任务保留，内容已并入上面的主线任务：
 
 * `04-25-language-learning-feature-gaps`
-  * 负责“作为语言学习软件还缺什么”的总体盘点
-* `04-25-daily-weak-item-recovery-loop`
-  * 负责“今日回捞 + WEAK 状态 + 易错项页面入口”的学习闭环设计与实现准备
-* `04-25-migrate-word-review-scheduling-to-fsrs`
-  * 负责把单词线从固定 `reviewOffsets` 调度迁到 FSRS 的独立设计任务
+  * 优先级判断来源，已沉淀为 `P0-a / P1-A / P1-B / P1-C / P0-b`
+* `04-28-04-28-infrastructure-foundation-gaps`
+  * 基础设施缺口已拆入 `P0-a` 和 `P0-b`
+* `04-26-04-26-split-learning-mode-and-management-mode-after-login`
+  * 登录底座归 `P0-a`，学习/管理信息架构归 `P1-A`
+* `04-26-04-26-split-export-into-learning-action-and-management-history`
+  * 学习收尾导出归 `P1-B`，历史管理归后续产品化管理能力
 
 ## Technical Notes
 

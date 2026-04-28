@@ -4,9 +4,11 @@ import com.jp.vocab.note.dto.NoteReviewQueueItemResponse;
 import com.jp.vocab.note.dto.ReviewNoteRequest;
 import com.jp.vocab.note.dto.ReviewNoteResponse;
 import com.jp.vocab.note.entity.NoteEntity;
+import com.jp.vocab.note.entity.NoteSourceEntity;
 import com.jp.vocab.note.entity.NoteReviewLogEntity;
 import com.jp.vocab.note.repository.NoteRepository;
 import com.jp.vocab.note.repository.NoteReviewLogRepository;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +47,9 @@ class NoteReviewServiceTest {
     @Mock
     private NoteFsrsScheduler noteFsrsScheduler;
 
+    @Mock
+    private CurrentUserService currentUserService;
+
     private NoteReviewService noteReviewService;
 
     @BeforeEach
@@ -52,8 +57,10 @@ class NoteReviewServiceTest {
         noteReviewService = new NoteReviewService(
                 noteRepository,
                 noteReviewLogRepository,
-                noteFsrsScheduler
+                noteFsrsScheduler,
+                currentUserService
         );
+        when(currentUserService.getCurrentUserId()).thenReturn(1L);
     }
 
     @Test
@@ -63,7 +70,8 @@ class NoteReviewServiceTest {
         NoteEntity second = createNoteEntity(2L, "Second", targetDate.atTime(10, 0).atOffset(ZoneOffset.UTC));
         NoteEntity excluded = createNoteEntity(3L, "Excluded", targetDate.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC));
 
-        when(noteRepository.findAll()).thenReturn(List.of(second, excluded, first));
+        when(noteRepository.findByUserIdAndDueAtBeforeOrderByDueAtAscIdAsc(eq(1L), any(OffsetDateTime.class)))
+                .thenReturn(List.of(first, second));
 
         List<NoteReviewQueueItemResponse> response = noteReviewService.listDueNotes(targetDate);
 
@@ -77,7 +85,7 @@ class NoteReviewServiceTest {
         OffsetDateTime nextDueAt = reviewedAt.plusDays(3);
         NoteEntity entity = createNoteEntity(10L, "Java", reviewedAt.minusDays(1));
 
-        when(noteRepository.findById(10L)).thenReturn(Optional.of(entity));
+        when(noteRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(entity));
         when(noteFsrsScheduler.review(eq(entity.getFsrsCardJson()), eq("GOOD"), eq(0), any(OffsetDateTime.class)))
                 .thenReturn(new NoteFsrsScheduler.ScheduledNoteReview(
                         "next-card-json",
@@ -121,7 +129,7 @@ class NoteReviewServiceTest {
     @Test
     void shouldRejectInvalidRatingBeforePersistingReview() {
         NoteEntity entity = createNoteEntity(10L, "Java", OffsetDateTime.now(ZoneOffset.UTC));
-        when(noteRepository.findById(10L)).thenReturn(Optional.of(entity));
+        when(noteRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(entity));
 
         BusinessException exception = assertThrows(
                 BusinessException.class,
@@ -140,7 +148,7 @@ class NoteReviewServiceTest {
         OffsetDateTime nextDueAt = reviewedAt.plusHours(4);
         NoteEntity entity = createNoteEntity(10L, "Java", reviewedAt.minusDays(1));
 
-        when(noteRepository.findById(10L)).thenReturn(Optional.of(entity));
+        when(noteRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(entity));
         when(noteFsrsScheduler.review(eq(entity.getFsrsCardJson()), eq("AGAIN"), eq(0), any(OffsetDateTime.class)))
                 .thenReturn(new NoteFsrsScheduler.ScheduledNoteReview(
                         "next-card-json",
@@ -169,7 +177,9 @@ class NoteReviewServiceTest {
     }
 
     private NoteEntity createNoteEntity(Long id, String title, OffsetDateTime dueAt) {
-        NoteEntity entity = NoteEntity.create(title, title + " content", List.of("tag"), dueAt, "card-json");
+        NoteSourceEntity source = NoteSourceEntity.createUserOwned(title, title + " content", List.of("tag"), 1L);
+        ReflectionTestUtils.setField(source, "id", id);
+        NoteEntity entity = NoteEntity.create(source, 1L, dueAt, "card-json");
         ReflectionTestUtils.setField(entity, "id", id);
         assertNull(entity.getLastReviewedAt());
         return entity;

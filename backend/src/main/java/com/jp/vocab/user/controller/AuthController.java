@@ -4,6 +4,7 @@ import com.jp.vocab.shared.api.ApiResponse;
 import com.jp.vocab.user.dto.CurrentUserResponse;
 import com.jp.vocab.user.dto.LoginRequest;
 import com.jp.vocab.user.dto.LogoutResponse;
+import com.jp.vocab.user.dto.RegisterRequest;
 import com.jp.vocab.user.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,6 +31,15 @@ public class AuthController {
             HttpServletResponse servletResponse
     ) {
         return ApiResponse.success(authService.login(request, servletRequest, servletResponse));
+    }
+
+    @PostMapping("/register")
+    public ApiResponse<CurrentUserResponse> register(
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletRequest servletRequest,
+            HttpServletResponse servletResponse
+    ) {
+        return ApiResponse.success(authService.register(request, servletRequest, servletResponse));
     }
 
     @PostMapping("/logout")

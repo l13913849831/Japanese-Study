@@ -48,6 +48,10 @@ public class UserIdentityEntity extends AuditableEntity {
         return entity;
     }
 
+    public void updatePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public Long getId() {
         return id;
     }

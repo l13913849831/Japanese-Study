@@ -9,8 +9,12 @@ import com.jp.vocab.note.dto.NoteImportResponse;
 import com.jp.vocab.note.dto.NoteResponse;
 import com.jp.vocab.note.dto.SaveNoteRequest;
 import com.jp.vocab.note.entity.NoteEntity;
+import com.jp.vocab.note.entity.NoteSourceEntity;
 import com.jp.vocab.note.repository.NoteRepository;
+import com.jp.vocab.note.repository.NoteSourceRepository;
 import com.jp.vocab.shared.api.PageResponse;
+import com.jp.vocab.shared.auth.ContentScope;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import org.springframework.data.domain.Sort;
@@ -21,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -30,17 +35,23 @@ import java.util.Set;
 public class NoteService {
 
     private final NoteRepository noteRepository;
+    private final NoteSourceRepository noteSourceRepository;
     private final NoteMarkdownParser noteMarkdownParser;
     private final NoteFsrsScheduler noteFsrsScheduler;
+    private final CurrentUserService currentUserService;
 
     public NoteService(
             NoteRepository noteRepository,
+            NoteSourceRepository noteSourceRepository,
             NoteMarkdownParser noteMarkdownParser,
-            NoteFsrsScheduler noteFsrsScheduler
+            NoteFsrsScheduler noteFsrsScheduler,
+            CurrentUserService currentUserService
     ) {
         this.noteRepository = noteRepository;
+        this.noteSourceRepository = noteSourceRepository;
         this.noteMarkdownParser = noteMarkdownParser;
         this.noteFsrsScheduler = noteFsrsScheduler;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional(readOnly = true)
@@ -51,11 +62,14 @@ public class NoteService {
             String tag,
             String masteryStatus
     ) {
-        List<NoteResponse> items = noteRepository.findAll(Sort.by(Sort.Direction.DESC, "updatedAt", "id"))
+        Long userId = currentUserService.getCurrentUserId();
+        List<NoteResponse> items = noteRepository.findByUserId(userId, Sort.by(Sort.Direction.DESC, "updatedAt", "id"))
                 .stream()
                 .filter(item -> matchesKeyword(item, keyword))
                 .filter(item -> matchesTag(item, tag))
                 .filter(item -> matchesMasteryStatus(item, masteryStatus))
+                .sorted(Comparator.comparing(NoteEntity::getDisplayUpdatedAt).reversed()
+                        .thenComparing(NoteEntity::getId, Comparator.reverseOrder()))
                 .map(NoteResponse::from)
                 .toList();
 
@@ -76,12 +90,18 @@ public class NoteService {
 
     @Transactional
     public NoteResponse create(SaveNoteRequest request) {
+        Long userId = currentUserService.getCurrentUserId();
         SanitizedNote sanitized = sanitize(request.title(), request.content(), request.tags());
         NoteFsrsScheduler.ScheduledNoteReview initialState = noteFsrsScheduler.createInitialState();
-        NoteEntity saved = noteRepository.save(NoteEntity.create(
+        NoteSourceEntity source = noteSourceRepository.save(NoteSourceEntity.createUserOwned(
                 sanitized.title(),
                 sanitized.content(),
                 sanitized.tags(),
+                userId
+        ));
+        NoteEntity saved = noteRepository.save(NoteEntity.create(
+                source,
+                userId,
                 initialState.dueAt(),
                 initialState.fsrsCardJson()
         ));
@@ -92,17 +112,25 @@ public class NoteService {
     public NoteResponse update(Long noteId, SaveNoteRequest request) {
         NoteEntity entity = getEntity(noteId);
         SanitizedNote sanitized = sanitize(request.title(), request.content(), request.tags());
-        entity.update(
+        NoteSourceEntity source = getEditableSource(entity);
+        source.update(
                 sanitized.title(),
                 sanitized.content(),
                 sanitized.tags()
         );
-        return NoteResponse.from(noteRepository.save(entity));
+        noteSourceRepository.save(source);
+        return NoteResponse.from(entity);
     }
 
     @Transactional
     public void delete(Long noteId) {
-        noteRepository.delete(getEntity(noteId));
+        NoteEntity entity = getEntity(noteId);
+        NoteSourceEntity source = getEditableSource(entity);
+        boolean deleteSource = noteRepository.countByNoteSource_Id(source.getId()) == 1;
+        noteRepository.delete(entity);
+        if (deleteSource) {
+            noteSourceRepository.delete(source);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +165,7 @@ public class NoteService {
 
     @Transactional
     public NoteImportResponse importNotes(ImportNotesRequest request) {
+        Long userId = currentUserService.getCurrentUserId();
         int importedCount = 0;
         List<NoteImportErrorResponse> errors = new ArrayList<>();
 
@@ -145,10 +174,15 @@ public class NoteService {
             try {
                 SanitizedNote sanitized = sanitize(item.title(), item.content(), item.tags());
                 NoteFsrsScheduler.ScheduledNoteReview initialState = noteFsrsScheduler.createInitialState();
-                noteRepository.save(NoteEntity.create(
+                NoteSourceEntity source = noteSourceRepository.save(NoteSourceEntity.createUserOwned(
                         sanitized.title(),
                         sanitized.content(),
                         sanitized.tags(),
+                        userId
+                ));
+                noteRepository.save(NoteEntity.create(
+                        source,
+                        userId,
                         initialState.dueAt(),
                         initialState.fsrsCardJson()
                 ));
@@ -166,8 +200,17 @@ public class NoteService {
     }
 
     NoteEntity getEntity(Long noteId) {
-        return noteRepository.findById(noteId)
+        return noteRepository.findByIdAndUserId(noteId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Note not found: " + noteId));
+    }
+
+    private NoteSourceEntity getEditableSource(NoteEntity entity) {
+        NoteSourceEntity source = entity.getNoteSource();
+        Long userId = currentUserService.getCurrentUserId();
+        if (!ContentScope.USER.equals(source.getScope()) || !userId.equals(source.getOwnerUserId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "System notes are read-only");
+        }
+        return source;
     }
 
     private String readMarkdown(MultipartFile file) {

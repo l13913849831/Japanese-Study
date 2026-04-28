@@ -212,15 +212,48 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 - None - task complete
 
 
-## Session 7: 连续复习会话体验改造
+## Session 7: 连续复习会话体验收尾
 
-**Date**: 2026-04-28
-**Task**: 连续复习会话体验改造
+**Date**: 2026-04-26
+**Task**: 连续复习会话体验收尾
 **Branch**: `main`
 
 ### Summary
 
-完成 /cards 与 /notes/review 的连续会话布局改造；/dashboard 入口会透传日期与计划上下文；同步更新前端 spec 与使用文档。frontend npm run build 已通过。
+完成 /cards 与 /notes/review 连续会话收紧，归档任务并同步文档契约。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7e7d0c0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 8: 拆分学习模式与导出提案
+
+**Date**: 2026-04-26
+**Task**: 拆分学习模式与导出提案
+**Branch**: `main`
+
+### Summary
+
+把新想法拆成两个独立规划任务：学习模式/管理模式分层，以及导出动作/导出历史分层。
 
 ### Main Changes
 
@@ -243,7 +276,7 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 - None - task complete
 
 
-## Session 8: 最小用户归属底座首批落地
+## Session 9: 最小用户归属底座首批落地
 
 **Date**: 2026-04-28
 **Task**: 最小用户归属底座首批落地

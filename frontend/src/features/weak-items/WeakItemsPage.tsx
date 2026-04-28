@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, App, Button, Space, Statistic, Table, Tabs, Tag, Typography } from "antd";
+import { Alert, App, Button, Card, Space, Statistic, Table, Tabs, Tag, Typography } from "antd";
 import dayjs from "dayjs";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ApiClientError } from "@/shared/api/errors";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageSection } from "@/shared/components/PageSection";
@@ -20,6 +21,7 @@ type ActiveTab = "words" | "notes";
 
 export function WeakItemsPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("words");
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
@@ -84,6 +86,47 @@ export function WeakItemsPage() {
             <Statistic title="易错知识点" value={summaryQuery.data?.weakNoteCount ?? 0} />
           </div>
         )}
+      </PageSection>
+
+      {(summaryQuery.data?.weakWordCount ?? 0) + (summaryQuery.data?.weakNoteCount ?? 0) === 0 && !summaryQuery.isLoading ? (
+        <PageSection title="当前状态">
+          <Alert
+            type="success"
+            showIcon
+            message="现在还没有薄弱项。"
+            description="这通常说明你还没开始复习，或者当前会话里还没有内容进入“多次答错”的补强层。"
+          />
+        </PageSection>
+      ) : null}
+
+      <PageSection title="闭环说明">
+        <div className="dashboard-plan-grid">
+          <Card size="small" title="为什么会进来">
+            <Space direction="vertical" size={8}>
+              <Typography.Text>单词或知识点在当天会话里多次答错后，会被标到这里。</Typography.Text>
+              <Typography.Text type="secondary">这不是新任务类型，而是对今天反复卡住内容的补强入口。</Typography.Text>
+            </Space>
+          </Card>
+          <Card size="small" title="现在该做什么">
+            <Space direction="vertical" size={8}>
+              <Typography.Text>先把今日主队列做完，再回来集中补弱项。</Typography.Text>
+              <Space wrap>
+                <Button type="primary" onClick={() => navigate("/dashboard")}>
+                  回工作台
+                </Button>
+                <Button onClick={() => navigate("/notes/review")}>知识点复习</Button>
+              </Space>
+            </Space>
+          </Card>
+          <Card size="small" title="做完后怎么收尾">
+            <Space direction="vertical" size={8}>
+              <Typography.Text>处理完薄弱项后，可以把今天结果导出成复盘材料，或者手动移出已恢复项。</Typography.Text>
+              <Space wrap>
+                <Button onClick={() => navigate("/export-jobs?source=closure")}>导出复盘材料</Button>
+              </Space>
+            </Space>
+          </Card>
+        </div>
       </PageSection>
 
       <PageSection title="Items">

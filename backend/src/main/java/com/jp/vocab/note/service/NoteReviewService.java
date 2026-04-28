@@ -8,6 +8,7 @@ import com.jp.vocab.note.entity.NoteEntity;
 import com.jp.vocab.note.entity.NoteReviewLogEntity;
 import com.jp.vocab.note.repository.NoteRepository;
 import com.jp.vocab.note.repository.NoteReviewLogRepository;
+import com.jp.vocab.shared.auth.CurrentUserService;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -28,30 +29,25 @@ public class NoteReviewService {
     private final NoteRepository noteRepository;
     private final NoteReviewLogRepository noteReviewLogRepository;
     private final NoteFsrsScheduler noteFsrsScheduler;
+    private final CurrentUserService currentUserService;
 
     public NoteReviewService(
             NoteRepository noteRepository,
             NoteReviewLogRepository noteReviewLogRepository,
-            NoteFsrsScheduler noteFsrsScheduler
+            NoteFsrsScheduler noteFsrsScheduler,
+            CurrentUserService currentUserService
     ) {
         this.noteRepository = noteRepository;
         this.noteReviewLogRepository = noteReviewLogRepository;
         this.noteFsrsScheduler = noteFsrsScheduler;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional(readOnly = true)
     public List<NoteReviewQueueItemResponse> listDueNotes(LocalDate targetDate) {
         OffsetDateTime endExclusive = targetDate.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
-        return noteRepository.findAll()
+        return noteRepository.findByUserIdAndDueAtBeforeOrderByDueAtAscIdAsc(currentUserService.getCurrentUserId(), endExclusive)
                 .stream()
-                .filter(item -> item.getDueAt().isBefore(endExclusive))
-                .sorted((left, right) -> {
-                    int dueCompare = left.getDueAt().compareTo(right.getDueAt());
-                    if (dueCompare != 0) {
-                        return dueCompare;
-                    }
-                    return left.getId().compareTo(right.getId());
-                })
                 .map(NoteReviewQueueItemResponse::from)
                 .toList();
     }
@@ -108,7 +104,7 @@ public class NoteReviewService {
     }
 
     private NoteEntity getEntity(Long noteId) {
-        return noteRepository.findById(noteId)
+        return noteRepository.findByIdAndUserId(noteId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Note not found: " + noteId));
     }
 

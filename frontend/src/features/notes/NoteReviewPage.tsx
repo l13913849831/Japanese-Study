@@ -2,8 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, DatePicker, Form, Input, InputNumber, Space, Statistic, Table, Tag, Typography } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { getMe } from "@/features/auth/api";
+import { getStudyDashboard } from "@/features/dashboard/api";
+import { getNoteDashboard } from "@/features/notes/api";
 import { buildReviewSessionSummary, resolveCurrentSessionIndex } from "@/features/review/session";
+import {
+  getLearningLineSessionLabel,
+  resolveLearningPathState,
+  type LearningLine
+} from "@/features/review/learningPath";
 import { ApiClientError } from "@/shared/api/errors";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageSection } from "@/shared/components/PageSection";
@@ -18,6 +26,7 @@ import {
   type NoteReviewRating,
   type ReviewNotePayload
 } from "@/features/notes/api";
+import { getWeakItemSummary } from "@/features/weak-items/api";
 
 interface SearchFormValues {
   date?: Dayjs;
@@ -57,6 +66,12 @@ const REVIEW_ACTIONS: Array<{ rating: NoteReviewRating; label: string; type?: "p
   { rating: "EASY", label: "熟悉" }
 ];
 
+const NOTE_QUEUE_MODE_LABELS: Record<SessionQueueMode, string> = {
+  MAIN: "主队列",
+  RECOVERY: "恢复队列",
+  WEAK: "薄弱轮"
+};
+
 function sortNotes(items: NoteReviewQueueItem[]) {
   return items.slice().sort((left, right) => {
     const dueCompare = dayjs(left.dueAt).valueOf() - dayjs(right.dueAt).valueOf();
@@ -75,7 +90,18 @@ function normalizeDate(value: string | null | undefined) {
   return parsed.isValid() ? parsed.format(SESSION_DATE_FORMAT) : dayjs().format(SESSION_DATE_FORMAT);
 }
 
+function getNoteQueueModeDescription(mode: SessionQueueMode) {
+  if (mode === "RECOVERY") {
+    return "这个知识点今天答过 AGAIN，所以会在当天再回到你面前一次，确认是否真的恢复。";
+  }
+  if (mode === "WEAK") {
+    return "这个知识点今天多次 AGAIN，已经进入薄弱轮。主队列结束后，再集中补一轮。";
+  }
+  return "这是今天的知识点主复习流。先按标题回忆，把主队列清完，再决定是否处理薄弱轮。";
+}
+
 export function NoteReviewPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchForm] = Form.useForm<SearchFormValues>();
   const [reviewForm] = Form.useForm<ReviewFormValues>();
@@ -111,6 +137,23 @@ export function NoteReviewPage() {
     queryFn: () => getTodayNoteReviews(search.date),
     refetchOnWindowFocus: false
   });
+  const dashboardQuery = useQuery({
+    queryKey: ["dashboard", search.date],
+    queryFn: () => getStudyDashboard(search.date)
+  });
+  const noteDashboardQuery = useQuery({
+    queryKey: ["noteDashboard", search.date],
+    queryFn: () => getNoteDashboard(search.date)
+  });
+  const currentUserQuery = useQuery({
+    queryKey: ["me"],
+    queryFn: getMe,
+    retry: false
+  });
+  const weakItemSummaryQuery = useQuery({
+    queryKey: ["weakItemSummary"],
+    queryFn: getWeakItemSummary
+  });
 
   const orderedNotes = useMemo(() => sortNotes(todayReviewsQuery.data ?? []), [todayReviewsQuery.data]);
   const completedRowKeySet = useMemo(() => new Set(completedRowKeys), [completedRowKeys]);
@@ -144,6 +187,23 @@ export function NoteReviewPage() {
         .findIndex((item) => item.rowKey === currentRow?.rowKey) + 1
     : 0;
   const remainingCount = currentNote ? Math.max(sessionSummary.totalCount - resolvedCurrentIndex - 1, 0) : 0;
+  const preferredLearningOrder = currentUserQuery.data?.preferredLearningOrder ?? "WORD_FIRST";
+  const learningPathState = useMemo(
+    () =>
+      resolveLearningPathState(preferredLearningOrder, {
+        wordPendingCount: dashboardQuery.data?.overview.pendingDueToday ?? 0,
+        notePendingCount: noteDashboardQuery.data?.overview.dueToday ?? 0
+      }),
+    [
+      dashboardQuery.data?.overview.pendingDueToday,
+      noteDashboardQuery.data?.overview.dueToday,
+      preferredLearningOrder
+    ]
+  );
+  const recommendedLine = learningPathState.recommendedLine;
+  const recommendedWordPlanId =
+    dashboardQuery.data?.activePlans.find((plan) => plan.pendingToday > 0)?.planId ?? dashboardQuery.data?.activePlans[0]?.planId;
+  const totalWeakItems = (weakItemSummaryQuery.data?.weakWordCount ?? 0) + (weakItemSummaryQuery.data?.weakNoteCount ?? 0);
   const shouldPromptWeakRound = !weakRoundStarted && !weakRoundSkipped && sessionSummary.pendingCount === 0 && weakQueue.length > 0;
 
   useEffect(() => {
@@ -272,6 +332,29 @@ export function NoteReviewPage() {
     reviewForm.resetFields();
   }
 
+  function handleNextLearningAction(line: LearningLine) {
+    if (line === "WORD") {
+      if (recommendedWordPlanId) {
+        navigate(`/cards?planId=${recommendedWordPlanId}&date=${search.date}`);
+        return;
+      }
+      navigate("/dashboard");
+      return;
+    }
+
+    navigate("/dashboard");
+  }
+
+  function openClosureExport() {
+    const params = new URLSearchParams();
+    if (recommendedWordPlanId) {
+      params.set("planId", String(recommendedWordPlanId));
+    }
+    params.set("targetDate", search.date);
+    params.set("source", "closure");
+    navigate(`/export-jobs?${params.toString()}`);
+  }
+
   return (
     <div className="page-stack">
       <PageHeader
@@ -307,7 +390,7 @@ export function NoteReviewPage() {
               <div className="review-session-focus">
                 <Space wrap>
                   <Tag color={currentRow?.mode === "WEAK" ? "volcano" : currentRow?.mode === "RECOVERY" ? "cyan" : "blue"}>
-                    {currentRow?.mode}
+                    {currentRow ? NOTE_QUEUE_MODE_LABELS[currentRow.mode] : "-"}
                   </Tag>
                   <Tag color="blue">{NOTE_MASTERY_LABELS[currentNote.masteryStatus]}</Tag>
                   <Tag>{`Review ${currentNote.reviewCount}`}</Tag>
@@ -405,15 +488,54 @@ export function NoteReviewPage() {
                   }
                 />
               ) : sessionSummary.pendingCount === 0 && sessionSummary.totalCount > 0 ? (
-                <Alert type="success" showIcon message="Current queue is complete." description="All knowledge points in the current queue have been reviewed." />
+                <Alert
+                  type="success"
+                  showIcon
+                  message="当前知识点会话已完成。"
+                  description={
+                    <Space wrap>
+                      <Typography.Text>
+                        {learningPathState.recommendedLine === "WORD"
+                          ? "下一步建议切到单词线，把今天的主路径走完。"
+                          : learningPathState.isComplete
+                            ? totalWeakItems > 0
+                              ? `今天主路径已清空，另外还有 ${totalWeakItems} 个薄弱项可选加练。`
+                              : "今天两条学习线都已清空，可以回工作台收尾。"
+                            : "如果还要继续知识点线，先回工作台确认剩余任务。"}
+                      </Typography.Text>
+                      {recommendedLine ? (
+                        <Button
+                          type="primary"
+                          size="small"
+                          onClick={() => handleNextLearningAction(recommendedLine)}
+                        >
+                          {recommendedLine === "WORD"
+                            ? `去看${getLearningLineSessionLabel(recommendedLine)}`
+                            : "回工作台继续知识点线"}
+                        </Button>
+                      ) : totalWeakItems > 0 ? (
+                        <Button type="primary" size="small" onClick={() => navigate("/weak-items")}>
+                          去看薄弱项
+                        </Button>
+                      ) : (
+                        <Button type="primary" size="small" onClick={() => navigate("/dashboard")}>
+                          回工作台
+                        </Button>
+                      )}
+                      <Button size="small" onClick={openClosureExport}>
+                        导出复盘材料
+                      </Button>
+                    </Space>
+                  }
+                />
               ) : (
                 <Alert
                   type="info"
                   showIcon
-                  message={weakRoundStarted ? "当前处于薄弱轮" : "当前处于标题回忆主路径"}
+                  message={currentRow ? `当前层级：${NOTE_QUEUE_MODE_LABELS[currentRow.mode]}` : "当前处于标题回忆主路径"}
                   description={
-                    weakRoundStarted
-                      ? `Pending position: ${currentPendingPosition} / ${sessionSummary.pendingCount}`
+                    currentRow
+                      ? `${getNoteQueueModeDescription(currentRow.mode)} 当前待处理位置 ${currentPendingPosition} / ${sessionSummary.pendingCount}。`
                       : revealed
                         ? "Content is open. Score it and the session will advance automatically."
                         : "Recall from the title first. Reveal only when you need the full content."

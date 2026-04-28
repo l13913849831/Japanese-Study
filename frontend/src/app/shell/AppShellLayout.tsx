@@ -7,17 +7,26 @@ import { ApiClientError } from "@/shared/api/errors";
 
 const { Header, Content, Sider } = Layout;
 
-const menuItems = [
+const learningMenuItems = [
   { key: "/dashboard", icon: <DashboardOutlined />, label: "Workbench" },
-  { key: "/word-sets", icon: <BookOutlined />, label: "Word Sets" },
-  { key: "/study-plans", icon: <ProfileOutlined />, label: "Study Plans" },
   { key: "/cards", icon: <CalendarOutlined />, label: "Today Cards" },
-  { key: "/notes/dashboard", icon: <DashboardOutlined />, label: "Note Dashboard" },
-  { key: "/notes", icon: <FileTextOutlined />, label: "Notes" },
   { key: "/notes/review", icon: <ReadOutlined />, label: "Note Review" },
-  { key: "/weak-items", icon: <AlertOutlined />, label: "Weak Items" },
+  { key: "/weak-items", icon: <AlertOutlined />, label: "Weak Items" }
+];
+
+const managementMenuItems = [
+  { key: "/study-plans", icon: <ProfileOutlined />, label: "Study Plans" },
+  { key: "/word-sets", icon: <BookOutlined />, label: "Word Sets" },
+  { key: "/notes", icon: <FileTextOutlined />, label: "Notes" },
+  { key: "/notes/dashboard", icon: <DashboardOutlined />, label: "Note Dashboard" },
   { key: "/templates", icon: <TableOutlined />, label: "Templates" },
   { key: "/export-jobs", icon: <ExportOutlined />, label: "Exports" }
+];
+
+const menuItems = [...learningMenuItems, ...managementMenuItems];
+const groupedMenuItems = [
+  { type: "group" as const, label: "学习", children: learningMenuItems },
+  { type: "group" as const, label: "管理", children: managementMenuItems }
 ];
 
 export function AppShellLayout() {
@@ -86,7 +95,7 @@ export function AppShellLayout() {
         <Menu
           mode="inline"
           selectedKeys={[selectedKey]}
-          items={menuItems}
+          items={groupedMenuItems}
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
@@ -122,6 +131,9 @@ export function AppShellLayout() {
                 <Typography.Text type="secondary">@{currentUser.username}</Typography.Text>
               </Space>
             ) : null}
+            <Button onClick={() => navigate("/account")}>
+              账户
+            </Button>
             <Button onClick={() => logoutMutation.mutate()} loading={logoutMutation.isPending}>
               退出登录
             </Button>

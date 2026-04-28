@@ -27,8 +27,8 @@ public record NoteResponse(
                 entity.getMasteryStatus(),
                 entity.getDueAt(),
                 entity.getLastReviewedAt(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getDisplayCreatedAt(),
+                entity.getDisplayUpdatedAt()
         );
     }
 }

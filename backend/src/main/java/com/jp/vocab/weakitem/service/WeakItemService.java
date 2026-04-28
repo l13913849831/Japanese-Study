@@ -54,8 +54,13 @@ public class WeakItemService {
                 Integer.class
         );
         Integer weakNoteCount = jdbcTemplate.queryForObject(
-                "select count(*) from note where weak_flag = true",
-                new MapSqlParameterSource(),
+                """
+                        select count(*)
+                        from note
+                        where weak_flag = true
+                          and user_id = :userId
+                        """,
+                new MapSqlParameterSource().addValue("userId", currentUserService.getCurrentUserId()),
                 Integer.class
         );
         return new WeakItemSummaryResponse(
@@ -127,21 +132,36 @@ public class WeakItemService {
     public PageResponse<WeakNoteItemResponse> listWeakNotes(int page, int pageSize) {
         int safePage = Math.max(page, 1);
         int safePageSize = Math.max(pageSize, 1);
+        Long userId = currentUserService.getCurrentUserId();
         MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("userId", userId)
                 .addValue("limit", safePageSize)
                 .addValue("offset", (safePage - 1) * safePageSize);
 
         Long total = jdbcTemplate.queryForObject(
-                "select count(*) from note where weak_flag = true",
-                new MapSqlParameterSource(),
+                """
+                        select count(*)
+                        from note
+                        where weak_flag = true
+                          and user_id = :userId
+                        """,
+                new MapSqlParameterSource().addValue("userId", userId),
                 Long.class
         );
 
         String sql = """
-                select id, title, tags, mastery_status, last_review_rating, weak_marked_at
+                select
+                    note.id,
+                    note_source.title,
+                    note_source.tags,
+                    note.mastery_status,
+                    note.last_review_rating,
+                    note.weak_marked_at
                 from note
-                where weak_flag = true
-                order by weak_marked_at desc nulls last, id desc
+                join note_source on note_source.id = note.note_source_id
+                where note.weak_flag = true
+                  and note.user_id = :userId
+                order by note.weak_marked_at desc nulls last, note.id desc
                 limit :limit offset :offset
                 """;
 
@@ -167,7 +187,7 @@ public class WeakItemService {
 
     @Transactional
     public void dismissWeakNote(Long noteId) {
-        NoteEntity entity = noteRepository.findById(noteId)
+        NoteEntity entity = noteRepository.findByIdAndUserId(noteId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Note not found: " + noteId));
         entity.clearWeak();
         noteRepository.save(entity);
