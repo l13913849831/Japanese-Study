@@ -55,6 +55,24 @@ public class ReviewLogEntity {
         return entity;
     }
 
+    public static ReviewLogEntity restore(
+            Long cardInstanceId,
+            OffsetDateTime reviewedAt,
+            String rating,
+            Long responseTimeMs,
+            String note,
+            OffsetDateTime createdAt
+    ) {
+        ReviewLogEntity entity = new ReviewLogEntity();
+        entity.cardInstanceId = cardInstanceId;
+        entity.reviewedAt = reviewedAt;
+        entity.rating = rating;
+        entity.responseTimeMs = responseTimeMs;
+        entity.note = note;
+        entity.createdAt = createdAt;
+        return entity;
+    }
+
     public Long getId() {
         return id;
     }

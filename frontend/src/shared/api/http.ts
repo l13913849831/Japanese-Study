@@ -21,6 +21,20 @@ async function unwrapResponse<T>(response: Response): Promise<T> {
   return payload.data;
 }
 
+async function unwrapFileResponse(response: Response): Promise<Blob> {
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiEnvelope<null>;
+    throw new ApiClientError(
+      payload.error?.message ?? `Request failed with status ${response.status}`,
+      response.status,
+      payload.error?.code,
+      payload.error?.details ?? []
+    );
+  }
+
+  return response.blob();
+}
+
 export async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(buildUrl(path), {
     method: "GET",
@@ -89,15 +103,14 @@ export async function downloadFile(path: string): Promise<Blob> {
     credentials: "include"
   });
 
-  if (!response.ok) {
-    const payload = (await response.json()) as ApiEnvelope<null>;
-    throw new ApiClientError(
-      payload.error?.message ?? `Request failed with status ${response.status}`,
-      response.status,
-      payload.error?.code,
-      payload.error?.details ?? []
-    );
-  }
+  return unwrapFileResponse(response);
+}
 
-  return response.blob();
+export async function postDownloadFile(path: string): Promise<Blob> {
+  const response = await fetch(buildUrl(path), {
+    method: "POST",
+    credentials: "include"
+  });
+
+  return unwrapFileResponse(response);
 }

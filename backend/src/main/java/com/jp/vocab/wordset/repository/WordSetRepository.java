@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface WordSetRepository extends JpaRepository<WordSetEntity, Long> {
 
@@ -32,6 +33,8 @@ public interface WordSetRepository extends JpaRepository<WordSetEntity, Long> {
             @Param("systemScope") String systemScope,
             @Param("userId") Long userId
     );
+
+    List<WordSetEntity> findByOwnerUserIdOrderByIdAsc(Long ownerUserId);
 
     boolean existsByOwnerUserIdAndName(Long ownerUserId, String name);
 }

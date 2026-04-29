@@ -73,6 +73,28 @@ public class NoteReviewLogEntity extends AuditableEntity {
         );
     }
 
+    public static NoteReviewLogEntity restore(
+            Long noteId,
+            OffsetDateTime reviewedAt,
+            String rating,
+            Long responseTimeMs,
+            String noteText,
+            String fsrsReviewLogJson,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
+    ) {
+        NoteReviewLogEntity entity = new NoteReviewLogEntity(
+                noteId,
+                reviewedAt,
+                rating,
+                responseTimeMs,
+                noteText,
+                fsrsReviewLogJson
+        );
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public Long getId() {
         return id;
     }

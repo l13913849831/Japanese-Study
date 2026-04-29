@@ -104,6 +104,36 @@ public class WordEntryEntity extends AuditableEntity {
         );
     }
 
+    public static WordEntryEntity restore(
+            Long wordSetId,
+            String expression,
+            String reading,
+            String meaning,
+            String partOfSpeech,
+            String exampleJp,
+            String exampleZh,
+            String level,
+            List<String> tags,
+            Integer sourceOrder,
+            java.time.OffsetDateTime createdAt,
+            java.time.OffsetDateTime updatedAt
+    ) {
+        WordEntryEntity entity = create(
+                wordSetId,
+                expression,
+                reading,
+                meaning,
+                partOfSpeech,
+                exampleJp,
+                exampleZh,
+                level,
+                tags,
+                sourceOrder
+        );
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public void update(
             String expression,
             String reading,

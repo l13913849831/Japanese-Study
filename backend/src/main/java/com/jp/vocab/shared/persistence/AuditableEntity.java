@@ -28,6 +28,11 @@ public abstract class AuditableEntity {
         updatedAt = OffsetDateTime.now();
     }
 
+    protected void restoreAuditTimestamps(OffsetDateTime createdAt, OffsetDateTime updatedAt) {
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }

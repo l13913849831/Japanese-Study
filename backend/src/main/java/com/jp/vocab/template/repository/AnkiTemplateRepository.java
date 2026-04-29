@@ -34,6 +34,8 @@ public interface AnkiTemplateRepository extends JpaRepository<AnkiTemplateEntity
 
     Optional<AnkiTemplateEntity> findByIdAndOwnerUserId(Long id, Long ownerUserId);
 
+    List<AnkiTemplateEntity> findByOwnerUserIdOrderByIdAsc(Long ownerUserId);
+
     boolean existsByOwnerUserIdAndName(Long ownerUserId, String name);
 
     boolean existsByOwnerUserIdAndNameAndIdNot(Long ownerUserId, String name, Long id);

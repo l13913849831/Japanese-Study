@@ -90,6 +90,36 @@ public class NoteEntity extends AuditableEntity {
         );
     }
 
+    public static NoteEntity restore(
+            NoteSourceEntity noteSource,
+            Long userId,
+            Integer reviewCount,
+            String masteryStatus,
+            OffsetDateTime dueAt,
+            OffsetDateTime lastReviewedAt,
+            String fsrsCardJson,
+            boolean weakFlag,
+            OffsetDateTime weakMarkedAt,
+            String lastReviewRating,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
+    ) {
+        NoteEntity entity = new NoteEntity(
+                noteSource,
+                userId,
+                reviewCount,
+                masteryStatus,
+                dueAt,
+                lastReviewedAt,
+                fsrsCardJson
+        );
+        entity.weakFlag = weakFlag;
+        entity.weakMarkedAt = weakMarkedAt;
+        entity.lastReviewRating = lastReviewRating;
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public void applyReview(
             Integer reviewCount,
             String masteryStatus,
@@ -130,6 +160,10 @@ public class NoteEntity extends AuditableEntity {
 
     public NoteSourceEntity getNoteSource() {
         return noteSource;
+    }
+
+    public Long getNoteSourceId() {
+        return noteSource.getId();
     }
 
     public Long getUserId() {

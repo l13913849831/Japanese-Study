@@ -42,6 +42,18 @@ public class WordSetEntity extends AuditableEntity {
         return new WordSetEntity(name, description, "USER", ownerUserId);
     }
 
+    public static WordSetEntity restoreUserOwned(
+            String name,
+            String description,
+            Long ownerUserId,
+            java.time.OffsetDateTime createdAt,
+            java.time.OffsetDateTime updatedAt
+    ) {
+        WordSetEntity entity = createUserOwned(name, description, ownerUserId);
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public Long getId() {
         return id;
     }

@@ -8,4 +8,6 @@ import java.util.List;
 public interface ReviewLogRepository extends JpaRepository<ReviewLogEntity, Long> {
 
     List<ReviewLogEntity> findByCardInstanceIdOrderByReviewedAtDesc(Long cardInstanceId);
+
+    List<ReviewLogEntity> findByCardInstanceIdInOrderByCardInstanceIdAscReviewedAtAscIdAsc(List<Long> cardInstanceIds);
 }

@@ -55,6 +55,19 @@ public class NoteSourceEntity extends AuditableEntity {
         return entity;
     }
 
+    public static NoteSourceEntity restoreUserOwned(
+            String title,
+            String content,
+            List<String> tags,
+            Long ownerUserId,
+            java.time.OffsetDateTime createdAt,
+            java.time.OffsetDateTime updatedAt
+    ) {
+        NoteSourceEntity entity = createUserOwned(title, content, tags, ownerUserId);
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public void update(
             String title,
             String content,

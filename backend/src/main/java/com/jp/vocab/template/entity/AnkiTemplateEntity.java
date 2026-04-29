@@ -71,6 +71,32 @@ public class AnkiTemplateEntity extends AuditableEntity {
         return entity;
     }
 
+    public static AnkiTemplateEntity restore(
+            String name,
+            String description,
+            String scope,
+            Long ownerUserId,
+            Map<String, List<String>> fieldMapping,
+            String frontTemplate,
+            String backTemplate,
+            String cssTemplate,
+            java.time.OffsetDateTime createdAt,
+            java.time.OffsetDateTime updatedAt
+    ) {
+        AnkiTemplateEntity entity = create(
+                name,
+                description,
+                scope,
+                ownerUserId,
+                fieldMapping,
+                frontTemplate,
+                backTemplate,
+                cssTemplate
+        );
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public void update(
             String name,
             String description,

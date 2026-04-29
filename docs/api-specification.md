@@ -24,6 +24,7 @@
 - `text/csv`
 - `text/tab-separated-values`
 - `text/markdown`
+- `application/zip`
 - `application/octet-stream`
 
 时间格式：
@@ -223,11 +224,75 @@ Markdown 模板关键字段：
 - `ANKI_TSV`
 - `MARKDOWN`
 
+### 3.10 Backup Export
+
+关键字段：
+
+- `formatVersion`
+- `packageType`
+- `backupType`
+- `scope`
+- `createdAt`
+- `files`
+
+备份类型：
+
+- `MANUAL_BACKUP`
+- `SAFETY_SNAPSHOT`
+
 ## 4. 健康检查
 
 ### `GET /api/health`
 
 返回服务状态。
+
+## 4.1 备份接口
+
+### `POST /api/backups/export`
+
+为当前已登录账号生成一份整体备份压缩包，并直接返回下载响应。
+
+返回格式：
+
+- `application/zip`
+
+说明：
+
+- 第一版只导出当前账号学习资产
+- 不包含登录凭据和系统默认资料
+- 第一版免费用户不保留服务端长期备份历史
+
+### `POST /api/backups/restore/prepare`
+
+上传本地备份压缩包，创建一次短期恢复会话。
+
+请求格式：
+
+- `multipart/form-data`
+- 字段：`file`
+
+返回字段：
+
+- `restoreToken`
+- `safetySnapshotFileName`
+- `safetySnapshotDownloadPath`
+
+说明：
+
+- 这一步只做校验和准备，不直接覆盖数据
+- 确认恢复前，必须先下载安全快照
+
+### `GET /api/backups/restore/{token}/safety-snapshot`
+
+下载本次恢复准备生成的 `SAFETY_SNAPSHOT` 压缩包。
+
+返回格式：
+
+- `application/zip`
+
+### `POST /api/backups/restore/{token}/confirm`
+
+在安全快照已下载的前提下，执行当前账号学习资产覆盖恢复。
 
 ## 5. 词库与词条接口
 

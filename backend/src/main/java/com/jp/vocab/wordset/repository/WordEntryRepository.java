@@ -12,4 +12,6 @@ public interface WordEntryRepository extends JpaRepository<WordEntryEntity, Long
     Page<WordEntryEntity> findByWordSetId(Long wordSetId, Pageable pageable);
 
     List<WordEntryEntity> findByWordSetIdOrderBySourceOrderAsc(Long wordSetId);
+
+    List<WordEntryEntity> findByWordSetIdInOrderByWordSetIdAscSourceOrderAscIdAsc(List<Long> wordSetIds);
 }

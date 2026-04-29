@@ -83,6 +83,34 @@ public class StudyPlanEntity extends AuditableEntity {
         return entity;
     }
 
+    public static StudyPlanEntity restore(
+            String name,
+            Long userId,
+            Long wordSetId,
+            LocalDate startDate,
+            Integer dailyNewCount,
+            List<Integer> reviewOffsets,
+            Long ankiTemplateId,
+            Long mdTemplateId,
+            String status,
+            java.time.OffsetDateTime createdAt,
+            java.time.OffsetDateTime updatedAt
+    ) {
+        StudyPlanEntity entity = create(
+                name,
+                userId,
+                wordSetId,
+                startDate,
+                dailyNewCount,
+                reviewOffsets,
+                ankiTemplateId,
+                mdTemplateId
+        );
+        entity.status = status;
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public void update(
             String name,
             Long wordSetId,

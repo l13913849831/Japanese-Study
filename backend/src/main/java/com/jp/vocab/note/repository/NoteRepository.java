@@ -12,6 +12,8 @@ public interface NoteRepository extends JpaRepository<NoteEntity, Long> {
 
     List<NoteEntity> findByUserId(Long userId, Sort sort);
 
+    List<NoteEntity> findByUserIdOrderByIdAsc(Long userId);
+
     List<NoteEntity> findByUserIdAndDueAtBeforeOrderByDueAtAscIdAsc(Long userId, OffsetDateTime endExclusive);
 
     Optional<NoteEntity> findByIdAndUserId(Long id, Long userId);

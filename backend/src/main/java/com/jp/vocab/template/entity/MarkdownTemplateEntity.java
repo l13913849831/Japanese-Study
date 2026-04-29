@@ -50,6 +50,20 @@ public class MarkdownTemplateEntity extends AuditableEntity {
         return entity;
     }
 
+    public static MarkdownTemplateEntity restore(
+            String name,
+            String description,
+            String scope,
+            Long ownerUserId,
+            String templateContent,
+            java.time.OffsetDateTime createdAt,
+            java.time.OffsetDateTime updatedAt
+    ) {
+        MarkdownTemplateEntity entity = create(name, description, scope, ownerUserId, templateContent);
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public void update(
             String name,
             String description,

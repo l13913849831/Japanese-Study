@@ -1,4 +1,4 @@
-import { AlertOutlined, BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, FileTextOutlined, ProfileOutlined, ReadOutlined, TableOutlined } from "@ant-design/icons";
+import { AlertOutlined, BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, FileTextOutlined, ProfileOutlined, ReadOutlined, SaveOutlined, TableOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Layout, Menu, Segmented, Space, Tag, Typography, App } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -20,6 +20,7 @@ const managementMenuItems = [
   { key: "/notes", icon: <FileTextOutlined />, label: "Notes" },
   { key: "/notes/dashboard", icon: <DashboardOutlined />, label: "Note Dashboard" },
   { key: "/templates", icon: <TableOutlined />, label: "Templates" },
+  { key: "/backups", icon: <SaveOutlined />, label: "Backups" },
   { key: "/export-jobs", icon: <ExportOutlined />, label: "Exports" }
 ];
 

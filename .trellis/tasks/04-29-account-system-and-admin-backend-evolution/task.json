@@ -1,0 +1,30 @@
+{
+  "id": "account-system-and-admin-backend-evolution",
+  "name": "account-system-and-admin-backend-evolution",
+  "title": "P0-c: account governance and admin operations foundation",
+  "description": "",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "rikka",
+  "assignee": "rikka",
+  "createdAt": "2026-04-29",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "04-29-harden-session-auth-and-cookie-security",
+    "04-29-introduce-admin-role-foundation-and-access-control",
+    "04-29-build-user-governance-admin-backend-mvp"
+  ],
+  "parent": "04-25-language-learning-product-enhancement-roadmap",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

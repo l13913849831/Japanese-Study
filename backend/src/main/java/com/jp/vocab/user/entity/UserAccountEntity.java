@@ -39,6 +39,11 @@ public class UserAccountEntity extends AuditableEntity {
         this.displayName = displayName;
     }
 
+    public void restoreProfile(String displayName, String status) {
+        this.displayName = displayName;
+        this.status = status;
+    }
+
     public Long getId() {
         return id;
     }

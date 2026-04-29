@@ -124,6 +124,44 @@ public class CardInstanceEntity extends AuditableEntity {
         return entity;
     }
 
+    public static CardInstanceEntity restore(
+            Long planId,
+            Long wordEntryId,
+            String cardType,
+            Integer sequenceNo,
+            Integer stageNo,
+            OffsetDateTime dueAt,
+            String status,
+            String fsrsCardJson,
+            Integer reviewCount,
+            OffsetDateTime lastReviewedAt,
+            boolean weakFlag,
+            OffsetDateTime weakMarkedAt,
+            Integer weakReviewCount,
+            String lastReviewRating,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
+    ) {
+        CardInstanceEntity entity = createFsrsCard(
+                planId,
+                wordEntryId,
+                cardType,
+                sequenceNo,
+                stageNo,
+                dueAt,
+                status,
+                fsrsCardJson,
+                reviewCount,
+                lastReviewedAt
+        );
+        entity.weakFlag = weakFlag;
+        entity.weakMarkedAt = weakMarkedAt;
+        entity.weakReviewCount = weakReviewCount;
+        entity.lastReviewRating = lastReviewRating;
+        entity.restoreAuditTimestamps(createdAt, updatedAt);
+        return entity;
+    }
+
     public void markDone(OffsetDateTime reviewedAt) {
         this.status = "DONE";
         this.lastReviewedAt = reviewedAt;

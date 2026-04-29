@@ -49,6 +49,11 @@ const ExportJobPage = lazy(async () => {
   return { default: module.ExportJobPage };
 });
 
+const BackupPage = lazy(async () => {
+  const module = await import("@/features/backups/BackupPage");
+  return { default: module.BackupPage };
+});
+
 const WeakItemsPage = lazy(async () => {
   const module = await import("@/features/weak-items/WeakItemsPage");
   return { default: module.WeakItemsPage };
@@ -94,6 +99,7 @@ export const router = createBrowserRouter([
           { path: "notes/review", element: withPageFallback(<NoteReviewPage />) },
           { path: "weak-items", element: withPageFallback(<WeakItemsPage />) },
           { path: "templates", element: withPageFallback(<TemplatePage />) },
+          { path: "backups", element: withPageFallback(<BackupPage />) },
           { path: "export-jobs", element: withPageFallback(<ExportJobPage />) },
           { path: "account", element: withPageFallback(<AccountPage />) }
         ]

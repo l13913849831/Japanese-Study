@@ -38,7 +38,7 @@
 
 ## Active Child Tasks
 
-当前主线收敛为 5 个仍可独立推进的任务：
+当前主线收敛为 6 个仍可独立推进的任务：
 
 * `04-28-04-28-minimal-user-ownership-foundation`
   * `P0-a`：最小用户归属底座
@@ -50,6 +50,26 @@
   * `P1-C`：长期反馈与复盘
 * `04-28-04-28-sync-and-productization-extension`
   * `P0-b`：同步、备份、恢复与产品化延伸
+* `04-29-account-system-and-admin-backend-evolution`
+  * `P0-c`：账号治理与管理员运营基础
+
+## Current Priority Adjustment
+
+当前主线优先级建议调整为：
+
+1. `P0-c-1`：先补 session 安全加固与 cookie/CSRF 基线
+2. `P0-c-2`：再补管理员角色基础与后台访问控制
+3. `P0-c-3`：然后做用户治理后台 MVP
+4. `P0-b` 后续再继续往云端托管备份、VIP 与更重产品化管理能力扩展
+
+原因：
+
+* `P0-b` 当前“本地备份 / 本地恢复”MVP 已经落地
+* 当前更急迫的产品基础设施短板转向：
+  * 账号安全治理
+  * 权限边界
+  * 用户治理后台
+* JWT / 外部身份源仍然重要，但不是眼前第一优先级
 
 ## Archived Decision / Planning Inputs
 

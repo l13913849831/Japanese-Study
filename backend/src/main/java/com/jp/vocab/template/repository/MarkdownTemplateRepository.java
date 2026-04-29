@@ -36,6 +36,8 @@ public interface MarkdownTemplateRepository extends JpaRepository<MarkdownTempla
 
     Optional<MarkdownTemplateEntity> findFirstByScopeOrderByIdAsc(String scope);
 
+    List<MarkdownTemplateEntity> findByOwnerUserIdOrderByIdAsc(Long ownerUserId);
+
     boolean existsByOwnerUserIdAndName(Long ownerUserId, String name);
 
     boolean existsByOwnerUserIdAndNameAndIdNot(Long ownerUserId, String name, Long id);
