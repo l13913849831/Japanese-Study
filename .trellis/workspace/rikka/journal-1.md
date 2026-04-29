@@ -338,3 +338,45 @@ Completed weak-item recovery loop MVP: weak-item APIs and page, same-day recover
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: Local backup/restore MVP and account governance planning
+
+**Date**: 2026-04-29
+**Task**: Local backup/restore MVP and account governance planning
+**Branch**: `main`
+
+### Summary
+
+完成本地备份/恢复 MVP、前端 /backups 页面、P0-c 账号治理任务拆分与主线挂载，并补齐手动回归清单与 N2 风格导入测试素材。下次可先做手动测试与导入，或继续推进 P0-c-1 session 安全加固。
+
+### Main Changes
+
+- 完成后端整体备份导出、恢复准备、安全快照下载与确认恢复链路。
+- 完成前端 /backups 页面与导航入口，免费版走本地下载/上传恢复流程。
+- 将 P0-c 挂到主 roadmap，下拆 3 条任务：session 安全、管理员角色访问控制、用户治理后台 MVP。
+- 归档 P0-b-1 到 P0-b-4 子任务，保留 P0-b 父任务承接后续云端托管与同步方向。
+- 新增 docs/manual-regression-cases.md，整理当前统一手动回归 case。
+- 新增 docs/test-fixtures/ 下的 500 词 CSV 和 100 条知识点 Markdown 测试素材。
+- 下次建议二选一：
+  1. 按手动回归清单导入测试词库/知识点并走一遍关键链路。
+  2. 进入 P0-c-1，补 session/cookie/CSRF/bootstrap 账号安全基线。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1516b6a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

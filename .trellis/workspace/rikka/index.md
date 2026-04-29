@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 10
-- **Last Active**: 2026-04-28
+- **Total Sessions**: 11
+- **Last Active**: 2026-04-29
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~340 | Active |
+| `journal-1.md` | ~382 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 11 | 2026-04-29 | Local backup/restore MVP and account governance planning | `1516b6a` | `main` |
 | 10 | 2026-04-28 | P0-a/P1-A/P1-B/P1-C 收尾 | `4410692a97a86fa24ae3e91b8a44e23e1a457cb9` | `main` |
 | 9 | 2026-04-28 | 最小用户归属底座首批落地 | - | `main` |
 | 8 | 2026-04-26 | 拆分学习模式与导出提案 | - | `main` |
