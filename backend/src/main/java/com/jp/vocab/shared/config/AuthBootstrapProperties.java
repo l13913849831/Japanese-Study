@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.auth.bootstrap")
 public class AuthBootstrapProperties {
 
-    private boolean enabled = true;
+    private boolean enabled = false;
 
     private String username = "demo";
 

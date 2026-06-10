@@ -2,6 +2,7 @@ package com.jp.vocab.user.controller;
 
 import com.jp.vocab.shared.api.ApiResponse;
 import com.jp.vocab.user.dto.CurrentUserResponse;
+import com.jp.vocab.user.dto.CsrfTokenResponse;
 import com.jp.vocab.user.dto.LoginRequest;
 import com.jp.vocab.user.dto.LogoutResponse;
 import com.jp.vocab.user.dto.RegisterRequest;
@@ -9,6 +10,8 @@ import com.jp.vocab.user.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +25,15 @@ public class AuthController {
 
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+
+    @GetMapping("/csrf")
+    public ApiResponse<CsrfTokenResponse> csrf(CsrfToken csrfToken) {
+        return ApiResponse.success(new CsrfTokenResponse(
+                csrfToken.getHeaderName(),
+                csrfToken.getParameterName(),
+                csrfToken.getToken()
+        ));
     }
 
     @PostMapping("/login")

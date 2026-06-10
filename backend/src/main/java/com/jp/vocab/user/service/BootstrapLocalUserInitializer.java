@@ -14,11 +14,16 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class BootstrapLocalUserInitializer implements ApplicationRunner {
 
     private static final long BOOTSTRAP_USER_ID = 1L;
+    private static final Logger logger = LoggerFactory.getLogger(BootstrapLocalUserInitializer.class);
+    private static final String DEFAULT_USERNAME = "demo";
+    private static final String DEFAULT_PASSWORD = "demo123456";
 
     private final AuthBootstrapProperties properties;
     private final UserAccountRepository userAccountRepository;
@@ -43,8 +48,15 @@ public class BootstrapLocalUserInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        logger.info("Bootstrap local user initialization started, enabled={}", properties.isEnabled());
         if (!properties.isEnabled()) {
+            logger.info("Bootstrap local user initialization skipped");
             return;
+        }
+
+        validateBootstrapConfiguration();
+        if (isUsingDefaultCredentials()) {
+            logger.warn("Bootstrap local account is enabled with default credentials. Use this only for local development.");
         }
 
         UserAccountEntity account = userAccountRepository.findById(BOOTSTRAP_USER_ID)
@@ -67,6 +79,8 @@ public class BootstrapLocalUserInitializer implements ApplicationRunner {
             account.updateDisplayName(normalizeDisplayName(properties.getDisplayName()));
             userAccountRepository.save(account);
         }
+
+        logger.info("Bootstrap local user initialization completed, userId={}", account.getId());
     }
 
     private String normalizeUsername(String username) {
@@ -77,6 +91,17 @@ public class BootstrapLocalUserInitializer implements ApplicationRunner {
     private String normalizeDisplayName(String displayName) {
         String normalized = displayName == null ? "" : displayName.trim();
         return normalized.isEmpty() ? "Demo User" : normalized;
+    }
+
+    private void validateBootstrapConfiguration() {
+        if (properties.getPassword() == null || properties.getPassword().isBlank()) {
+            throw new IllegalStateException("Bootstrap local account password must not be blank when bootstrap is enabled");
+        }
+    }
+
+    private boolean isUsingDefaultCredentials() {
+        return DEFAULT_USERNAME.equals(normalizeUsername(properties.getUsername()))
+                && DEFAULT_PASSWORD.equals(properties.getPassword());
     }
 
     private String normalizeLearningOrder(String preferredLearningOrder) {

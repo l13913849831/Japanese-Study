@@ -2,6 +2,12 @@ import { API_BASE_URL } from "@/shared/config/env";
 import { ApiClientError } from "@/shared/api/errors";
 import type { ApiEnvelope } from "@/shared/api/types";
 
+interface CsrfTokenPayload {
+  headerName: string;
+  parameterName: string;
+  token: string;
+}
+
 function buildUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
@@ -35,6 +41,26 @@ async function unwrapFileResponse(response: Response): Promise<Blob> {
   return response.blob();
 }
 
+async function getCsrfToken(): Promise<CsrfTokenPayload> {
+  const response = await fetch(buildUrl("/auth/csrf"), {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  return unwrapResponse<CsrfTokenPayload>(response);
+}
+
+async function buildMutationHeaders(baseHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
+  const csrfToken = await getCsrfToken();
+  return {
+    ...baseHeaders,
+    [csrfToken.headerName]: csrfToken.token
+  };
+}
+
 export async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(buildUrl(path), {
     method: "GET",
@@ -48,13 +74,14 @@ export async function getJson<T>(path: string): Promise<T> {
 }
 
 export async function postJson<TResponse, TRequest>(path: string, body: TRequest): Promise<TResponse> {
+  const headers = await buildMutationHeaders({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  });
   const response = await fetch(buildUrl(path), {
     method: "POST",
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json"
-    },
+    headers,
     body: JSON.stringify(body)
   });
 
@@ -62,13 +89,14 @@ export async function postJson<TResponse, TRequest>(path: string, body: TRequest
 }
 
 export async function putJson<TResponse, TRequest>(path: string, body: TRequest): Promise<TResponse> {
+  const headers = await buildMutationHeaders({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  });
   const response = await fetch(buildUrl(path), {
     method: "PUT",
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json"
-    },
+    headers,
     body: JSON.stringify(body)
   });
 
@@ -76,21 +104,24 @@ export async function putJson<TResponse, TRequest>(path: string, body: TRequest)
 }
 
 export async function deleteJson<TResponse>(path: string): Promise<TResponse> {
+  const headers = await buildMutationHeaders({
+    Accept: "application/json"
+  });
   const response = await fetch(buildUrl(path), {
     method: "DELETE",
     credentials: "include",
-    headers: {
-      Accept: "application/json"
-    }
+    headers
   });
 
   return unwrapResponse<TResponse>(response);
 }
 
 export async function postFormData<TResponse>(path: string, formData: FormData): Promise<TResponse> {
+  const headers = await buildMutationHeaders();
   const response = await fetch(buildUrl(path), {
     method: "POST",
     credentials: "include",
+    headers,
     body: formData
   });
 
@@ -107,9 +138,11 @@ export async function downloadFile(path: string): Promise<Blob> {
 }
 
 export async function postDownloadFile(path: string): Promise<Blob> {
+  const headers = await buildMutationHeaders();
   const response = await fetch(buildUrl(path), {
     method: "POST",
-    credentials: "include"
+    credentials: "include",
+    headers
   });
 
   return unwrapFileResponse(response);

@@ -76,6 +76,10 @@
 - `JP_DB_USERNAME`
 - `JP_DB_PASSWORD`
 - `APP_EXPORT_BASE_DIR`
+- `APP_BACKUP_BASE_DIR`
+- `APP_AUTH_BOOTSTRAP_ENABLED`
+- `APP_SESSION_COOKIE_SECURE`
+- `APP_SESSION_COOKIE_SAME_SITE`
 
 默认配置见 `backend/src/main/resources/application.yml`。
 
@@ -186,6 +190,8 @@ Vite 会把 `/api` 代理到后端 `http://localhost:8080`。
 * 修改密码
 * 修改默认学习顺序
 * 当前使用 session cookie 做 Web 登录态
+* 写操作默认通过 CSRF token + session cookie 双重校验
+* bootstrap 演示账号默认关闭，需要环境变量显式开启
 
 ### 6.6 学习入口
 
@@ -203,8 +209,10 @@ Vite 会把 `/api` 代理到后端 `http://localhost:8080`。
 
 - 本地注册和登录
 - 当前是本地账号 + session cookie
+- 登录、注册、登出等写操作会自动走 CSRF 校验
 - 登录失败时直接显示错误信息
 - 注册后会自动建立会话
+- 默认不自动注入 demo 账号；需要演示账号时，可显式开启 bootstrap
 
 ### 7.2 `/account`
 
@@ -320,6 +328,7 @@ Vite 会把 `/api` 代理到后端 `http://localhost:8080`。
 
 - 仍然是本地账号体系，不含 Keycloak / 微信登录 / 多端同步
 - 当前还没有管理员后台、角色权限模型、JWT/API token
+- 登录失败限流和更细的安全治理仍未落地
 - 免费版整体备份当前只支持“生成后直接下载 / 从本地上传恢复”，不保留服务端长期托管历史
 - 工作台是前端组合现有接口，不是新的后端聚合接口
 - 单词线已切到 FSRS 运行时调度，但 `reviewOffsets` 仍作为兼容字段保留在计划接口里

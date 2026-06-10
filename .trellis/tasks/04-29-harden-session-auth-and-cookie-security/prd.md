@@ -22,9 +22,24 @@
 
 ## Acceptance Criteria
 
-* [ ] 已明确当前 session 方案的安全整改范围。
-* [ ] 已明确 cookie、CSRF、bootstrap 账号、登录失败治理的落地任务边界。
-* [ ] 后续可以直接进入实现，而无需再重新讨论“要不要先换 JWT”。
+* [x] 已明确当前 session 方案的安全整改范围。
+* [x] 已明确 cookie、CSRF、bootstrap 账号、登录失败治理的落地任务边界。
+* [x] 后续可以直接进入实现，而无需再重新讨论“要不要先换 JWT”。
+
+## Current Delivered Slice
+
+* 已开启基于 session cookie 的 CSRF 防护
+* 已新增 `GET /api/auth/csrf` 给前端取 token
+* 前端写请求已统一自动携带 CSRF token
+* bootstrap 本地账号已改为默认关闭、显式开启
+* session cookie 已补显式配置入口
+* 后端安全回归已补首批用例并通过：CSRF endpoint、缺 token 拒绝、带 token 登录、bootstrap 默认关闭与空密码保护
+
+## Remaining Work
+
+* 登录失败限流 / 锁定策略
+* 更细的安全审计
+* 登录失败治理与审计链路的后端安全回归验证
 
 ## Out of Scope
 

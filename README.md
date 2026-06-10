@@ -1,31 +1,48 @@
-# Japanese Vocabulary Phase-One Workspace
+# Japanese Vocabulary Study Workspace
 
-This repository now contains the bootstrap skeleton for the first-phase Japanese vocabulary system described in `docs/`.
+This repository is now a local-account Japanese study MVP rather than an early bootstrap skeleton.
+
+Current implemented surface:
+
+- word-study flow: word sets, study plans, `/cards`, review history, dashboard
+- note-study flow: notes CRUD, Markdown preview import, `/notes/review`, note dashboard
+- account flow: register, login, logout, `/account`, session-cookie auth
+- support flows: weak items, template preview/edit, export jobs, account backup and restore
 
 ## Workspace layout
 
-- `backend/`: Spring Boot 3 + Java 21 service foundation
-- `frontend/`: React 18 + TypeScript + Vite application shell
-- `docs/`: product, API, database, and MVP planning references
-- `.trellis/`: active workflow, spec index, and task tracking
+- `backend/`: Spring Boot 3 + Java 21 + PostgreSQL + Flyway
+- `frontend/`: React 18 + TypeScript + Vite + Ant Design
+- `docs/`: usage guide, API contracts, backlog and modeling notes
+- `.trellis/`: workflow, task tracking and project specs
 
-## Phase-one module boundaries
+## Main modules
 
-### Backend modules
+Backend:
 
-- `wordset`: word sets and word entries
-- `studyplan`: study plan management
-- `card`: today cards and calendar queries
-- `template`: Anki/Markdown template access
-- `exportjob`: export job queries
-- `shared`: API envelope, validation, exceptions, config, mapping conventions
+- `user`
+- `wordset`
+- `studyplan`
+- `card`
+- `dashboard`
+- `note`
+- `weakitem`
+- `template`
+- `exportjob`
+- `backup`
+- `shared`
 
-### Frontend modules
+Frontend:
 
+- `features/auth`
+- `features/dashboard`
 - `features/word-sets`
 - `features/study-plans`
 - `features/cards`
+- `features/notes`
+- `features/weak-items`
 - `features/templates`
+- `features/backups`
 - `features/export-jobs`
 - `shared`
 - `app`
@@ -33,8 +50,6 @@ This repository now contains the bootstrap skeleton for the first-phase Japanese
 ## Local development
 
 ### 1. Start PostgreSQL
-
-Use the bundled Docker Compose file:
 
 ```bash
 docker compose up -d db
@@ -53,7 +68,7 @@ Default connection:
 Requirements:
 
 - Java 21
-- Maven 3.9+ or Maven Wrapper
+- Maven 3.9+
 
 Commands:
 
@@ -62,18 +77,25 @@ cd backend
 mvn spring-boot:run
 ```
 
-Environment variables:
+Important environment variables:
 
-- `JP_DB_URL` default: `jdbc:postgresql://localhost:5432/jp_vocab`
-- `JP_DB_USERNAME` default: `jp`
-- `JP_DB_PASSWORD` default: `jp`
-- `APP_CORS_ALLOWED_ORIGINS` default: `http://localhost:5173`
+- `JP_DB_URL`
+- `JP_DB_USERNAME`
+- `JP_DB_PASSWORD`
+- `APP_CORS_ALLOWED_ORIGINS`
+- `APP_AUTH_BOOTSTRAP_ENABLED`
+- `APP_SESSION_COOKIE_SECURE`
+- `APP_SESSION_COOKIE_SAME_SITE`
+- `APP_EXPORT_BASE_DIR`
+- `APP_BACKUP_BASE_DIR`
 
-Backend responsibilities:
+Security baseline:
 
-- run Flyway `V1`-`V5`
-- expose `/api` endpoints
-- return unified `success/data/error/timestamp` envelopes
+- login state uses session cookie
+- write requests require CSRF token
+- bootstrap demo account is disabled by default and must be explicitly enabled
+
+Backend currently runs Flyway `V1` to `V11`.
 
 ### 3. Start frontend
 
@@ -92,25 +114,20 @@ npm run dev
 
 Default frontend URL: `http://localhost:5173`
 
-Frontend dev proxy forwards `/api` requests to `http://localhost:8080`.
+The frontend proxies `/api` to `http://localhost:8080`.
 
 ## Verification checklist
 
-- backend can boot with PostgreSQL and execute Flyway migrations
-- frontend can start with Vite and render the phase-one navigation shell
+- backend boots and applies Flyway migrations
+- frontend builds and renders the route shell
 - `/api/health` responds successfully
-- frontend `/api` requests resolve through the configured Vite proxy
+- login/register works with session cookie + CSRF flow
+- `/dashboard`, `/cards`, `/notes/review`, `/backups` can be reached after login
 
-## DTO / VO naming conventions
+## Source-of-truth docs
 
-- database layer stays aligned with Flyway snake_case table/column names
-- JPA entities use camelCase fields with explicit `@Table` / `@Column(name = "...")` mapping
-- API request/response models use camelCase names aligned with `docs/api-specification.md`
-- JSON-like database columns (`tags`, `reviewOffsets`, `fieldMapping`) are represented as structured Java collections
-
-## Suggested next implementation steps
-
-1. Add automated tests for import preview/apply, study-plan runtime, review, dashboard, template preview, and export download
-2. Expand dashboard metrics such as streaks, stage distribution, and longer-range trends
-3. Add clearer export creation guidance, including template-selection expectations and preview linkage
-4. Keep Trellis specs in sync whenever the current feature surface changes
+- `docs/system-usage-guide.md`
+- `docs/api-specification.md`
+- `docs/open-items.md`
+- `.trellis/spec/backend/current-feature-contracts.md`
+- `.trellis/spec/frontend/current-feature-workflows.md`

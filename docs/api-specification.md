@@ -56,6 +56,8 @@
 
 常见错误码：
 
+- `UNAUTHORIZED`
+- `FORBIDDEN`
 - `VALIDATION_ERROR`
 - `NOT_FOUND`
 - `CONFLICT`
@@ -64,6 +66,14 @@
 - `TEMPLATE_RENDER_ERROR`
 - `EXPORT_ERROR`
 - `INTERNAL_ERROR`
+
+认证与安全约定：
+
+- Web 登录态使用 session cookie
+- 默认 session cookie 名称为 `JP_SESSION`
+- 所有写请求 `POST / PUT / PATCH / DELETE` 都要求带有效 CSRF token
+- 前端应先调用 `GET /api/auth/csrf`
+- 再把返回的 `headerName` / `token` 带到后续写请求中
 
 ## 3. 核心对象
 
@@ -246,7 +256,37 @@ Markdown 模板关键字段：
 
 返回服务状态。
 
-## 4.1 备份接口
+## 4.1 认证接口
+
+### `GET /api/auth/csrf`
+
+为当前浏览器会话生成或返回一个可用的 CSRF token。
+
+返回字段：
+
+- `headerName`
+- `parameterName`
+- `token`
+
+说明：
+
+- 该接口不要求登录
+- 浏览器会同时收到 `XSRF-TOKEN` cookie
+- 后续写请求应把 `token` 按 `headerName` 放到请求头
+
+### `POST /api/auth/login`
+
+使用本地账号登录，成功后建立 session。
+
+### `POST /api/auth/register`
+
+注册本地账号，并在成功后直接建立 session。
+
+### `POST /api/auth/logout`
+
+注销当前 session。
+
+## 4.2 备份接口
 
 ### `POST /api/backups/export`
 

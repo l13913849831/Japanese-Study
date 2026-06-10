@@ -71,7 +71,7 @@ export function LoginPage() {
           登录后再进入学习工作台
         </Typography.Title>
         <Typography.Paragraph type="secondary" className="auth-page-description">
-          当前版本先使用本地账号 + Session Cookie，后端数据归属已经开始按内部用户模型收口，后续接 Keycloak 或微信小程序时不需要重做业务主键。
+          当前版本先使用本地账号 + Session Cookie。默认不再自动注入演示账号；需要的话可由后端环境变量显式开启 bootstrap 账号。
         </Typography.Paragraph>
         <Space wrap>
           <Tag color="blue">本地登录</Tag>
@@ -86,7 +86,7 @@ export function LoginPage() {
             <Typography.Title level={3} style={{ marginBottom: 4 }}>
               账号入口
             </Typography.Title>
-            <Typography.Text type="secondary">默认开发账号可由后端环境变量覆盖，也可以直接在这里注册本地账号。</Typography.Text>
+            <Typography.Text type="secondary">可以直接注册本地账号；如果需要演示账号，可由后端环境变量显式开启。</Typography.Text>
           </div>
 
           <Segmented
@@ -102,10 +102,10 @@ export function LoginPage() {
           {mode === "login" ? (
             <Form form={form} layout="vertical" onFinish={(values) => loginMutation.mutate(values)}>
               <Form.Item label="用户名" name="username" rules={[{ required: true, message: "请输入用户名" }]}>
-                <Input autoComplete="username" placeholder="demo" />
+                <Input autoComplete="username" placeholder="输入用户名" />
               </Form.Item>
               <Form.Item label="密码" name="password" rules={[{ required: true, message: "请输入密码" }]}>
-                <Input.Password autoComplete="current-password" placeholder="demo123456" />
+                <Input.Password autoComplete="current-password" placeholder="输入密码" />
               </Form.Item>
               <Button type="primary" htmlType="submit" block loading={loginMutation.isPending}>
                 进入工作台

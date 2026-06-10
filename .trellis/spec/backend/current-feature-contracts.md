@@ -14,6 +14,74 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 
 ---
 
+## Scenario: Local account auth and session security
+
+### 1. Scope / Trigger
+
+- Trigger: change touches local account login/register/logout, session-cookie auth, CSRF flow, or bootstrap account behavior.
+- Packages: `com.jp.vocab.user`, `com.jp.vocab.shared.auth`, frontend `/login`, shared HTTP client.
+
+### 2. Signatures
+
+- `GET /api/auth/csrf`
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `POST /api/auth/logout`
+- `GET /api/me`
+- `PUT /api/me/profile`
+- `PUT /api/me/settings`
+- `PUT /api/me/password`
+
+### 3. Contracts
+
+- Web auth uses session cookie rather than JWT.
+- Default session cookie name is `JP_SESSION`.
+- Write requests must pass CSRF validation.
+- `GET /api/auth/csrf` returns:
+  - `headerName`
+  - `parameterName`
+  - `token`
+- Frontend obtains a fresh CSRF token before write requests and sends it through the returned header name.
+- Bootstrap local account is disabled by default and must be explicitly enabled by configuration.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| missing or invalid CSRF token on write request | reject with standard `FORBIDDEN` envelope |
+| login with bad credentials | reject with standard `UNAUTHORIZED` envelope |
+| login for disabled account | reject with standard `FORBIDDEN` envelope |
+| bootstrap enabled with blank password | fail startup rather than creating an unsafe account |
+
+### 5. Good / Base / Bad Cases
+
+- Good: client fetches `/api/auth/csrf`, submits login, receives session cookie, then continues authenticated writes with fresh CSRF tokens.
+- Base: bootstrap account stays off by default and ordinary local registration remains available.
+- Bad: frontend writes without CSRF header, or backend silently keeps a default demo account enabled in non-local environments.
+
+### 6. Tests Required
+
+- CSRF endpoint coverage
+- auth write request rejection when CSRF token is missing
+- login success path with CSRF token present
+- bootstrap default-off and blank-password guard coverage
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- leave CSRF disabled while using cookie auth
+- rely on an always-on demo bootstrap account
+- make the frontend guess the CSRF header name
+
+#### Correct
+
+- keep cookie auth and enforce CSRF on writes
+- expose one explicit CSRF bootstrap endpoint for the SPA
+- require bootstrap account enablement via configuration
+
+---
+
 ## Scenario: Word-set data preparation and import
 
 ### 1. Scope / Trigger

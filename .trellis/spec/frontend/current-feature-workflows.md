@@ -14,6 +14,53 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 ---
 
+## Scenario: Local account login and session security
+
+### Scope
+
+- `/login`
+- shared HTTP client mutation flow
+- session-cookie auth bootstrap
+
+### Query and mutation anchors
+
+- `["me"]`
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `POST /api/auth/logout`
+- `GET /api/auth/csrf`
+
+### Current contract
+
+- `/login` remains the local-account entry page.
+- Default demo bootstrap account is no longer assumed to exist.
+- Before any write request, the shared HTTP client fetches `/api/auth/csrf` and sends the returned token through the provided header name.
+- Session auth remains cookie-based; frontend must keep `credentials: "include"`.
+- After login or register succeeds, the page refreshes `["me"]` and redirects to the workbench.
+
+### Tests Required
+
+- login/register flow coverage with CSRF bootstrap
+- logout flow coverage with CSRF bootstrap
+- `["me"]` refresh coverage after auth mutations
+- error-state coverage when login fails
+
+### Wrong vs Correct
+
+#### Wrong
+
+- hardcode a permanent demo account in the page copy or workflow
+- send cookie-auth writes without CSRF token bootstrap
+- bypass the shared HTTP client for auth writes
+
+#### Correct
+
+- keep auth mutations inside the shared HTTP client
+- let the client fetch CSRF token automatically for writes
+- treat bootstrap account as optional environment configuration
+
+---
+
 ## Scenario: App shell and route entry
 
 ### Scope
