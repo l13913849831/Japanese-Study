@@ -56,6 +56,63 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 ---
 
+## Scenario: Admin user governance console
+
+### Scope
+
+- `/admin`
+- user governance table
+- user detail modal
+- admin password reset modal
+- security audit events table
+- security alerts table
+
+### Query and mutation anchors
+
+- `["adminUsers", page, pageSize, keyword, status, role]`
+- `["adminUserDetail", selectedUserId]`
+- `["securityAuditEvents", page, pageSize, eventType, outcome, username]`
+- `["securityAlerts"]`
+- `POST /api/admin/users/{userId}/disable`
+- `POST /api/admin/users/{userId}/enable`
+- `POST /api/admin/users/{userId}/reset-password`
+
+### Current contract
+
+- `/admin` is no longer a placeholder; it is the first user-governance console.
+- The page shows account metadata, status, role, and asset counts only.
+- It does not show password hashes, raw note content, raw word entries, or backup file content.
+- Disable, enable, and password reset mutations invalidate:
+  - `["adminUsers"]`
+  - `["adminUserDetail"]`
+  - `["securityAuditEvents"]`
+  - `["securityAlerts"]`
+- Security alerts are read-only derived signals from audit events.
+- Audit event filters are page-local state and must not mutate URL state until the project adopts a route-state convention for admin pages.
+
+### Tests Required
+
+- frontend build/type-check for admin DTO contracts
+- route guard smoke coverage when frontend tests exist
+- mutation invalidation coverage when frontend tests exist
+- empty/loading/error state coverage for users, alerts, and audit events when frontend tests exist
+
+### Wrong vs Correct
+
+#### Wrong
+
+- expose raw learner content in the first user-governance page
+- refresh only the user table after an admin mutation
+- treat security alerts as editable records in the frontend
+
+#### Correct
+
+- keep the first admin console focused on account governance and derived security signals
+- refresh user, detail, audit, and alert queries together after governance actions
+- treat `/api/admin/security-alerts` as a read-only aggregate view
+
+---
+
 ## Scenario: Local account login and session security
 
 ### Scope

@@ -77,6 +77,92 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 
 ---
 
+## Scenario: Admin user governance and security alerts
+
+### 1. Scope / Trigger
+
+- Trigger: change touches `/api/admin/users`, `/api/admin/audit-events`, `/api/admin/security-alerts`, user status governance, admin password reset, or security audit aggregation.
+- Packages: `com.jp.vocab.user`, `com.jp.vocab.shared.auth`.
+
+### 2. Signatures
+
+- `GET /api/admin/users?page=&pageSize=&keyword=&status=&role=`
+- `GET /api/admin/users/{userId}`
+- `POST /api/admin/users/{userId}/disable`
+- `POST /api/admin/users/{userId}/enable`
+- `POST /api/admin/users/{userId}/reset-password`
+- `GET /api/admin/audit-events?page=&pageSize=&eventType=&outcome=&username=`
+- `GET /api/admin/security-alerts?lookbackHours=&limit=`
+
+### 3. Contracts
+
+- All endpoints are under `/api/admin/**` and require `ROLE_ADMIN`.
+- User list returns `PageResponse<AdminUserListItemResponse>`.
+- User detail returns account metadata plus `assetSummary` counts only:
+  - `wordSetCount`
+  - `studyPlanCount`
+  - `noteCount`
+- Admin password reset accepts `newPassword` and never returns password hashes.
+- Security audit event types include login events and admin user-governance events.
+- Security alerts are derived from `security_audit_event`; there is no dedicated alert table.
+- Security alert response fields are:
+  - `id`
+  - `alertType`
+  - `severity`
+  - `title`
+  - `description`
+  - `username`
+  - `ipAddress`
+  - `eventCount`
+  - `lastSeenAt`
+- Current alert types are:
+  - `REPEATED_LOGIN_FAILURE`
+  - `ACCOUNT_LOCKED`
+  - `DISABLED_ACCOUNT_LOGIN`
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| anonymous admin request | reject with standard `UNAUTHORIZED` envelope |
+| non-admin admin request | reject with standard `FORBIDDEN` envelope |
+| invalid user status or role filter | reject with `VALIDATION_ERROR` |
+| target user not found | reject with standard `NOT_FOUND` envelope |
+| admin tries to disable self | reject with `CONFLICT` |
+| reset password length outside 8-72 chars | reject with validation error |
+| invalid audit event type or outcome | reject with `VALIDATION_ERROR` |
+| missing alert query parameters | use 24-hour window and default limit |
+
+### 5. Good / Base / Bad Cases
+
+- Good: admin searches users, views detail, disables an account, sees the audit event, and sees alert signals derived from recent audit events.
+- Base: no security alert rows are returned when recent audit events do not cross the current strategy.
+- Bad: expose raw learning content or password hashes through admin detail, or persist a separate alert table before acknowledgement/notification semantics exist.
+
+### 6. Tests Required
+
+- admin API access-control smoke coverage
+- admin user service coverage for disable self guard, detail asset summary, and password reset audit
+- security audit service coverage for event recording, filter normalization, and truncation
+- security alert service coverage for repeated-failure aggregation, lock/disabled-login alert mapping, and query limit clamping
+- frontend build/type-check for admin API response contracts
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- let admin pages inspect raw user learning content during the first governance MVP
+- derive admin access from frontend route state only
+- create an alert persistence model without acknowledgement, notification, or owner semantics
+
+#### Correct
+
+- keep the first admin detail response to account metadata and asset counts
+- enforce all admin APIs through `/api/admin/**`
+- derive first-stage security alerts from immutable audit events
+
+---
+
 ## Scenario: Local account auth and session security
 
 ### 1. Scope / Trigger

@@ -6,6 +6,7 @@ import com.jp.vocab.shared.auth.SecurityConfig;
 import com.jp.vocab.shared.config.CorsProperties;
 import com.jp.vocab.user.dto.CurrentUserResponse;
 import com.jp.vocab.user.service.AdminUserService;
+import com.jp.vocab.user.service.SecurityAlertService;
 import com.jp.vocab.user.service.SecurityAuditService;
 import com.jp.vocab.user.service.UserProfileService;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,9 @@ class AdminControllerSecurityTest {
 
     @MockBean
     private SecurityAuditService securityAuditService;
+
+    @MockBean
+    private SecurityAlertService securityAlertService;
 
     @Test
     void shouldRejectUnauthenticatedAdminRequest() throws Exception {

@@ -77,6 +77,7 @@
 - 本地账号默认连续 5 次登录失败后临时锁定 15 分钟
 - 锁定期间登录返回 `FORBIDDEN`，成功登录会清零失败状态
 - 后端会记录认证安全审计事件：登录成功、登录失败、账号锁定、账号禁用、登出
+- 后台安全告警由审计事件派生，不单独持久化告警表
 - `GET /api/me` 会返回 `roles[]`，当前支持 `USER` 和 `ADMIN`
 - `/api/admin/**` 只允许 `ADMIN` 角色访问
 
@@ -255,6 +256,60 @@ Markdown 模板关键字段：
 - `MANUAL_BACKUP`
 - `SAFETY_SNAPSHOT`
 
+### 3.11 AdminUser
+
+管理员用户列表关键字段：
+
+- `id`
+- `username`
+- `displayName`
+- `status`
+- `role`
+- `createdAt`
+- `updatedAt`
+
+用户详情额外返回 `assetSummary`：
+
+- `wordSetCount`
+- `studyPlanCount`
+- `noteCount`
+
+### 3.12 SecurityAuditEvent
+
+关键字段：
+
+- `id`
+- `eventType`
+- `outcome`
+- `userId`
+- `username`
+- `ipAddress`
+- `userAgent`
+- `message`
+- `createdAt`
+
+### 3.13 SecurityAlert
+
+安全告警由近 24 小时审计事件实时派生。
+
+关键字段：
+
+- `id`
+- `alertType`
+- `severity`
+- `title`
+- `description`
+- `username`
+- `ipAddress`
+- `eventCount`
+- `lastSeenAt`
+
+当前告警类型：
+
+- `REPEATED_LOGIN_FAILURE`
+- `ACCOUNT_LOCKED`
+- `DISABLED_ACCOUNT_LOGIN`
+
 ## 4. 健康检查
 
 ### `GET /api/health`
@@ -307,6 +362,83 @@ Markdown 模板关键字段：
 - 未登录返回 `UNAUTHORIZED`
 - 已登录但不是 `ADMIN` 返回 `FORBIDDEN`
 - `ADMIN` 返回当前用户资料
+
+### `GET /api/admin/users?page=&pageSize=&keyword=&status=&role=`
+
+分页查询用户列表，支持按用户名 / 显示名关键词、账号状态、角色过滤。
+
+返回字段：
+
+- `items[]`
+- `page`
+- `pageSize`
+- `total`
+
+### `GET /api/admin/users/{userId}`
+
+查询用户详情和资产摘要。
+
+说明：
+
+- 会记录 `ADMIN_USER_DETAIL_VIEW` 审计事件
+- 只返回账号状态与资产数量，不返回密码、学习内容明细或备份文件内容
+
+### `POST /api/admin/users/{userId}/disable`
+
+禁用目标账号。
+
+说明：
+
+- 不能禁用当前管理员自己
+- 会记录 `ADMIN_USER_STATUS_CHANGE` 审计事件
+
+### `POST /api/admin/users/{userId}/enable`
+
+启用目标账号。
+
+说明：
+
+- 会记录 `ADMIN_USER_STATUS_CHANGE` 审计事件
+
+### `POST /api/admin/users/{userId}/reset-password`
+
+后台重置目标账号本地密码。
+
+请求示例：
+
+```json
+{
+  "newPassword": "newPassword123"
+}
+```
+
+说明：
+
+- `newPassword` 长度必须为 8 到 72
+- 重置成功后会清理目标账号登录失败 / 锁定状态
+- 会记录 `ADMIN_USER_PASSWORD_RESET` 审计事件
+
+### `GET /api/admin/audit-events?page=&pageSize=&eventType=&outcome=&username=`
+
+分页查询安全审计事件。
+
+支持过滤：
+
+- `eventType`
+- `outcome`
+- `username`
+
+### `GET /api/admin/security-alerts?lookbackHours=&limit=`
+
+查询安全告警列表。
+
+说明：
+
+- 默认窗口为近 24 小时
+- `lookbackHours` 范围为 1 到 168
+- `limit` 范围为 1 到 100
+- 告警由 `security_audit_event` 聚合派生，不新增独立持久化表
+- 当前策略覆盖重复登录失败、账号锁定、禁用账号登录尝试
 
 ## 4.3 备份接口
 

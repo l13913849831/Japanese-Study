@@ -8,8 +8,10 @@ import com.jp.vocab.user.dto.AdminUserListItemResponse;
 import com.jp.vocab.user.dto.AdminUserPasswordResetResponse;
 import com.jp.vocab.user.dto.AdminUserStatusResponse;
 import com.jp.vocab.user.dto.CurrentUserResponse;
+import com.jp.vocab.user.dto.SecurityAlertResponse;
 import com.jp.vocab.user.dto.SecurityAuditEventResponse;
 import com.jp.vocab.user.service.AdminUserService;
+import com.jp.vocab.user.service.SecurityAlertService;
 import com.jp.vocab.user.service.SecurityAuditService;
 import com.jp.vocab.user.service.UserProfileService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
@@ -31,15 +35,18 @@ public class AdminController {
     private final UserProfileService userProfileService;
     private final AdminUserService adminUserService;
     private final SecurityAuditService securityAuditService;
+    private final SecurityAlertService securityAlertService;
 
     public AdminController(
             UserProfileService userProfileService,
             AdminUserService adminUserService,
-            SecurityAuditService securityAuditService
+            SecurityAuditService securityAuditService,
+            SecurityAlertService securityAlertService
     ) {
         this.userProfileService = userProfileService;
         this.adminUserService = adminUserService;
         this.securityAuditService = securityAuditService;
+        this.securityAlertService = securityAlertService;
     }
 
     @GetMapping("/me")
@@ -100,5 +107,13 @@ public class AdminController {
             @RequestParam(required = false) String username
     ) {
         return ApiResponse.success(securityAuditService.listEvents(page, pageSize, eventType, outcome, username));
+    }
+
+    @GetMapping("/security-alerts")
+    public ApiResponse<List<SecurityAlertResponse>> listSecurityAlerts(
+            @RequestParam(required = false) @Min(1) @Max(168) Integer lookbackHours,
+            @RequestParam(required = false) @Min(1) @Max(100) Integer limit
+    ) {
+        return ApiResponse.success(securityAlertService.listAlerts(lookbackHours, limit));
     }
 }

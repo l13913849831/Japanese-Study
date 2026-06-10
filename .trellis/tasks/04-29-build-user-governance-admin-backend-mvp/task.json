@@ -3,7 +3,7 @@
   "name": "build-user-governance-admin-backend-mvp",
   "title": "P0-c-3: build user governance admin backend MVP",
   "description": "",
-  "status": "planning",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "rikka",
   "assignee": "rikka",
   "createdAt": "2026-04-29",
-  "completedAt": null,
+  "completedAt": "2026-06-10",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": "04-29-account-system-and-admin-backend-evolution",
   "relatedFiles": [],
-  "notes": "",
+  "notes": "Completed user governance admin MVP: users list/search/detail, enable/disable, reset password, asset summary, audit event query, and audit-derived security alerts.",
   "meta": {}
 }

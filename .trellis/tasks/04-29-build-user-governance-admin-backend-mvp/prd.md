@@ -21,9 +21,24 @@
 
 ## Acceptance Criteria
 
-* [ ] 已明确用户治理后台 MVP 的页面和接口范围。
-* [ ] 已明确哪些用户数据允许管理员查看，哪些不应暴露。
-* [ ] 已明确账号状态操作和审计的最小闭环。
+* [x] 已明确用户治理后台 MVP 的页面和接口范围。
+* [x] 已明确哪些用户数据允许管理员查看，哪些不应暴露。
+* [x] 已明确账号状态操作和审计的最小闭环。
+
+## Current Delivered Slice
+
+* `/api/admin/users` 已支持用户列表、搜索、状态过滤、角色过滤。
+* `/api/admin/users/{userId}` 已支持用户详情和资产摘要。
+* `/api/admin/users/{userId}/disable` 与 `/enable` 已支持账号禁用 / 启用。
+* `/api/admin/users/{userId}/reset-password` 已支持后台重置本地密码，并清理登录失败状态。
+* `/api/admin/audit-events` 已支持安全审计事件查询。
+* `/api/admin/security-alerts` 已支持从审计事件派生安全告警。
+* 前端 `/admin` 已展示用户治理、审计事件和安全告警。
+* 管理员查看用户详情、启用 / 禁用、重置密码都会写入审计事件。
+
+## Remaining Work
+
+* 无
 
 ## Out of Scope
 

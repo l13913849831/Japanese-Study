@@ -27,6 +27,7 @@ import {
   enableAdminUser,
   getAdminUserDetail,
   listSecurityAuditEvents,
+  listSecurityAlerts,
   listAdminUsers,
   resetAdminUserPassword,
   type AdminUserDetail,
@@ -34,6 +35,8 @@ import {
   type AdminUserListItem,
   type AdminUserRole,
   type AdminUserStatus,
+  type SecurityAlert,
+  type SecurityAlertSeverity,
   type SecurityAuditEvent,
   type SecurityAuditEventType,
   type SecurityAuditFilters,
@@ -83,6 +86,11 @@ const SECURITY_AUDIT_OUTCOME_COLORS: Record<SecurityAuditOutcome, string> = {
   BLOCKED: "orange"
 };
 
+const SECURITY_ALERT_SEVERITY_COLORS: Record<SecurityAlertSeverity, string> = {
+  HIGH: "red",
+  MEDIUM: "orange"
+};
+
 function formatDate(value: string) {
   return dayjs(value).format("YYYY-MM-DD HH:mm");
 }
@@ -101,6 +109,10 @@ function renderRoleTag(role: AdminUserRole) {
 
 function renderAuditOutcomeTag(outcome: SecurityAuditOutcome) {
   return <Tag color={SECURITY_AUDIT_OUTCOME_COLORS[outcome]}>{outcome}</Tag>;
+}
+
+function renderAlertSeverityTag(severity: SecurityAlertSeverity) {
+  return <Tag color={SECURITY_ALERT_SEVERITY_COLORS[severity]}>{severity}</Tag>;
 }
 
 export function AdminHomePage() {
@@ -144,11 +156,17 @@ export function AdminHomePage() {
     queryFn: () => listSecurityAuditEvents(auditFilters)
   });
 
+  const securityAlertsQuery = useQuery({
+    queryKey: ["securityAlerts"],
+    queryFn: listSecurityAlerts
+  });
+
   const refreshAdminUsers = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] }),
       queryClient.invalidateQueries({ queryKey: ["adminUserDetail"] }),
-      queryClient.invalidateQueries({ queryKey: ["securityAuditEvents"] })
+      queryClient.invalidateQueries({ queryKey: ["securityAuditEvents"] }),
+      queryClient.invalidateQueries({ queryKey: ["securityAlerts"] })
     ]);
   };
 
@@ -244,8 +262,10 @@ export function AdminHomePage() {
   };
 
   const users = usersQuery.data?.items ?? [];
+  const securityAlerts = securityAlertsQuery.data ?? [];
   const visibleActiveCount = users.filter((user) => user.status === "ACTIVE").length;
   const visibleDisabledCount = users.filter((user) => user.status === "DISABLED").length;
+  const highSeverityAlertCount = securityAlerts.filter((alert) => alert.severity === "HIGH").length;
   const actionPending = disableMutation.isPending || enableMutation.isPending;
 
   return (
@@ -268,6 +288,7 @@ export function AdminHomePage() {
           <Statistic title="Matched Users" value={usersQuery.data?.total ?? 0} />
           <Statistic title="Visible Active" value={visibleActiveCount} />
           <Statistic title="Visible Disabled" value={visibleDisabledCount} />
+          <Statistic title="High Severity Alerts" value={highSeverityAlertCount} />
         </div>
       </PageSection>
 
@@ -389,6 +410,68 @@ export function AdminHomePage() {
             locale={{ emptyText: "No users found." }}
           />
         )}
+      </PageSection>
+
+      <PageSection title="Security Alerts">
+        <Space direction="vertical" size={16} style={{ width: "100%" }}>
+          <Alert
+            type="warning"
+            showIcon
+            message="Alert strategy"
+            description="Alerts are derived from the last 24 hours of audit events: repeated login failures, account locks, and disabled-account login attempts."
+          />
+
+          {securityAlertsQuery.isLoading ? (
+            <StatusState mode="loading" />
+          ) : securityAlertsQuery.isError ? (
+            <StatusState mode="error" description={(securityAlertsQuery.error as Error).message} />
+          ) : (
+            <Table<SecurityAlert>
+              rowKey="id"
+              dataSource={securityAlerts}
+              pagination={false}
+              columns={[
+                {
+                  title: "Severity",
+                  dataIndex: "severity",
+                  render: (severity: SecurityAlertSeverity) => renderAlertSeverityTag(severity)
+                },
+                {
+                  title: "Alert",
+                  render: (_, alert) => (
+                    <Space direction="vertical" size={2}>
+                      <Typography.Text strong>{alert.title}</Typography.Text>
+                      <Typography.Text type="secondary">{alert.alertType}</Typography.Text>
+                    </Space>
+                  )
+                },
+                {
+                  title: "Target",
+                  render: (_, alert) => alert.username ?? "Unknown username"
+                },
+                {
+                  title: "IP",
+                  dataIndex: "ipAddress",
+                  render: (value?: string | null) => value ?? "-"
+                },
+                {
+                  title: "Count",
+                  dataIndex: "eventCount"
+                },
+                {
+                  title: "Last Seen",
+                  dataIndex: "lastSeenAt",
+                  render: (value: string) => formatDate(value)
+                },
+                {
+                  title: "Description",
+                  dataIndex: "description"
+                }
+              ]}
+              locale={{ emptyText: "No active security alerts." }}
+            />
+          )}
+        </Space>
       </PageSection>
 
       <PageSection title="Security Audit Events">

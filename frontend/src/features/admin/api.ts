@@ -47,6 +47,8 @@ export interface AdminUserPasswordResetResult {
 }
 
 export type SecurityAuditOutcome = "SUCCESS" | "FAILURE" | "BLOCKED";
+export type SecurityAlertSeverity = "HIGH" | "MEDIUM";
+export type SecurityAlertType = "REPEATED_LOGIN_FAILURE" | "ACCOUNT_LOCKED" | "DISABLED_ACCOUNT_LOGIN";
 export type SecurityAuditEventType =
   | "LOGIN_SUCCESS"
   | "LOGIN_FAILURE"
@@ -75,6 +77,18 @@ export interface SecurityAuditEvent {
   userAgent: string | null;
   message: string | null;
   createdAt: string;
+}
+
+export interface SecurityAlert {
+  id: string;
+  alertType: SecurityAlertType;
+  severity: SecurityAlertSeverity;
+  title: string;
+  description: string;
+  username: string | null;
+  ipAddress: string | null;
+  eventCount: number;
+  lastSeenAt: string;
 }
 
 function buildAdminUserQuery(filters: AdminUserFilters = {}) {
@@ -131,4 +145,8 @@ export function resetAdminUserPassword(userId: number, payload: AdminResetPasswo
 
 export function listSecurityAuditEvents(filters: SecurityAuditFilters = {}) {
   return getJson<PageResponse<SecurityAuditEvent>>(`/admin/audit-events?${buildSecurityAuditQuery(filters)}`);
+}
+
+export function listSecurityAlerts() {
+  return getJson<SecurityAlert[]>("/admin/security-alerts");
 }
