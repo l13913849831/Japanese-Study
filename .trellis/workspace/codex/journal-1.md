@@ -85,3 +85,36 @@ Committed the user governance admin MVP, added audit-derived security alerts, an
 ### Next Steps
 
 - Continue with long-cycle learning metrics or review-experience polish from `docs/open-items.md`.
+
+
+## Session 2: WeChat miniapp migration and mobile auth
+
+**Date**: 2026-06-10
+**Task**: WeChat miniapp migration and mobile auth
+**Branch**: `main`
+
+### Summary
+
+Migrated learner main path to a Taro WeChat miniapp scaffold, added backend WeChat miniapp login/logout/me APIs with mobile sessions, documented account boundaries and migration notes, verified backend tests plus miniapp typecheck and weapp build.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9f46f2a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
