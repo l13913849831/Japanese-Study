@@ -4,7 +4,13 @@ import dayjs, { type Dayjs } from "dayjs";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMe } from "@/features/auth/api";
-import { getStudyDashboard, type DashboardPlanSummary, type DashboardTrendItem } from "@/features/dashboard/api";
+import {
+  getLongTermDashboard,
+  getStudyDashboard,
+  type DashboardPlanSummary,
+  type DashboardTrendItem,
+  type LongTermTrendItem
+} from "@/features/dashboard/api";
 import {
   getNoteDashboard,
   type NoteDashboardMasteryItem,
@@ -103,6 +109,10 @@ export function StudyDashboardPage() {
     queryKey: ["dashboard", formattedDate],
     queryFn: () => getStudyDashboard(formattedDate)
   });
+  const longTermDashboardQuery = useQuery({
+    queryKey: ["dashboard", "long-term", formattedDate, 90],
+    queryFn: () => getLongTermDashboard(formattedDate, 90)
+  });
   const noteDashboardQuery = useQuery({
     queryKey: ["noteDashboard", formattedDate],
     queryFn: () => getNoteDashboard(formattedDate)
@@ -118,6 +128,7 @@ export function StudyDashboardPage() {
   });
 
   const dashboard = dashboardQuery.data;
+  const longTermDashboard = longTermDashboardQuery.data;
   const activePlans = dashboard?.activePlans ?? [];
   const hasActivePlans = activePlans.length > 0;
   const noteDashboard = noteDashboardQuery.data;
@@ -166,6 +177,11 @@ export function StudyDashboardPage() {
   const sevenDayActiveDays = retrospectiveRows.filter((item) => item.totalReviewed > 0).length;
   const peakWordDay = findPeakItem(trendRows, (item) => item.reviewedCards);
   const peakNoteDay = findPeakItem(noteDashboard?.recentTrend ?? [], (item) => item.reviewedNotes);
+  const longTermTrendRows = longTermDashboard?.trend ?? [];
+  const longTermTrendActiveDays = longTermTrendRows.filter((item) => item.totalReviews > 0).length;
+  const longTermPeakDay = findPeakItem(longTermTrendRows, (item) => item.totalReviews);
+  const longTermSummary = longTermDashboard?.summary;
+  const longTermLoadForecast = longTermDashboard?.loadForecast;
   const atRiskPlanCount = activePlans.filter((plan) => plan.pendingToday > 0 && plan.reviewedToday === 0).length;
   const recommendedLine = learningPathState.recommendedLine;
   const followUpLine = learningPathState.followUpLine;
@@ -211,8 +227,9 @@ export function StudyDashboardPage() {
 
   const studyError = dashboardQuery.isError ? (dashboardQuery.error as Error).message : null;
   const noteError = noteDashboardQuery.isError ? (noteDashboardQuery.error as Error).message : null;
+  const longTermError = longTermDashboardQuery.isError ? (longTermDashboardQuery.error as Error).message : null;
   const weakError = weakItemSummaryQuery.isError ? (weakItemSummaryQuery.error as Error).message : null;
-  const showInitialLoading = dashboardQuery.isLoading && noteDashboardQuery.isLoading;
+  const showInitialLoading = dashboardQuery.isLoading && noteDashboardQuery.isLoading && longTermDashboardQuery.isLoading;
 
   return (
     <div className="page-stack">
@@ -256,6 +273,7 @@ export function StudyDashboardPage() {
               description={[
                 studyError ? `Word study: ${studyError}` : null,
                 noteError ? `Note review: ${noteError}` : null,
+                longTermError ? `Long-term: ${longTermError}` : null,
                 weakError ? `Weak items: ${weakError}` : null
               ]
                 .filter(Boolean)
@@ -445,6 +463,111 @@ export function StudyDashboardPage() {
                 </Space>
               </Card>
             </div>
+          </PageSection>
+
+          <PageSection title="长期学习指标">
+            {longTermDashboardQuery.isLoading ? (
+              <StatusState mode="loading" />
+            ) : longTermDashboardQuery.isError ? (
+              <StatusState mode="error" description={longTermError ?? undefined} />
+            ) : (
+              <div className="dashboard-plan-grid">
+                <Card size="small" title="长期摘要">
+                  <div className="dashboard-overview-grid">
+                    <Card size="small">
+                      <Statistic title="当前连续天数" value={longTermSummary?.currentStreakDays ?? 0} />
+                    </Card>
+                    <Card size="small">
+                      <Statistic title="最长连续天数" value={longTermSummary?.longestStreakDays ?? 0} />
+                    </Card>
+                    <Card size="small">
+                      <Statistic title="近 7 天复盘" value={longTermSummary?.reviewedLast7Days ?? 0} />
+                    </Card>
+                    <Card size="small">
+                      <Statistic title="近 30 天复盘" value={longTermSummary?.reviewedLast30Days ?? 0} />
+                    </Card>
+                  </div>
+                  <Alert
+                    style={{ marginTop: 16 }}
+                    type={longTermSummary && longTermSummary.currentStreakDays > 0 ? "success" : "info"}
+                    showIcon
+                    message={
+                      longTermSummary && longTermSummary.currentStreakDays > 0
+                        ? `当前连续学习了 ${longTermSummary.currentStreakDays} 天。`
+                        : "今天还没有长期学习记录。"
+                    }
+                    description={
+                      longTermSummary
+                        ? `近 30 天共记录 ${longTermSummary.reviewedLast30Days} 次复盘。`
+                        : "开始复习后，这里会显示连续天数和近 30 天复盘量。"
+                    }
+                  />
+                </Card>
+
+                <Card size="small" title="90 天趋势">
+                  <Table<LongTermTrendItem>
+                    rowKey="date"
+                    size="small"
+                    pagination={{ pageSize: 10, size: "small" }}
+                    dataSource={longTermTrendRows}
+                    columns={[
+                      {
+                        title: "日期",
+                        dataIndex: "date",
+                        render: (value: string) => dayjs(value).format("YYYY-MM-DD")
+                      },
+                      { title: "单词", dataIndex: "wordReviews" },
+                      { title: "知识点", dataIndex: "noteReviews" },
+                      { title: "合计", dataIndex: "totalReviews" }
+                    ]}
+                    locale={{
+                      emptyText: "近 90 天还没有复盘记录。"
+                    }}
+                  />
+                  <Typography.Text type="secondary" style={{ display: "block", marginTop: 12 }}>
+                    有复盘记录的天数：{longTermTrendActiveDays}
+                  </Typography.Text>
+                  <Typography.Text type="secondary">
+                    高峰日：{longTermPeakDay ? `${longTermPeakDay.date} / ${longTermPeakDay.totalReviews}` : "暂无"}
+                  </Typography.Text>
+                </Card>
+
+                <Card size="small" title="未来负载">
+                  <div className="dashboard-overview-grid">
+                    <Card size="small">
+                      <Statistic title="7 天负载" value={longTermLoadForecast?.next7Days.totalDue ?? 0} />
+                    </Card>
+                    <Card size="small">
+                      <Statistic title="14 天负载" value={longTermLoadForecast?.next14Days.totalDue ?? 0} />
+                    </Card>
+                    <Card size="small">
+                      <Statistic title="30 天负载" value={longTermLoadForecast?.next30Days.totalDue ?? 0} />
+                    </Card>
+                    <Card size="small">
+                      <Statistic title="单词待复习" value={longTermLoadForecast?.next30Days.wordDue ?? 0} />
+                    </Card>
+                    <Card size="small">
+                      <Statistic title="知识点待复习" value={longTermLoadForecast?.next30Days.noteDue ?? 0} />
+                    </Card>
+                  </div>
+                  <Alert
+                    style={{ marginTop: 16 }}
+                    type={(longTermLoadForecast?.next7Days.totalDue ?? 0) > 0 ? "warning" : "success"}
+                    showIcon
+                    message={
+                      (longTermLoadForecast?.next7Days.totalDue ?? 0) > 0
+                        ? "未来 7 天还有待复习负载。"
+                        : "未来 7 天没有显著负载。"
+                    }
+                    description={
+                      longTermLoadForecast
+                        ? `30 天窗口内共 ${longTermLoadForecast.next30Days.totalDue} 个待复习项。`
+                        : "开始积累复习后，这里会显示未来负载。"
+                    }
+                  />
+                </Card>
+              </div>
+            )}
           </PageSection>
 
           <PageSection title="风险信号">

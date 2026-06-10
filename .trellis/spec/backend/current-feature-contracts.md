@@ -777,6 +777,77 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 
 ---
 
+## Scenario: Long-term learning metrics
+
+### 1. Scope / Trigger
+
+- Trigger: change touches `/api/dashboard/long-term`, long-range review analytics, dashboard aggregation, or future workload forecast.
+- Packages: `com.jp.vocab.dashboard`, `com.jp.vocab.note`, `com.jp.vocab.card`.
+
+### 2. Signatures
+
+- `GET /api/dashboard/long-term?date=YYYY-MM-DD&rangeDays=90`
+
+### 3. Contracts
+
+- The endpoint is read-only and returns `ApiResponse<LongTermDashboardResponse>`.
+- `date` defaults to `LocalDate.now()` when omitted.
+- `rangeDays` defaults to `90` and is constrained to `30..180`.
+- Response contains:
+  - `summary`
+  - `trend`
+  - `loadForecast`
+- `summary` includes:
+  - current streak days
+  - longest streak days
+  - last 7-day total, word, and note review counts
+  - last 30-day total, word, and note review counts
+- `trend` is daily and contains word, note, and total review counts.
+- `loadForecast` contains next 7 / 14 / 30 day buckets with word, note, and total due counts.
+- Learning day means either word review logs or note review logs exist for that date.
+- Word trend reads `review_log` through `card_instance -> study_plan`.
+- Note trend reads `note_review_log` through `note`.
+- Word future load only counts `ACTIVE` plans and `PENDING` card instances.
+- Note future load counts current user's due notes.
+- The first version must not create a materialized statistics table.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| `rangeDays < 30` or `rangeDays > 180` | reject with validation error |
+| omitted date | use current local date |
+| no review history | return zero summary and zero-filled trend |
+| no future due items | return zero load buckets |
+
+### 5. Good / Base / Bad Cases
+
+- Good: a learner with word and note reviews sees streaks, 90-day split trend, and future workload buckets.
+- Base: a new learner sees zero values instead of API errors.
+- Bad: derive long-term metrics from frontend-only recent trend, or count another user's review logs.
+
+### 6. Tests Required
+
+- service coverage for streak calculation, last 7 / 30 day totals, and future load buckets
+- controller coverage for daily and long-term route delegation
+- frontend build/type-check for the long-term dashboard DTO contract
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- add a persistent analytics table before query performance requires it
+- fold long-term fields into the existing daily `/api/dashboard` response
+- count archived/deleted user data outside the current user's ownership boundary
+
+#### Correct
+
+- keep the long-term endpoint separate from the daily dashboard endpoint
+- derive MVP metrics from existing review logs and due runtime rows
+- keep failure isolated so long-term query issues do not block today's workbench data
+
+---
+
 ## Migration Note
 
 The retired OpenSpec work is now treated as Trellis-owned knowledge.

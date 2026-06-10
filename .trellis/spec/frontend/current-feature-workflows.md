@@ -512,6 +512,55 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 ---
 
+## Scenario: Long-term learning metrics on workbench
+
+### Scope
+
+- `/dashboard`
+- long-term learning summary
+- 90-day word / note trend
+- future workload forecast
+
+### Query and mutation anchors
+
+- `["dashboard", "long-term", date, rangeDays]`
+- `GET /api/dashboard/long-term?date=YYYY-MM-DD&rangeDays=90`
+
+### Current contract
+
+- Long-term metrics are fetched through a dedicated React Query request.
+- The long-term query must not replace the existing daily `["dashboard", date]` and `["noteDashboard", date]` queries.
+- `/dashboard` shows:
+  - current streak days
+  - longest streak days
+  - last 7 / 30 day review totals
+  - 90-day word / note / total trend
+  - next 7 / 14 / 30 day workload forecast
+- Long-term query errors are shown as workbench warnings or local section errors and must not block today's main path.
+- Empty history must render understandable zero states.
+
+### Tests Required
+
+- frontend build/type-check for the DTO contract
+- long-term section loading/error/empty rendering coverage when frontend tests exist
+- query key regression coverage when frontend tests exist
+
+### Wrong vs Correct
+
+#### Wrong
+
+- compute 90-day trend by stitching together only the existing 7-day dashboard data
+- make long-term metrics a prerequisite for opening today's review session
+- copy long-term DTOs into shared API types
+
+#### Correct
+
+- keep long-term metrics in `features/dashboard/api.ts`
+- render the long-term section from its own query result
+- preserve the existing daily workbench flow when long-term data is loading or unavailable
+
+---
+
 ## Scenario: Notes CRUD, Markdown preview import, review queue, and note dashboard
 
 ### Scope

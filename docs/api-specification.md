@@ -677,6 +677,61 @@ Markdown 模板关键字段：
 
 - 单词线统计基于当前 `PENDING` 且 `dueAt` 已到期的运行时卡片
 
+### `GET /api/dashboard/long-term?date=YYYY-MM-DD&rangeDays=90`
+
+查询长期学习指标。该接口是只读聚合，不新增统计表。
+
+参数：
+
+- `date`: 统计截止日期，默认当天
+- `rangeDays`: 趋势窗口，范围 30 到 180，默认 90
+
+返回结构：
+
+- `summary`
+- `trend`
+- `loadForecast`
+
+`summary` 关键字段：
+
+- `date`
+- `rangeDays`
+- `currentStreakDays`
+- `longestStreakDays`
+- `reviewedLast7Days`
+- `wordReviewedLast7Days`
+- `noteReviewedLast7Days`
+- `reviewedLast30Days`
+- `wordReviewedLast30Days`
+- `noteReviewedLast30Days`
+
+`trend` 元素字段：
+
+- `date`
+- `wordReviews`
+- `noteReviews`
+- `totalReviews`
+
+`loadForecast` 字段：
+
+- `next7Days`
+- `next14Days`
+- `next30Days`
+
+每个负载桶字段：
+
+- `days`
+- `wordDue`
+- `noteDue`
+- `totalDue`
+
+说明：
+
+- 连续学习天数按单词线或知识点线任意一条线有复习记录计算
+- 90 天趋势统计单词复习日志和知识点复习日志
+- 未来负载统计未来 7 / 14 / 30 天的单词待复习卡片和知识点待复习项
+- 单词未来负载只统计 `ACTIVE` 学习计划下的 `PENDING` 卡片
+
 ## 9. 知识点接口
 
 ### `GET /api/notes?page=&pageSize=&keyword=&tag=&masteryStatus=`
