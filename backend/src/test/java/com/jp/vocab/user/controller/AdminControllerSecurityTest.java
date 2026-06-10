@@ -5,6 +5,8 @@ import com.jp.vocab.shared.auth.RestAuthenticationEntryPoint;
 import com.jp.vocab.shared.auth.SecurityConfig;
 import com.jp.vocab.shared.config.CorsProperties;
 import com.jp.vocab.user.dto.CurrentUserResponse;
+import com.jp.vocab.user.service.AdminUserService;
+import com.jp.vocab.user.service.SecurityAuditService;
 import com.jp.vocab.user.service.UserProfileService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,12 @@ class AdminControllerSecurityTest {
 
     @MockBean
     private UserProfileService userProfileService;
+
+    @MockBean
+    private AdminUserService adminUserService;
+
+    @MockBean
+    private SecurityAuditService securityAuditService;
 
     @Test
     void shouldRejectUnauthenticatedAdminRequest() throws Exception {

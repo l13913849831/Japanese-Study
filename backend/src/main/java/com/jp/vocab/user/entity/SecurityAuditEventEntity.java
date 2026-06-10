@@ -18,6 +18,9 @@ public class SecurityAuditEventEntity {
     public static final String EVENT_LOGIN_LOCKED = "LOGIN_LOCKED";
     public static final String EVENT_LOGIN_DISABLED = "LOGIN_DISABLED";
     public static final String EVENT_LOGOUT = "LOGOUT";
+    public static final String EVENT_ADMIN_USER_DETAIL_VIEW = "ADMIN_USER_DETAIL_VIEW";
+    public static final String EVENT_ADMIN_USER_STATUS_CHANGE = "ADMIN_USER_STATUS_CHANGE";
+    public static final String EVENT_ADMIN_USER_PASSWORD_RESET = "ADMIN_USER_PASSWORD_RESET";
 
     public static final String OUTCOME_SUCCESS = "SUCCESS";
     public static final String OUTCOME_FAILURE = "FAILURE";

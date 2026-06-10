@@ -52,6 +52,14 @@ public class UserAccountEntity extends AuditableEntity {
         this.role = UserRole.normalize(role);
     }
 
+    public void disable() {
+        status = STATUS_DISABLED;
+    }
+
+    public void enable() {
+        status = STATUS_ACTIVE;
+    }
+
     public void restoreProfile(String displayName, String status) {
         this.displayName = displayName;
         this.status = status;
