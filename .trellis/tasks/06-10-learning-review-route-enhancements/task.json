@@ -18,11 +18,7 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "06-10-p1-align-miniapp-review-sessions",
-    "06-10-p1-learning-path-recommender-v2",
-    "06-10-p1-review-session-completion-recap"
-  ],
+  "children": [],
   "parent": null,
   "relatedFiles": [],
   "notes": "",

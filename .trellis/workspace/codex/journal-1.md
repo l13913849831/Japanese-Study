@@ -118,3 +118,36 @@ Migrated learner main path to a Taro WeChat miniapp scaffold, added backend WeCh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: P1 review route enhancements
+
+**Date**: 2026-06-10
+**Task**: P1 review route enhancements
+**Branch**: `main`
+
+### Summary
+
+Completed miniapp review-session parity, learning path recommender v2, and Web review completion recap; archived the three finished P1 subtasks.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c809676` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

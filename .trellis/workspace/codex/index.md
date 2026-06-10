@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 2
+- **Total Sessions**: 3
 - **Last Active**: 2026-06-10
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~120 | Active |
+| `journal-1.md` | ~153 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 3 | 2026-06-10 | P1 review route enhancements | `c809676` | `main` |
 | 2 | 2026-06-10 | WeChat miniapp migration and mobile auth | `9f46f2a` | `main` |
 | 1 | 2026-06-10 | Session auth security wrap-up | - | `main` |
 <!-- @@@/auto:session-history -->
