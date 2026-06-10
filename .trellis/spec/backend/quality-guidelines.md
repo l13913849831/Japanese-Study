@@ -95,3 +95,25 @@ mvn test
 - `backend/src/main/java/com/jp/vocab/studyplan/service/StudyPlanService.java`
 - `backend/src/main/java/com/jp/vocab/shared/web/GlobalExceptionHandler.java`
 - `backend/src/main/resources/application.yml`
+
+---
+
+## Build Gotcha: Windows JDK 21 `--release 21`
+
+When building with `C:\Users\luyh\.jdks\ms-21.0.9`, `javac --release 21` can fail with:
+
+```text
+An unknown compilation problem occurred
+致命的エラー: コンパイラ・リソースを閉じることができません
+```
+
+Use Maven compiler `source` / `target` 21 instead of `release` 21 for this project.
+
+Required `backend/pom.xml` contract:
+
+```xml
+<maven.compiler.release></maven.compiler.release>
+<maven.compiler.createMissingPackageInfoClass>false</maven.compiler.createMissingPackageInfoClass>
+```
+
+The compiler plugin should log `javac [debug parameters target 21]`, not `release 21`.

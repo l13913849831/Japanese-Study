@@ -1,0 +1,51 @@
+{
+  "id": "migrate-to-wechat-mini-program",
+  "name": "migrate-to-wechat-mini-program",
+  "title": "migrate web app to WeChat mini program",
+  "description": "",
+  "status": "implementing",
+  "dev_type": "frontend",
+  "scope": "miniapp",
+  "package": "miniapp",
+  "priority": "P2",
+  "creator": "codex",
+  "assignee": "codex",
+  "createdAt": "2026-06-10",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [
+    {
+      "id": "phase-1-taro-client",
+      "title": "Phase 1: Taro learning miniapp client",
+      "status": "completed"
+    },
+    {
+      "id": "phase-1-mobile-auth-backend",
+      "title": "Phase 1: WeChat login and mobile token backend",
+      "status": "completed"
+    },
+    {
+      "id": "phase-2-account-binding",
+      "title": "Phase 2: existing account binding, phone, unionid",
+      "status": "pending"
+    },
+    {
+      "id": "phase-3-session-governance",
+      "title": "Phase 3: device sessions, token revoke, account merge governance",
+      "status": "pending"
+    }
+  ],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "miniapp/",
+    "docs/miniapp-migration.md",
+    ".trellis/tasks/06-10-migrate-to-wechat-mini-program/prd.md"
+  ],
+  "notes": "Use Taro + React + TypeScript. Miniapp auth uses WeChat login and mobile token. Web admin stays on session cookie + CSRF. miniapp typecheck and build:weapp pass; backend mobile auth endpoints are now implemented, remaining work is WeChat tool verification and later phases.",
+  "meta": {}
+}

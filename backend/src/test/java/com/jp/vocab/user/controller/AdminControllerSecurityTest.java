@@ -6,6 +6,7 @@ import com.jp.vocab.shared.auth.SecurityConfig;
 import com.jp.vocab.shared.config.CorsProperties;
 import com.jp.vocab.user.dto.CurrentUserResponse;
 import com.jp.vocab.user.service.AdminUserService;
+import com.jp.vocab.user.service.MobileSessionService;
 import com.jp.vocab.user.service.SecurityAlertService;
 import com.jp.vocab.user.service.SecurityAuditService;
 import com.jp.vocab.user.service.UserProfileService;
@@ -46,6 +47,9 @@ class AdminControllerSecurityTest {
 
     @MockBean
     private SecurityAlertService securityAlertService;
+
+    @MockBean
+    private MobileSessionService mobileSessionService;
 
     @Test
     void shouldRejectUnauthenticatedAdminRequest() throws Exception {

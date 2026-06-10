@@ -60,6 +60,18 @@ public class UserIdentityEntity extends AuditableEntity {
         return entity;
     }
 
+    public static UserIdentityEntity createExternal(
+            UserAccountEntity userAccount,
+            String provider,
+            String providerSubject
+    ) {
+        UserIdentityEntity entity = new UserIdentityEntity();
+        entity.userAccount = userAccount;
+        entity.provider = provider;
+        entity.providerSubject = providerSubject;
+        return entity;
+    }
+
     public void recordFailedLogin(OffsetDateTime failedAt, int maxFailedAttempts, Duration lockDuration) {
         failedLoginCount += 1;
         lastFailedLoginAt = failedAt;

@@ -238,6 +238,94 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 
 ---
 
+## Scenario: WeChat miniapp mobile auth
+
+### 1. Scope / Trigger
+
+- Trigger: change touches `/api/mobile/**`, WeChat code exchange, mobile bearer tokens, `user_identity` external providers, or mobile access to learner APIs.
+- Packages: `com.jp.vocab.user`, `com.jp.vocab.shared.auth`, `com.jp.vocab.shared.config`.
+
+### 2. Signatures
+
+- `POST /api/mobile/auth/wechat-login`
+- `POST /api/mobile/auth/logout`
+- `GET /api/mobile/me`
+- DB migration:
+  - `V16__init_mobile_auth.sql`
+- DB tables:
+  - `user_identity.provider = WECHAT_MINIAPP`
+  - `mobile_session`
+- Environment keys:
+  - `APP_AUTH_WECHAT_MINIAPP_APP_ID`
+  - `APP_AUTH_WECHAT_MINIAPP_APP_SECRET`
+  - `APP_AUTH_WECHAT_MINIAPP_CODE_TO_SESSION_URL`
+  - `APP_AUTH_MOBILE_SESSION_TOKEN_TTL`
+
+### 3. Contracts
+
+- Miniapp login accepts:
+  - `code`: non-blank `wx.login` code.
+- Backend exchanges `code` through WeChat `jscode2session` and treats `openid` only as an external identity.
+- Internal ownership remains anchored on `user_account.id`.
+- New WeChat users create:
+  - active `user_account` with role `USER`
+  - `user_identity` with provider `WECHAT_MINIAPP`
+  - default `user_setting`
+  - one `mobile_session`
+- Mobile token response returns:
+  - `token`
+  - `expiresAt`
+  - `user`
+- Mobile bearer tokens are stored as SHA-256 hashes in `mobile_session.token_hash`.
+- Mobile principal username uses `wechat-miniapp:<userId>`.
+- Mobile principal always exposes `ROLE_USER`, even if the backing account later has `ADMIN`.
+- Existing learner APIs may accept `Authorization: Bearer <token>` without CSRF.
+- `/api/admin/**` still requires `ROLE_ADMIN`, so mobile tokens cannot access admin APIs.
+- Web auth remains session cookie + CSRF and does not reuse mobile tokens.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| blank `code` | reject with validation error |
+| WeChat appId or secret missing | reject with `INTERNAL_ERROR` |
+| WeChat code exchange fails or returns no `openid` | reject with `UNAUTHORIZED` |
+| existing account is disabled | reject with `FORBIDDEN` and record disabled-login audit |
+| `/api/mobile/**` without bearer token except login | reject with `UNAUTHORIZED` |
+| bearer token missing, expired, revoked, or unknown | reject with `UNAUTHORIZED` |
+| mobile bearer token calls `/api/admin/**` | reject with `FORBIDDEN` |
+| logout with a valid token | revoke matching `mobile_session` row |
+
+### 5. Good / Base / Bad Cases
+
+- Good: miniapp sends `wx.login` code, backend exchanges `openid`, creates or reuses the learner account, returns mobile token, and learner APIs accept the bearer token.
+- Base: existing WeChat identity logs in again and receives a fresh mobile token without duplicating the internal account.
+- Bad: treat `openid` as the system user id, reuse Web cookie auth in miniapp, or allow mobile token to inherit `ADMIN`.
+
+### 6. Tests Required
+
+- service coverage for new `openid` account creation, identity binding, setting creation, session issuance, disabled-account rejection, and mobile `USER` role response.
+- controller/security coverage for login without CSRF, `/api/mobile/me` without token rejection, bearer-token success, and logout without CSRF.
+- existing Web auth/admin controller security tests must include the mobile session service mock when importing `SecurityConfig`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- store raw mobile tokens in the database
+- make `openid` the internal user primary key
+- let mobile token principal expose the backing account's admin role
+- disable CSRF globally to support miniapp writes
+
+#### Correct
+
+- store only token hashes and expiry/revoke metadata
+- bind `WECHAT_MINIAPP + openid` to `user_account.id`
+- force mobile principals to `ROLE_USER`
+- ignore CSRF only for `/api/mobile/**` and bearer-token requests
+
+---
+
 ## Scenario: Word-set data preparation and import
 
 ### 1. Scope / Trigger

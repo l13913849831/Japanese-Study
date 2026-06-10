@@ -10,6 +10,12 @@ frontend/dist/
 frontend/*.tsbuildinfo
 frontend/vite.config.js
 frontend/vite.config.d.ts
+miniapp/node_modules/
+miniapp/dist/
+miniapp/.swc/
+miniapp/*.tsbuildinfo
+miniapp/project.private.config.json
+.npm-cache/
 
 .env
 .env.*

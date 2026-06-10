@@ -8,6 +8,7 @@ import com.jp.vocab.shared.auth.SecurityConfig;
 import com.jp.vocab.shared.config.CorsProperties;
 import com.jp.vocab.user.dto.CurrentUserResponse;
 import com.jp.vocab.user.service.AuthService;
+import com.jp.vocab.user.service.MobileSessionService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,9 @@ class AuthControllerSecurityTest {
 
     @MockBean
     private AuthService authService;
+
+    @MockBean
+    private MobileSessionService mobileSessionService;
 
     @Test
     void shouldExposeCsrfTokenForSpaClients() throws Exception {

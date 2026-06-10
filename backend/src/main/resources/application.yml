@@ -41,6 +41,12 @@ app:
     login:
       max-failed-attempts: ${APP_AUTH_LOGIN_MAX_FAILED_ATTEMPTS:5}
       lock-duration: ${APP_AUTH_LOGIN_LOCK_DURATION:15m}
+    wechat-miniapp:
+      app-id: ${APP_AUTH_WECHAT_MINIAPP_APP_ID:}
+      app-secret: ${APP_AUTH_WECHAT_MINIAPP_APP_SECRET:}
+      code-to-session-url: ${APP_AUTH_WECHAT_MINIAPP_CODE_TO_SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
+    mobile-session:
+      token-ttl: ${APP_AUTH_MOBILE_SESSION_TOKEN_TTL:30d}
     bootstrap:
       enabled: ${APP_AUTH_BOOTSTRAP_ENABLED:false}
       username: ${APP_AUTH_BOOTSTRAP_USERNAME:demo}
