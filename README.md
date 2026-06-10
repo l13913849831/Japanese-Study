@@ -7,6 +7,7 @@ Current implemented surface:
 - word-study flow: word sets, study plans, `/cards`, review history, dashboard
 - note-study flow: notes CRUD, Markdown preview import, `/notes/review`, note dashboard
 - account flow: register, login, logout, `/account`, session-cookie auth
+- admin foundation: `USER` / `ADMIN`, `/admin`, `/api/admin/**`
 - support flows: weak items, template preview/edit, export jobs, account backup and restore
 
 ## Workspace layout
@@ -35,6 +36,7 @@ Backend:
 Frontend:
 
 - `features/auth`
+- `features/admin`
 - `features/dashboard`
 - `features/word-sets`
 - `features/study-plans`
@@ -97,6 +99,7 @@ Security baseline:
 - write requests require CSRF token
 - local login is temporarily locked after repeated failures
 - auth security events are persisted for login/logout outcomes
+- admin APIs require the `ADMIN` role
 - bootstrap demo account is disabled by default and must be explicitly enabled
 
 Backend currently runs Flyway `V1` to `V11`.

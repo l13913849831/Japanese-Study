@@ -192,6 +192,8 @@ Vite 会把 `/api` 代理到后端 `http://localhost:8080`。
 * 当前使用 session cookie 做 Web 登录态
 * 写操作默认通过 CSRF token + session cookie 双重校验
 * bootstrap 演示账号默认关闭，需要环境变量显式开启
+* 当前支持 `USER` / `ADMIN` 最小角色
+* `/admin` 和 `/api/admin/**` 只允许 `ADMIN`
 
 ### 6.6 学习入口
 
@@ -329,7 +331,7 @@ Vite 会把 `/api` 代理到后端 `http://localhost:8080`。
 ## 9. 当前限制
 
 - 仍然是本地账号体系，不含 Keycloak / 微信登录 / 多端同步
-- 当前还没有管理员后台、角色权限模型、JWT/API token
+- 当前还没有用户治理后台、JWT/API token
 - 安全告警策略和审计事件后台查询仍未落地
 - 免费版整体备份当前只支持“生成后直接下载 / 从本地上传恢复”，不保留服务端长期托管历史
 - 工作台是前端组合现有接口，不是新的后端聚合接口

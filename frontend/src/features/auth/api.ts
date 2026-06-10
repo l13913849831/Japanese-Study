@@ -7,6 +7,7 @@ export interface CurrentUser {
   username: string;
   displayName: string;
   preferredLearningOrder: PreferredLearningOrder;
+  roles: Array<"USER" | "ADMIN">;
 }
 
 export interface LoginPayload {

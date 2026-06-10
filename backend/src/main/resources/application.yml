@@ -46,6 +46,7 @@ app:
       username: ${APP_AUTH_BOOTSTRAP_USERNAME:demo}
       password: ${APP_AUTH_BOOTSTRAP_PASSWORD:demo123456}
       display-name: ${APP_AUTH_BOOTSTRAP_DISPLAY_NAME:Demo User}
+      role: ${APP_AUTH_BOOTSTRAP_ROLE:USER}
       preferred-learning-order: ${APP_AUTH_BOOTSTRAP_PREFERRED_LEARNING_ORDER:WORD_FIRST}
   export:
     base-dir: ${APP_EXPORT_BASE_DIR:exports}

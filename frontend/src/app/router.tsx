@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShellLayout } from "@/app/shell/AppShellLayout";
 import { RequireAuth } from "@/features/auth/RequireAuth";
+import { RequireAdmin } from "@/features/auth/RequireAdmin";
 import { StatusState } from "@/shared/components/StatusState";
 
 const StudyDashboardPage = lazy(async () => {
@@ -69,6 +70,11 @@ const AccountPage = lazy(async () => {
   return { default: module.AccountPage };
 });
 
+const AdminHomePage = lazy(async () => {
+  const module = await import("@/features/admin/AdminHomePage");
+  return { default: module.AdminHomePage };
+});
+
 function withPageFallback(element: React.JSX.Element) {
   return (
     <Suspense fallback={<StatusState mode="loading" />}>
@@ -101,7 +107,12 @@ export const router = createBrowserRouter([
           { path: "templates", element: withPageFallback(<TemplatePage />) },
           { path: "backups", element: withPageFallback(<BackupPage />) },
           { path: "export-jobs", element: withPageFallback(<ExportJobPage />) },
-          { path: "account", element: withPageFallback(<AccountPage />) }
+          { path: "account", element: withPageFallback(<AccountPage />) },
+          {
+            path: "admin",
+            element: <RequireAdmin />,
+            children: [{ index: true, element: withPageFallback(<AdminHomePage />) }]
+          }
         ]
       }
     ]

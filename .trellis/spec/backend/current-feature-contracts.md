@@ -14,6 +14,69 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 
 ---
 
+## Scenario: Admin role foundation and access control
+
+### 1. Scope / Trigger
+
+- Trigger: change touches user roles, authorities, `/api/admin/**`, or admin bootstrap behavior.
+- Packages: `com.jp.vocab.user`, `com.jp.vocab.shared.auth`.
+
+### 2. Signatures
+
+- `GET /api/me`
+- `GET /api/admin/me`
+
+### 3. Contracts
+
+- User role is stored on `user_account.role`.
+- Supported roles are:
+  - `USER`
+  - `ADMIN`
+- Authenticated principals expose exactly one authority derived from role:
+  - `ROLE_USER`
+  - `ROLE_ADMIN`
+- `/api/admin/**` requires `ROLE_ADMIN`.
+- `GET /api/me` includes `roles[]` so the SPA can guard admin routes.
+- Bootstrap account role defaults to `USER` and can be explicitly set by configuration.
+
+### 4. Validation & Error Matrix
+
+| Trigger | Expected behavior |
+|---------|-------------------|
+| anonymous request to `/api/admin/**` | reject with standard `UNAUTHORIZED` envelope |
+| authenticated `USER` request to `/api/admin/**` | reject with standard `FORBIDDEN` envelope |
+| authenticated `ADMIN` request to `/api/admin/**` | allow request |
+| unsupported bootstrap role | normalize to `USER` |
+
+### 5. Good / Base / Bad Cases
+
+- Good: admin account sees `/admin` and can call `/api/admin/me`.
+- Base: ordinary user keeps all learner routes but cannot access admin routes.
+- Bad: frontend-only admin hiding without backend enforcement.
+
+### 6. Tests Required
+
+- admin API unauthenticated rejection coverage
+- admin API non-admin rejection coverage
+- admin API admin success coverage
+- principal authority and bootstrap role coverage
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+- rely only on route hiding in the frontend
+- leave `AppUserPrincipal#getAuthorities()` empty
+- introduce complex RBAC before any admin endpoint exists
+
+#### Correct
+
+- use one minimal `USER` / `ADMIN` role field first
+- protect `/api/admin/**` at Spring Security boundary
+- expose `roles[]` from `/api/me` for frontend route guards
+
+---
+
 ## Scenario: Local account auth and session security
 
 ### 1. Scope / Trigger

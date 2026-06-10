@@ -19,9 +19,23 @@
 
 ## Acceptance Criteria
 
-* [ ] 已确定最小角色模型。
-* [ ] 已确定管理员 API / 路由隔离策略。
-* [ ] 已明确后续用户治理后台实现所依赖的权限基础。
+* [x] 已确定最小角色模型。
+* [x] 已确定管理员 API / 路由隔离策略。
+* [x] 已明确后续用户治理后台实现所依赖的权限基础。
+
+## Current Delivered Slice
+
+* `user_account.role` 已新增最小角色模型：`USER` / `ADMIN`
+* `AppUserPrincipal#getAuthorities()` 已返回 `ROLE_USER` / `ROLE_ADMIN`
+* `/api/admin/**` 已通过 Spring Security 限制为 `ADMIN`
+* `GET /api/admin/me` 已作为管理员 API 隔离烟雾入口
+* `/api/me` 已返回 `roles`，前端可做后台路由守卫
+* 前端 `/admin` 已接入 `RequireAdmin`，非管理员不可进入
+
+## Remaining Work
+
+* 用户治理后台列表 / 详情 / 启用禁用 / 重置密码
+* 审计事件后台查询 / 管理端展示
 
 ## Out of Scope
 

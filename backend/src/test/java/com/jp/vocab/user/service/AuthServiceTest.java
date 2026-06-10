@@ -158,11 +158,11 @@ class AuthServiceTest {
         identity.recordFailedLogin(OffsetDateTime.now().minusMinutes(10), 5, Duration.ofMinutes(15));
 
         Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
-                new AppUserPrincipal(1L, "demo", "Demo User", "encoded", true),
+                new AppUserPrincipal(1L, "demo", "Demo User", "encoded", "USER", true),
                 "secret",
                 List.of()
         );
-        CurrentUserResponse expectedResponse = new CurrentUserResponse(1L, "demo", "Demo User", "WORD_FIRST");
+        CurrentUserResponse expectedResponse = new CurrentUserResponse(1L, "demo", "Demo User", "WORD_FIRST", List.of("USER"));
 
         when(userIdentityRepository.findByProviderAndProviderSubject(AuthProvider.LOCAL, "demo"))
                 .thenReturn(Optional.of(identity));

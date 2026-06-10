@@ -81,6 +81,7 @@ class BootstrapLocalUserInitializerTest {
         properties.setUsername("  ");
         properties.setDisplayName("  ");
         properties.setPassword("secret");
+        properties.setRole("ADMIN");
         properties.setPreferredLearningOrder("note_first");
 
         when(userAccountRepository.findById(1L)).thenReturn(Optional.empty());
@@ -100,6 +101,7 @@ class BootstrapLocalUserInitializerTest {
         ArgumentCaptor<UserAccountEntity> accountCaptor = ArgumentCaptor.forClass(UserAccountEntity.class);
         verify(userAccountRepository).save(accountCaptor.capture());
         assertEquals("Demo User", accountCaptor.getValue().getDisplayName());
+        assertEquals("ADMIN", accountCaptor.getValue().getRole());
 
         ArgumentCaptor<UserIdentityEntity> identityCaptor = ArgumentCaptor.forClass(UserIdentityEntity.class);
         verify(userIdentityRepository).save(identityCaptor.capture());

@@ -1,5 +1,6 @@
 package com.jp.vocab.user.entity;
 
+import com.jp.vocab.shared.auth.UserRole;
 import com.jp.vocab.shared.persistence.AuditableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -25,18 +26,30 @@ public class UserAccountEntity extends AuditableEntity {
     @Column(name = "status", nullable = false, length = 32)
     private String status;
 
+    @Column(name = "role", nullable = false, length = 32)
+    private String role;
+
     protected UserAccountEntity() {
     }
 
     public static UserAccountEntity create(String displayName) {
+        return create(displayName, UserRole.USER);
+    }
+
+    public static UserAccountEntity create(String displayName, String role) {
         UserAccountEntity entity = new UserAccountEntity();
         entity.displayName = displayName;
         entity.status = STATUS_ACTIVE;
+        entity.role = UserRole.normalize(role);
         return entity;
     }
 
     public void updateDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public void updateRole(String role) {
+        this.role = UserRole.normalize(role);
     }
 
     public void restoreProfile(String displayName, String status) {
@@ -54,5 +67,9 @@ public class UserAccountEntity extends AuditableEntity {
 
     public String getStatus() {
         return status;
+    }
+
+    public String getRole() {
+        return role;
     }
 }

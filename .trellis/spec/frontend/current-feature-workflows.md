@@ -14,6 +14,48 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 ---
 
+## Scenario: Admin route foundation
+
+### Scope
+
+- `/admin`
+- `RequireAdmin`
+- app shell admin menu visibility
+- `GET /api/me` roles contract
+
+### Query and mutation anchors
+
+- `["me"]`
+- `GET /api/admin/me`
+
+### Current contract
+
+- `/admin` is the first admin-shell placeholder route.
+- The route is protected by `RequireAdmin`.
+- `RequireAdmin` allows only users whose `roles` includes `ADMIN`.
+- The app shell shows the Admin menu item only to admins.
+- Backend still owns the real enforcement through `/api/admin/**`.
+
+### Tests Required
+
+- frontend build/type-check for `roles`
+- route guard smoke coverage when frontend tests exist
+
+### Wrong vs Correct
+
+#### Wrong
+
+- show or hide admin UI without backend role enforcement
+- infer admin access from username or hardcoded local state
+
+#### Correct
+
+- read `roles[]` from `GET /api/me`
+- keep `/admin` route and menu visibility aligned
+- let `/api/admin/**` be the final authority
+
+---
+
 ## Scenario: Local account login and session security
 
 ### Scope

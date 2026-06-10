@@ -30,6 +30,7 @@ public class LocalIdentityUserDetailsService implements UserDetailsService {
                 identity.getProviderSubject(),
                 account.getDisplayName(),
                 identity.getPasswordHash(),
+                account.getRole(),
                 enabled
         );
     }

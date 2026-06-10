@@ -1,6 +1,7 @@
 package com.jp.vocab.shared.auth;
 
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -12,13 +13,15 @@ public class AppUserPrincipal implements UserDetails {
     private final String username;
     private final String displayName;
     private final String password;
+    private final String role;
     private final boolean enabled;
 
-    public AppUserPrincipal(Long userId, String username, String displayName, String password, boolean enabled) {
+    public AppUserPrincipal(Long userId, String username, String displayName, String password, String role, boolean enabled) {
         this.userId = userId;
         this.username = username;
         this.displayName = displayName;
         this.password = password;
+        this.role = UserRole.normalize(role);
         this.enabled = enabled;
     }
 
@@ -30,9 +33,13 @@ public class AppUserPrincipal implements UserDetails {
         return displayName;
     }
 
+    public String getRole() {
+        return role;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
     @Override

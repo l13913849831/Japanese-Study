@@ -20,6 +20,8 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -76,7 +78,7 @@ class AuthControllerSecurityTest {
     @Test
     void shouldAllowLoginWithCsrfToken() throws Exception {
         when(authService.login(any(), any(), any()))
-                .thenReturn(new CurrentUserResponse(1L, "demo", "Demo User", "WORD_FIRST"));
+                .thenReturn(new CurrentUserResponse(1L, "demo", "Demo User", "WORD_FIRST", List.of("USER")));
 
         MvcResult csrfResult = mockMvc.perform(get("/api/auth/csrf"))
                 .andExpect(status().isOk())

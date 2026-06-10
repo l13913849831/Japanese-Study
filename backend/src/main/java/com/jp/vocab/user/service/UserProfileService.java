@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -56,7 +57,8 @@ public class UserProfileService {
                 account.getId(),
                 principal.getUsername(),
                 account.getDisplayName(),
-                setting.getPreferredLearningOrder()
+                setting.getPreferredLearningOrder(),
+                List.of(account.getRole())
         );
     }
 
@@ -73,7 +75,8 @@ public class UserProfileService {
                 account.getId(),
                 principal.getUsername(),
                 account.getDisplayName(),
-                preferredLearningOrder
+                preferredLearningOrder,
+                List.of(account.getRole())
         );
     }
 
@@ -89,7 +92,8 @@ public class UserProfileService {
                 account.getId(),
                 principal.getUsername(),
                 account.getDisplayName(),
-                setting.getPreferredLearningOrder()
+                setting.getPreferredLearningOrder(),
+                List.of(account.getRole())
         );
     }
 

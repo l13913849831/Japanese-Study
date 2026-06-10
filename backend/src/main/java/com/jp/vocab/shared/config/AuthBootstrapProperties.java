@@ -13,6 +13,8 @@ public class AuthBootstrapProperties {
 
     private String displayName = "Demo User";
 
+    private String role = "USER";
+
     private String preferredLearningOrder = "WORD_FIRST";
 
     public boolean isEnabled() {
@@ -45,6 +47,14 @@ public class AuthBootstrapProperties {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public String getPreferredLearningOrder() {

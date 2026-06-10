@@ -2,6 +2,7 @@ package com.jp.vocab.user.service;
 
 import com.jp.vocab.shared.auth.AuthProvider;
 import com.jp.vocab.shared.auth.LearningOrder;
+import com.jp.vocab.shared.auth.UserRole;
 import com.jp.vocab.shared.config.AuthBootstrapProperties;
 import com.jp.vocab.user.entity.UserAccountEntity;
 import com.jp.vocab.user.entity.UserIdentityEntity;
@@ -60,7 +61,10 @@ public class BootstrapLocalUserInitializer implements ApplicationRunner {
         }
 
         UserAccountEntity account = userAccountRepository.findById(BOOTSTRAP_USER_ID)
-                .orElseGet(() -> userAccountRepository.save(UserAccountEntity.create(normalizeDisplayName(properties.getDisplayName()))));
+                .orElseGet(() -> userAccountRepository.save(UserAccountEntity.create(
+                        normalizeDisplayName(properties.getDisplayName()),
+                        properties.getRole()
+                )));
 
         userIdentityRepository.findByUserAccountIdAndProvider(account.getId(), AuthProvider.LOCAL)
                 .orElseGet(() -> userIdentityRepository.save(UserIdentityEntity.createLocal(
@@ -77,6 +81,10 @@ public class BootstrapLocalUserInitializer implements ApplicationRunner {
 
         if (account.getDisplayName() == null || account.getDisplayName().isBlank()) {
             account.updateDisplayName(normalizeDisplayName(properties.getDisplayName()));
+            userAccountRepository.save(account);
+        }
+        if (!UserRole.normalize(properties.getRole()).equals(account.getRole())) {
+            account.updateRole(properties.getRole());
             userAccountRepository.save(account);
         }
 

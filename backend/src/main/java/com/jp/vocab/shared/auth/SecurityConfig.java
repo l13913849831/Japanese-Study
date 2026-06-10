@@ -33,6 +33,7 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/health/**", "/api/auth/csrf", "/api/auth/login", "/api/auth/register").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole(UserRole.ADMIN)
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptions -> exceptions

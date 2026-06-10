@@ -1,4 +1,4 @@
-import { AlertOutlined, BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, FileTextOutlined, ProfileOutlined, ReadOutlined, SaveOutlined, TableOutlined } from "@ant-design/icons";
+import { AlertOutlined, BookOutlined, CalendarOutlined, DashboardOutlined, ExportOutlined, FileTextOutlined, ProfileOutlined, ReadOutlined, SafetyCertificateOutlined, SaveOutlined, TableOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Layout, Menu, Segmented, Space, Tag, Typography, App } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -24,22 +24,17 @@ const managementMenuItems = [
   { key: "/export-jobs", icon: <ExportOutlined />, label: "Exports" }
 ];
 
-const menuItems = [...learningMenuItems, ...managementMenuItems];
-const groupedMenuItems = [
-  { type: "group" as const, label: "学习", children: learningMenuItems },
-  { type: "group" as const, label: "管理", children: managementMenuItems }
+const adminMenuItems = [
+  { key: "/admin", icon: <SafetyCertificateOutlined />, label: "Admin" }
 ];
+
+const menuItems = [...learningMenuItems, ...managementMenuItems];
 
 export function AppShellLayout() {
   const { message } = App.useApp();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const selectedKey =
-    menuItems
-      .filter((item) => location.pathname.startsWith(item.key))
-      .sort((left, right) => right.key.length - left.key.length)[0]?.key ?? location.pathname;
-
   const currentUserQuery = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
@@ -69,6 +64,17 @@ export function AppShellLayout() {
   });
 
   const currentUser = currentUserQuery.data;
+  const isAdmin = currentUser?.roles.includes("ADMIN") ?? false;
+  const visibleMenuItems = isAdmin ? [...menuItems, ...adminMenuItems] : menuItems;
+  const groupedMenuItems = [
+    { type: "group" as const, label: "学习", children: learningMenuItems },
+    { type: "group" as const, label: "管理", children: managementMenuItems },
+    ...(isAdmin ? [{ type: "group" as const, label: "后台", children: adminMenuItems }] : [])
+  ];
+  const selectedKey =
+    visibleMenuItems
+      .filter((item) => location.pathname.startsWith(item.key))
+      .sort((left, right) => right.key.length - left.key.length)[0]?.key ?? location.pathname;
   const preferredLearningOrder = currentUser?.preferredLearningOrder ?? "WORD_FIRST";
 
   const handleLearningOrderChange = (value: string | number) => {
