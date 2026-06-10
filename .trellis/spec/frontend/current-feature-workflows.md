@@ -476,6 +476,7 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 - `["ankiTemplates"]`
 - `["markdownTemplates"]`
 - `["exportJobs"]`
+- `POST /api/export-jobs/preflight`
 
 ### Current contract
 
@@ -484,11 +485,15 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 - Preview requests are built from current form state, not from persisted IDs only.
 - After template save, shared template queries are refreshed so study-plan selectors can see the latest templates immediately.
 - Export page creates jobs from selected plan, export type, and target date, then lists and downloads generated files.
+- Export page can run preflight before creating a job.
+- Export create runs preflight first and blocks creation when `creatable=false`.
+- Preflight summary shows plan name, target date, export type, card counts, and Markdown template name when applicable.
 
 ### Tests Required
 
 - template save and preview request-shape coverage
 - shared query refresh coverage after template save
+- export preflight summary and blocked-create coverage
 - export create/list/download interaction coverage
 
 ### Wrong vs Correct
@@ -497,11 +502,13 @@ When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer
 
 - keep a separate template cache path for study plans
 - make export creation bypass the list refresh path
+- let a date with no exportable cards create an empty file
 
 #### Correct
 
 - share query keys across template consumers
 - keep export creation and list refresh in the same page workflow
+- use preflight to show export context before file generation
 
 ---
 

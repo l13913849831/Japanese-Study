@@ -862,6 +862,36 @@ Markdown 模板关键字段：
 
 分页查询导出任务。
 
+### `POST /api/export-jobs/preflight`
+
+创建导出任务前做预检查，不写入文件，也不创建导出任务。
+
+请求关键字段：
+
+- `planId`
+- `exportType`
+- `targetDate`
+
+返回字段：
+
+- `planId`
+- `planName`
+- `exportType`
+- `targetDate`
+- `totalCards`
+- `newCards`
+- `reviewCards`
+- `markdownTemplateName`
+- `creatable`
+- `message`
+
+说明：
+
+- 会校验学习计划归属
+- 会校验 `MARKDOWN` 导出使用的模板是否存在且语法可用
+- 会统计目标日期可导出的卡片数量
+- `creatable=false` 表示当前日期没有可导出内容
+
 ### `POST /api/export-jobs`
 
 创建导出任务。
@@ -871,6 +901,11 @@ Markdown 模板关键字段：
 - `planId`
 - `exportType`
 - `targetDate`
+
+说明：
+
+- 创建时会复用预检查逻辑
+- 目标日期没有可导出内容时返回 `CONFLICT`，不会生成空文件
 
 ### `GET /api/export-jobs/{id}/download`
 

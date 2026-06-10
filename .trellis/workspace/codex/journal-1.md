@@ -62,6 +62,7 @@ Committed the user governance admin MVP, added audit-derived security alerts, an
 - Added Admin page security alert display and refreshed alerts after governance actions.
 - Updated docs, open-items, backend/frontend code-specs, and Trellis task statuses.
 - Cleared the completed current task pointer.
+- Continued into remaining open items and completed export preflight/context feedback.
 
 ### Git Commits
 
@@ -74,6 +75,8 @@ Committed the user governance admin MVP, added audit-derived security alerts, an
 - [OK] Backend Maven test passed: 48 tests.
 - [OK] Frontend `npm run build` passed.
 - [OK] `git diff --check` pending final run after docs.
+- [OK] Export workflow follow-up backend test passed: 51 tests.
+- [OK] Export workflow follow-up frontend `npm run build` passed.
 
 ### Status
 
@@ -81,4 +84,4 @@ Committed the user governance admin MVP, added audit-derived security alerts, an
 
 ### Next Steps
 
-- Continue with product-enhancement items from `docs/open-items.md`.
+- Continue with long-cycle learning metrics or review-experience polish from `docs/open-items.md`.

@@ -1,6 +1,7 @@
 package com.jp.vocab.exportjob.controller;
 
 import com.jp.vocab.exportjob.dto.CreateExportJobRequest;
+import com.jp.vocab.exportjob.dto.ExportJobPreflightResponse;
 import com.jp.vocab.exportjob.dto.ExportJobResponse;
 import com.jp.vocab.exportjob.entity.ExportJobEntity;
 import com.jp.vocab.exportjob.service.ExportJobService;
@@ -44,6 +45,11 @@ public class ExportJobController {
     @PostMapping
     public ApiResponse<ExportJobResponse> create(@Valid @RequestBody CreateExportJobRequest request) {
         return ApiResponse.success(exportJobService.create(request));
+    }
+
+    @PostMapping("/preflight")
+    public ApiResponse<ExportJobPreflightResponse> preflight(@Valid @RequestBody CreateExportJobRequest request) {
+        return ApiResponse.success(exportJobService.preflight(request));
     }
 
     @GetMapping("/{id}/download")

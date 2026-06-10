@@ -696,6 +696,7 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 - `PUT /api/templates/md/{id}`
 - `POST /api/templates/md/preview`
 - `GET /api/export-jobs`
+- `POST /api/export-jobs/preflight`
 - `POST /api/export-jobs`
 - `GET /api/export-jobs/{id}/download`
 
@@ -718,6 +719,19 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
   - `ANKI_CSV`
   - `ANKI_TSV`
   - `MARKDOWN`
+- Export preflight validates plan ownership, export type, target-date card availability, and Markdown template syntax.
+- Export preflight returns:
+  - `planId`
+  - `planName`
+  - `exportType`
+  - `targetDate`
+  - `totalCards`
+  - `newCards`
+  - `reviewCards`
+  - `markdownTemplateName`
+  - `creatable`
+  - `message`
+- Export create reuses the preflight checks and must reject empty target-date exports before writing a file.
 - Download serves the generated file for a completed export job.
 
 ### 4. Validation & Error Matrix
@@ -727,19 +741,22 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 | unsupported template variable or syntax error | map to standardized preview error response |
 | missing export target plan or date | reject before job creation |
 | unsupported export type | reject with validation or business error |
+| target date has no exportable cards | reject with `CONFLICT`, do not create a file or job |
+| Markdown template is missing or invalid | reject before job creation |
 | download before file generation is ready | reject with standard error envelope |
 
 ### 5. Good / Base / Bad Cases
 
-- Good: save template, preview with sample data, create export job, list it, then download the generated file.
+- Good: save template, preview with sample data, run export preflight, create export job, list it, then download the generated file.
 - Base: refresh template lists and reuse them immediately in study-plan selectors.
-- Bad: couple preview to stored template IDs only, or bypass export-job persistence when generating files.
+- Bad: create an empty export file for a date with no due cards, couple preview to stored template IDs only, or bypass export-job persistence when generating files.
 
 ### 6. Tests Required
 
 - template create/update/preview controller coverage
 - preview rendering error-path coverage
-- export create/list/download coverage
+- export preflight coverage for card counts and Markdown template validation
+- export create/list/download coverage, including empty-date rejection before save
 - file-name and content-type assertions for each export type
 
 ### 7. Wrong vs Correct
@@ -748,12 +765,14 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 
 - require database persistence before every preview
 - invent a preview-only variable shape that diverges from export rendering
+- generate files before checking whether the target date has exportable cards
 - stream ad hoc files without recording export-job state
 
 #### Correct
 
 - keep preview request-body driven
 - share rendering expectations between preview and export
+- run preflight before file generation and reuse the same checks in create
 - keep export generation and download anchored to `export_job`
 
 ---

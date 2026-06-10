@@ -1,10 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, DatePicker, Form, Select, Space, Table, Tag } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiClientError } from "@/shared/api/errors";
-import { createExportJob, downloadExportJob, listExportJobs } from "@/features/export-jobs/api";
+import {
+  createExportJob,
+  downloadExportJob,
+  listExportJobs,
+  preflightExportJob,
+  type CreateExportJobPayload,
+  type ExportJobPreflight
+} from "@/features/export-jobs/api";
 import { listStudyPlans } from "@/features/study-plans/api";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageSection } from "@/shared/components/PageSection";
@@ -21,6 +28,7 @@ export function ExportJobPage() {
   const [searchParams] = useSearchParams();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
+  const [preflightResult, setPreflightResult] = useState<ExportJobPreflight | null>(null);
   const exportJobsQuery = useQuery({
     queryKey: ["exportJobs"],
     queryFn: listExportJobs
@@ -34,12 +42,35 @@ export function ExportJobPage() {
   const hasExportJobs = (exportJobsQuery.data?.items ?? []).length > 0;
 
   const createMutation = useMutation({
-    mutationFn: createExportJob,
+    mutationFn: async (payload: CreateExportJobPayload) => {
+      const preflight = await preflightExportJob(payload);
+      setPreflightResult(preflight);
+      if (!preflight.creatable) {
+        throw new Error(preflight.message);
+      }
+      return createExportJob(payload);
+    },
     onSuccess: async () => {
       message.success("复盘材料导出任务已创建");
       await queryClient.invalidateQueries({ queryKey: ["exportJobs"] });
     },
-    onError: (error) => message.error((error as ApiClientError).message)
+    onError: (error) => message.error(error instanceof ApiClientError ? error.message : (error as Error).message)
+  });
+
+  const preflightMutation = useMutation({
+    mutationFn: preflightExportJob,
+    onSuccess: (result) => {
+      setPreflightResult(result);
+      if (result.creatable) {
+        message.success("预检查通过，可以创建复盘材料");
+      } else {
+        message.warning(result.message);
+      }
+    },
+    onError: (error) => {
+      setPreflightResult(null);
+      message.error((error as ApiClientError).message);
+    }
   });
 
   const downloadMutation = useMutation({
@@ -72,6 +103,32 @@ export function ExportJobPage() {
       form.setFieldsValue(nextValues);
     }
   }, [form, searchParams]);
+
+  const buildExportPayload = (values: ExportJobFormValues): CreateExportJobPayload | null => {
+    if (!values.planId || !values.exportType || !values.targetDate) {
+      return null;
+    }
+    return {
+      planId: values.planId,
+      exportType: values.exportType,
+      targetDate: values.targetDate.format("YYYY-MM-DD")
+    };
+  };
+
+  const handlePreflight = async () => {
+    const values = await form.validateFields();
+    const payload = buildExportPayload(values);
+    if (payload) {
+      preflightMutation.mutate(payload);
+    }
+  };
+
+  const handleCreate = (values: ExportJobFormValues) => {
+    const payload = buildExportPayload(values);
+    if (payload) {
+      createMutation.mutate(payload);
+    }
+  };
 
   return (
     <div className="page-stack">
@@ -106,16 +163,8 @@ export function ExportJobPage() {
           <Form
             form={form}
             layout="inline"
-            onFinish={(values) => {
-              if (!values.planId || !values.exportType || !values.targetDate) {
-                return;
-              }
-              createMutation.mutate({
-                planId: values.planId,
-                exportType: values.exportType,
-                targetDate: values.targetDate.format("YYYY-MM-DD")
-              });
-            }}
+            onValuesChange={() => setPreflightResult(null)}
+            onFinish={handleCreate}
           >
             <Form.Item label="计划" name="planId" rules={[{ required: true, message: "请选择计划" }]}>
               <Select
@@ -136,11 +185,35 @@ export function ExportJobPage() {
             <Form.Item label="目标日期" name="targetDate" rules={[{ required: true, message: "请选择日期" }]}>
               <DatePicker />
             </Form.Item>
-            <Button type="primary" htmlType="submit" loading={createMutation.isPending}>
-              创建复盘材料
-            </Button>
+            <Space wrap>
+              <Button loading={preflightMutation.isPending} onClick={handlePreflight}>
+                预检查
+              </Button>
+              <Button type="primary" htmlType="submit" loading={createMutation.isPending}>
+                创建复盘材料
+              </Button>
+            </Space>
           </Form>
         )}
+        {preflightResult ? (
+          <Alert
+            type={preflightResult.creatable ? "success" : "warning"}
+            showIcon
+            style={{ marginTop: 16 }}
+            message={preflightResult.creatable ? "导出内容已确认" : "当前日期没有可导出内容"}
+            description={[
+              `计划：${preflightResult.planName}`,
+              `日期：${preflightResult.targetDate}`,
+              `类型：${preflightResult.exportType}`,
+              `总计：${preflightResult.totalCards}`,
+              `新卡：${preflightResult.newCards}`,
+              `复习：${preflightResult.reviewCards}`,
+              preflightResult.markdownTemplateName ? `模板：${preflightResult.markdownTemplateName}` : undefined
+            ]
+              .filter(Boolean)
+              .join("；")}
+          />
+        ) : null}
       </PageSection>
 
       <PageSection title="历史导出记录">
