@@ -22,6 +22,8 @@ import {
   getLearningLineLabel,
   getLearningLinePendingCount,
   getLearningLineSessionLabel,
+  getLearningPathRiskColor,
+  getLearningPathRiskLabel,
   resolveLearningPathState,
   type LearningLine
 } from "@/features/review/learningPath";
@@ -146,9 +148,25 @@ export function StudyDashboardPage() {
     () =>
       resolveLearningPathState(preferredLearningOrder, {
         wordPendingCount: dashboard?.overview.pendingDueToday ?? 0,
-        notePendingCount: noteDueToday
+        notePendingCount: noteDueToday,
+        weakWordCount: weakItemSummary?.weakWordCount ?? 0,
+        weakNoteCount: weakItemSummary?.weakNoteCount ?? 0,
+        next7DayWordDue: longTermDashboard?.loadForecast.next7Days.wordDue ?? 0,
+        next7DayNoteDue: longTermDashboard?.loadForecast.next7Days.noteDue ?? 0,
+        todayWordReviewedCount: dashboard?.overview.reviewedToday ?? 0,
+        todayNoteReviewedCount: noteReviewedToday
       }),
-    [dashboard?.overview.pendingDueToday, noteDueToday, preferredLearningOrder]
+    [
+      dashboard?.overview.pendingDueToday,
+      dashboard?.overview.reviewedToday,
+      longTermDashboard?.loadForecast.next7Days.noteDue,
+      longTermDashboard?.loadForecast.next7Days.wordDue,
+      noteDueToday,
+      noteReviewedToday,
+      preferredLearningOrder,
+      weakItemSummary?.weakNoteCount,
+      weakItemSummary?.weakWordCount
+    ]
   );
   const noteMasteryRows = useMemo(
     () =>
@@ -361,12 +379,16 @@ export function StudyDashboardPage() {
                       })}{" "}
                       个待处理项。
                     </Typography.Text>
+                    <Typography.Text type="secondary">{learningPathState.recommendedReason}</Typography.Text>
                     <Space wrap>
                       <Button type="primary" onClick={() => openRecommendedLine(recommendedLine)}>
                         {renderPathActionLabel(recommendedLine)}
                       </Button>
                       <Tag color="blue">
                         偏好：{preferredLearningOrder === "WORD_FIRST" ? "单词优先" : "知识点优先"}
+                      </Tag>
+                      <Tag color={getLearningPathRiskColor(learningPathState.riskLevel)}>
+                        {getLearningPathRiskLabel(learningPathState.riskLevel)}
                       </Tag>
                     </Space>
                   </Space>
@@ -398,8 +420,10 @@ export function StudyDashboardPage() {
                       {getLearningLineSessionLabel(followUpLine)}
                     </Typography.Title>
                     <Typography.Text type="secondary">
-                      当前推荐线结束后，顺着切到{getLearningLineLabel(followUpLine)}，避免今天只做一半。
+                      {learningPathState.followUpReason ??
+                        `当前推荐线结束后，顺着切到${getLearningLineLabel(followUpLine)}，避免今天只做一半。`}
                     </Typography.Text>
+                    <Typography.Text type="secondary">{learningPathState.riskReason}</Typography.Text>
                     <Button onClick={() => openRecommendedLine(followUpLine)}>
                       预览下一步
                     </Button>
@@ -412,7 +436,7 @@ export function StudyDashboardPage() {
                     description={
                       hasWeakItems
                         ? `主路径结束后，还可以去处理 ${totalWeakItems} 个薄弱项。`
-                        : "这版先收成一条简单主路径：先完成偏好线，再决定是否切到另一条线。"
+                        : learningPathState.riskReason
                     }
                     action={
                       hasWeakItems ? (

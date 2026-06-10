@@ -1,0 +1,30 @@
+{
+  "id": "learning-review-route-enhancements",
+  "name": "learning-review-route-enhancements",
+  "title": "roadmap: learning review route enhancements",
+  "description": "",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "codex",
+  "assignee": "codex",
+  "createdAt": "2026-06-10",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "06-10-p1-align-miniapp-review-sessions",
+    "06-10-p1-learning-path-recommender-v2",
+    "06-10-p1-review-session-completion-recap"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

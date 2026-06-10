@@ -1,17 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, DatePicker, Form, Input, InputNumber, Space, Statistic, Table, Tag, Typography } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getMe } from "@/features/auth/api";
-import { getStudyDashboard } from "@/features/dashboard/api";
+import { getLongTermDashboard, getStudyDashboard } from "@/features/dashboard/api";
 import { getNoteDashboard } from "@/features/notes/api";
 import { buildReviewSessionSummary, resolveCurrentSessionIndex } from "@/features/review/session";
 import {
   getLearningLineSessionLabel,
+  getLearningPathRiskColor,
+  getLearningPathRiskLabel,
   resolveLearningPathState,
   type LearningLine
 } from "@/features/review/learningPath";
+import { buildReviewSessionRecap, formatDurationMs, type ReviewSessionRecapEvent } from "@/features/review/sessionRecap";
 import { ApiClientError } from "@/shared/api/errors";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageSection } from "@/shared/components/PageSection";
@@ -117,6 +120,9 @@ export function NoteReviewPage() {
   const [weakRoundSkipped, setWeakRoundSkipped] = useState(false);
   const [currentRowKey, setCurrentRowKey] = useState<string>();
   const [revealed, setRevealed] = useState(false);
+  const [sessionStartedAtMs, setSessionStartedAtMs] = useState(() => Date.now());
+  const [sessionEvents, setSessionEvents] = useState<ReviewSessionRecapEvent[]>([]);
+  const currentItemStartedAtRef = useRef(Date.now());
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
@@ -140,6 +146,10 @@ export function NoteReviewPage() {
   const dashboardQuery = useQuery({
     queryKey: ["dashboard", search.date],
     queryFn: () => getStudyDashboard(search.date)
+  });
+  const longTermDashboardQuery = useQuery({
+    queryKey: ["dashboard", "long-term", search.date, 90],
+    queryFn: () => getLongTermDashboard(search.date, 90)
   });
   const noteDashboardQuery = useQuery({
     queryKey: ["noteDashboard", search.date],
@@ -188,16 +198,30 @@ export function NoteReviewPage() {
     : 0;
   const remainingCount = currentNote ? Math.max(sessionSummary.totalCount - resolvedCurrentIndex - 1, 0) : 0;
   const preferredLearningOrder = currentUserQuery.data?.preferredLearningOrder ?? "WORD_FIRST";
+  const noteReviewedToday =
+    noteDashboardQuery.data?.recentTrend.find((item) => item.date === search.date)?.reviewedNotes ?? 0;
   const learningPathState = useMemo(
     () =>
       resolveLearningPathState(preferredLearningOrder, {
         wordPendingCount: dashboardQuery.data?.overview.pendingDueToday ?? 0,
-        notePendingCount: noteDashboardQuery.data?.overview.dueToday ?? 0
+        notePendingCount: noteDashboardQuery.data?.overview.dueToday ?? 0,
+        weakWordCount: weakItemSummaryQuery.data?.weakWordCount ?? 0,
+        weakNoteCount: weakItemSummaryQuery.data?.weakNoteCount ?? 0,
+        next7DayWordDue: longTermDashboardQuery.data?.loadForecast.next7Days.wordDue ?? 0,
+        next7DayNoteDue: longTermDashboardQuery.data?.loadForecast.next7Days.noteDue ?? 0,
+        todayWordReviewedCount: dashboardQuery.data?.overview.reviewedToday ?? 0,
+        todayNoteReviewedCount: noteReviewedToday
       }),
     [
       dashboardQuery.data?.overview.pendingDueToday,
+      dashboardQuery.data?.overview.reviewedToday,
+      longTermDashboardQuery.data?.loadForecast.next7Days.noteDue,
+      longTermDashboardQuery.data?.loadForecast.next7Days.wordDue,
       noteDashboardQuery.data?.overview.dueToday,
-      preferredLearningOrder
+      noteReviewedToday,
+      preferredLearningOrder,
+      weakItemSummaryQuery.data?.weakNoteCount,
+      weakItemSummaryQuery.data?.weakWordCount
     ]
   );
   const recommendedLine = learningPathState.recommendedLine;
@@ -205,6 +229,12 @@ export function NoteReviewPage() {
     dashboardQuery.data?.activePlans.find((plan) => plan.pendingToday > 0)?.planId ?? dashboardQuery.data?.activePlans[0]?.planId;
   const totalWeakItems = (weakItemSummaryQuery.data?.weakWordCount ?? 0) + (weakItemSummaryQuery.data?.weakNoteCount ?? 0);
   const shouldPromptWeakRound = !weakRoundStarted && !weakRoundSkipped && sessionSummary.pendingCount === 0 && weakQueue.length > 0;
+  const showSessionRecap = sessionSummary.totalCount > 0 && sessionSummary.pendingCount === 0 && !shouldPromptWeakRound;
+  const sessionRecapTotalCount = mainQueue.length + (weakRoundStarted ? weakQueue.length : 0);
+  const sessionRecap = useMemo(
+    () => buildReviewSessionRecap(sessionEvents, sessionRecapTotalCount, sessionStartedAtMs),
+    [sessionEvents, sessionRecapTotalCount, sessionStartedAtMs]
+  );
 
   useEffect(() => {
     const nextNotesById = orderedNotes.reduce<Record<number, NoteReviewQueueItem>>((accumulator, item) => {
@@ -220,6 +250,9 @@ export function NoteReviewPage() {
     setWeakRoundSkipped(false);
     setCurrentRowKey(undefined);
     setRevealed(false);
+    setSessionEvents([]);
+    setSessionStartedAtMs(Date.now());
+    currentItemStartedAtRef.current = Date.now();
   }, [orderedNotes, search.date]);
 
   useEffect(() => {
@@ -227,6 +260,7 @@ export function NoteReviewPage() {
     if (nextRowKey !== currentRowKey) {
       setCurrentRowKey(nextRowKey);
       setRevealed(false);
+      currentItemStartedAtRef.current = Date.now();
     }
   }, [activeQueue, currentRowKey, resolvedCurrentIndex]);
 
@@ -244,10 +278,21 @@ export function NoteReviewPage() {
       noteId: number;
       payload: ReviewNotePayload;
       queueRowKey: string;
+      queueMode: SessionQueueMode;
       nextAgainCount: number;
     }) => submitNoteReview(noteId, payload),
     onSuccess: async (result, variables) => {
       setCompletedRowKeys((previous) => (previous.includes(variables.queueRowKey) ? previous : [...previous, variables.queueRowKey]));
+      setSessionEvents((previous) => [
+        ...previous,
+        {
+          rating: result.rating,
+          responseTimeMs: variables.payload.responseTimeMs,
+          queueMode: variables.queueMode,
+          todayAction: result.todayAction,
+          reviewedAtMs: Date.now()
+        }
+      ]);
       if (result.rating === "AGAIN") {
         setAgainCountByNoteId((previous) => ({
           ...previous,
@@ -289,6 +334,7 @@ export function NoteReviewPage() {
       message.success(resolveNoteReviewMessage(result.todayAction));
       setRevealed(false);
       reviewForm.resetFields();
+      currentItemStartedAtRef.current = Date.now();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["noteReviewLogs", variables.noteId] }),
         queryClient.invalidateQueries({ queryKey: ["notes"] }),
@@ -308,14 +354,16 @@ export function NoteReviewPage() {
       return;
     }
     const values = reviewForm.getFieldsValue();
+    const responseTimeMs = values.responseTimeMs ?? Date.now() - currentItemStartedAtRef.current;
     const nextAgainCount = rating === "AGAIN" ? (againCountByNoteId[currentNote.id] ?? 0) + 1 : againCountByNoteId[currentNote.id] ?? 0;
     reviewMutation.mutate({
       noteId: currentNote.id,
       queueRowKey: currentRow.rowKey,
+      queueMode: currentRow.mode,
       nextAgainCount,
       payload: {
         rating,
-        responseTimeMs: values.responseTimeMs,
+        responseTimeMs,
         sessionAgainCount: nextAgainCount,
         note: values.note?.trim() || undefined
       }
@@ -329,6 +377,7 @@ export function NoteReviewPage() {
     }
     setCurrentRowKey(nextRow.rowKey);
     setRevealed(false);
+    currentItemStartedAtRef.current = Date.now();
     reviewForm.resetFields();
   }
 
@@ -503,6 +552,10 @@ export function NoteReviewPage() {
                               : "今天两条学习线都已清空，可以回工作台收尾。"
                             : "如果还要继续知识点线，先回工作台确认剩余任务。"}
                       </Typography.Text>
+                      <Typography.Text type="secondary">{learningPathState.recommendedReason}</Typography.Text>
+                      <Tag color={getLearningPathRiskColor(learningPathState.riskLevel)}>
+                        {getLearningPathRiskLabel(learningPathState.riskLevel)}
+                      </Tag>
                       {recommendedLine ? (
                         <Button
                           type="primary"
@@ -549,6 +602,9 @@ export function NoteReviewPage() {
                 onFinish={(values) => {
                   setCurrentRowKey(undefined);
                   setRevealed(false);
+                  setSessionEvents([]);
+                  setSessionStartedAtMs(Date.now());
+                  currentItemStartedAtRef.current = Date.now();
                   reviewForm.resetFields();
                   setSearch({ date: values.date?.format(SESSION_DATE_FORMAT) ?? dayjs().format(SESSION_DATE_FORMAT) });
                 }}
@@ -564,6 +620,9 @@ export function NoteReviewPage() {
                     onClick={() => {
                       setCurrentRowKey(undefined);
                       setRevealed(false);
+                      setSessionEvents([]);
+                      setSessionStartedAtMs(Date.now());
+                      currentItemStartedAtRef.current = Date.now();
                       reviewForm.resetFields();
                       setSearch({ date: dayjs().format(SESSION_DATE_FORMAT) });
                     }}
@@ -603,6 +662,37 @@ export function NoteReviewPage() {
         </div>
       </div>
 
+      {showSessionRecap ? (
+        <PageSection title="Session Recap">
+          <div className="review-session-side-stack">
+            <div className="dashboard-overview-grid">
+              <ReviewStat title="Total" value={sessionRecap.totalCount} />
+              <ReviewStat title="Completed" value={sessionRecap.completedCount} />
+              <ReviewStat title="Again" value={sessionRecap.ratingCounts.AGAIN} />
+              <ReviewStat title="Hard" value={sessionRecap.ratingCounts.HARD} />
+              <ReviewStat title="Good" value={sessionRecap.ratingCounts.GOOD} />
+              <ReviewStat title="Easy" value={sessionRecap.ratingCounts.EASY} />
+              <ReviewStat
+                title="Avg Response"
+                value={sessionRecap.averageResponseTimeMs === undefined ? "-" : sessionRecap.averageResponseTimeMs}
+                suffix={sessionRecap.averageResponseTimeMs === undefined ? "" : "ms"}
+              />
+              <ReviewStat title="Duration" value={formatDurationMs(sessionRecap.sessionDurationMs)} />
+              <ReviewStat title="Recovery" value={sessionRecap.recoveryCount} />
+              <ReviewStat title="Weak Added" value={sessionRecap.weakAddedCount} />
+            </div>
+            <Space wrap>
+              <Button type="primary" onClick={() => navigate("/dashboard")}>
+                回工作台
+              </Button>
+              <Button onClick={() => handleNextLearningAction("WORD")}>单词复习</Button>
+              <Button onClick={() => navigate("/weak-items")}>薄弱项</Button>
+              <Button onClick={openClosureExport}>导出复盘材料</Button>
+            </Space>
+          </div>
+        </PageSection>
+      ) : null}
+
       <div className="review-session-support-grid">
         <PageSection title="Queue Assistant">
           <Table<SessionNoteTableRow>
@@ -614,6 +704,7 @@ export function NoteReviewPage() {
               onClick: () => {
                 setCurrentRowKey(record.rowKey);
                 setRevealed(false);
+                currentItemStartedAtRef.current = Date.now();
                 reviewForm.resetFields();
               }
             })}
@@ -698,7 +789,7 @@ export function NoteReviewPage() {
 
 interface ReviewStatProps {
   title: string;
-  value: number;
+  value: number | string;
   suffix?: string;
 }
 

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, App, Button, DatePicker, Form, Input, InputNumber, Select, Space, Statistic, Table, Tag, Typography } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getMe } from "@/features/auth/api";
 import {
@@ -14,14 +14,17 @@ import {
   type ReviewRating,
   type TodayCard
 } from "@/features/cards/api";
-import { getStudyDashboard } from "@/features/dashboard/api";
+import { getLongTermDashboard, getStudyDashboard } from "@/features/dashboard/api";
 import { getNoteDashboard } from "@/features/notes/api";
 import {
   getLearningLineSessionLabel,
+  getLearningPathRiskColor,
+  getLearningPathRiskLabel,
   resolveLearningPathState,
   type LearningLine
 } from "@/features/review/learningPath";
 import { buildReviewSessionSummary, resolveCurrentSessionIndex } from "@/features/review/session";
+import { buildReviewSessionRecap, formatDurationMs, type ReviewSessionRecapEvent } from "@/features/review/sessionRecap";
 import { listStudyPlans, type StudyPlan } from "@/features/study-plans/api";
 import { getWeakItemSummary } from "@/features/weak-items/api";
 import { ApiClientError } from "@/shared/api/errors";
@@ -147,6 +150,9 @@ export function TodayCardsPage() {
   const [weakRoundStarted, setWeakRoundStarted] = useState(false);
   const [weakRoundSkipped, setWeakRoundSkipped] = useState(false);
   const [currentRowKey, setCurrentRowKey] = useState<string>();
+  const [sessionStartedAtMs, setSessionStartedAtMs] = useState(() => Date.now());
+  const [sessionEvents, setSessionEvents] = useState<ReviewSessionRecapEvent[]>([]);
+  const currentItemStartedAtRef = useRef(Date.now());
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
@@ -157,6 +163,10 @@ export function TodayCardsPage() {
   const dashboardQuery = useQuery({
     queryKey: ["dashboard", search.date],
     queryFn: () => getStudyDashboard(search.date)
+  });
+  const longTermDashboardQuery = useQuery({
+    queryKey: ["dashboard", "long-term", search.date, 90],
+    queryFn: () => getLongTermDashboard(search.date, 90)
   });
   const noteDashboardQuery = useQuery({
     queryKey: ["noteDashboard", search.date],
@@ -248,16 +258,30 @@ export function TodayCardsPage() {
         .findIndex((item) => item.rowKey === currentRow?.rowKey) + 1
     : 0;
   const preferredLearningOrder = currentUserQuery.data?.preferredLearningOrder ?? "WORD_FIRST";
+  const noteReviewedToday =
+    noteDashboardQuery.data?.recentTrend.find((item) => item.date === search.date)?.reviewedNotes ?? 0;
   const learningPathState = useMemo(
     () =>
       resolveLearningPathState(preferredLearningOrder, {
         wordPendingCount: dashboardQuery.data?.overview.pendingDueToday ?? 0,
-        notePendingCount: noteDashboardQuery.data?.overview.dueToday ?? 0
+        notePendingCount: noteDashboardQuery.data?.overview.dueToday ?? 0,
+        weakWordCount: weakItemSummaryQuery.data?.weakWordCount ?? 0,
+        weakNoteCount: weakItemSummaryQuery.data?.weakNoteCount ?? 0,
+        next7DayWordDue: longTermDashboardQuery.data?.loadForecast.next7Days.wordDue ?? 0,
+        next7DayNoteDue: longTermDashboardQuery.data?.loadForecast.next7Days.noteDue ?? 0,
+        todayWordReviewedCount: dashboardQuery.data?.overview.reviewedToday ?? 0,
+        todayNoteReviewedCount: noteReviewedToday
       }),
     [
       dashboardQuery.data?.overview.pendingDueToday,
+      dashboardQuery.data?.overview.reviewedToday,
+      longTermDashboardQuery.data?.loadForecast.next7Days.noteDue,
+      longTermDashboardQuery.data?.loadForecast.next7Days.wordDue,
       noteDashboardQuery.data?.overview.dueToday,
-      preferredLearningOrder
+      noteReviewedToday,
+      preferredLearningOrder,
+      weakItemSummaryQuery.data?.weakNoteCount,
+      weakItemSummaryQuery.data?.weakWordCount
     ]
   );
   const recommendedLine = learningPathState.recommendedLine;
@@ -266,6 +290,12 @@ export function TodayCardsPage() {
   const totalWeakItems = (weakItemSummaryQuery.data?.weakWordCount ?? 0) + (weakItemSummaryQuery.data?.weakNoteCount ?? 0);
   const exportPlanId = selectedPlan?.id ?? recommendedWordPlanId;
   const shouldPromptWeakRound = !weakRoundStarted && !weakRoundSkipped && sessionSummary.pendingCount === 0 && weakQueue.length > 0;
+  const showSessionRecap = sessionSummary.totalCount > 0 && sessionSummary.pendingCount === 0 && !shouldPromptWeakRound;
+  const sessionRecapTotalCount = mainQueue.length + (weakRoundStarted ? weakQueue.length : 0);
+  const sessionRecap = useMemo(
+    () => buildReviewSessionRecap(sessionEvents, sessionRecapTotalCount, sessionStartedAtMs),
+    [sessionEvents, sessionRecapTotalCount, sessionStartedAtMs]
+  );
 
   useEffect(() => {
     if (!enabled) {
@@ -276,6 +306,9 @@ export function TodayCardsPage() {
       setWeakRoundStarted(false);
       setWeakRoundSkipped(false);
       setCurrentRowKey(undefined);
+      setSessionEvents([]);
+      setSessionStartedAtMs(Date.now());
+      currentItemStartedAtRef.current = Date.now();
       return;
     }
     if (!orderedCards.length && !cardsQuery.isSuccess) {
@@ -288,12 +321,16 @@ export function TodayCardsPage() {
     setWeakRoundStarted(false);
     setWeakRoundSkipped(false);
     setCurrentRowKey(undefined);
+    setSessionEvents([]);
+    setSessionStartedAtMs(Date.now());
+    currentItemStartedAtRef.current = Date.now();
   }, [cardsQuery.isSuccess, enabled, orderedCards, search.date, search.planId]);
 
   useEffect(() => {
     const nextRowKey = resolvedCurrentIndex === -1 ? undefined : activeQueue[resolvedCurrentIndex]?.rowKey;
     if (nextRowKey !== currentRowKey) {
       setCurrentRowKey(nextRowKey);
+      currentItemStartedAtRef.current = Date.now();
     }
   }, [activeQueue, currentRowKey, resolvedCurrentIndex]);
 
@@ -311,10 +348,21 @@ export function TodayCardsPage() {
       cardId: number;
       payload: ReviewCardPayload;
       queueRowKey: string;
+      queueMode: SessionRowMode;
       nextAgainCount: number;
     }) => submitCardReview(cardId, payload),
     onSuccess: async (result, variables) => {
       setCompletedRowKeys((previous) => (previous.includes(variables.queueRowKey) ? previous : [...previous, variables.queueRowKey]));
+      setSessionEvents((previous) => [
+        ...previous,
+        {
+          rating: result.rating,
+          responseTimeMs: variables.payload.responseTimeMs,
+          queueMode: variables.queueMode,
+          todayAction: result.todayAction,
+          reviewedAtMs: Date.now()
+        }
+      ]);
       if (result.rating === "AGAIN") {
         setAgainCountByCardId((previous) => ({
           ...previous,
@@ -345,6 +393,7 @@ export function TodayCardsPage() {
         queryClient.invalidateQueries({ queryKey: ["weakWords"] })
       ]);
       reviewForm.resetFields();
+      currentItemStartedAtRef.current = Date.now();
     },
     onError: (error) => {
       message.error((error as ApiClientError).message);
@@ -361,6 +410,9 @@ export function TodayCardsPage() {
     setCurrentPlanId(nextSearch.planId);
     setSearch(nextSearch);
     setCurrentRowKey(undefined);
+    setSessionEvents([]);
+    setSessionStartedAtMs(Date.now());
+    currentItemStartedAtRef.current = Date.now();
     reviewForm.resetFields();
   }
 
@@ -371,14 +423,16 @@ export function TodayCardsPage() {
     }
 
     const values = reviewForm.getFieldsValue();
+    const responseTimeMs = values.responseTimeMs ?? Date.now() - currentItemStartedAtRef.current;
     const nextAgainCount = rating === "AGAIN" ? (againCountByCardId[currentCard.id] ?? 0) + 1 : againCountByCardId[currentCard.id] ?? 0;
     reviewMutation.mutate({
       cardId: currentCard.id,
       queueRowKey: currentRow.rowKey,
+      queueMode: currentRow.mode,
       nextAgainCount,
       payload: {
         rating,
-        responseTimeMs: values.responseTimeMs,
+        responseTimeMs,
         sessionAgainCount: nextAgainCount,
         note: values.note?.trim() || undefined
       }
@@ -391,6 +445,7 @@ export function TodayCardsPage() {
       return;
     }
     setCurrentRowKey(nextRow.rowKey);
+    currentItemStartedAtRef.current = Date.now();
     reviewForm.resetFields();
   }
 
@@ -582,6 +637,10 @@ export function TodayCardsPage() {
                                   : "今天两条学习线都已清空，可以回工作台收尾。"
                                 : "如果还要继续单词线，先回工作台确认下一段会话。"}
                           </Typography.Text>
+                          <Typography.Text type="secondary">{learningPathState.recommendedReason}</Typography.Text>
+                          <Tag color={getLearningPathRiskColor(learningPathState.riskLevel)}>
+                            {getLearningPathRiskLabel(learningPathState.riskLevel)}
+                          </Tag>
                           {recommendedLine ? (
                             <Button
                               type="primary"
@@ -685,6 +744,37 @@ export function TodayCardsPage() {
             </div>
           </div>
 
+          {showSessionRecap ? (
+            <PageSection title="Session Recap">
+              <div className="review-session-side-stack">
+                <div className="dashboard-overview-grid">
+                  <CardStat title="Total" value={sessionRecap.totalCount} />
+                  <CardStat title="Completed" value={sessionRecap.completedCount} />
+                  <CardStat title="Again" value={sessionRecap.ratingCounts.AGAIN} />
+                  <CardStat title="Hard" value={sessionRecap.ratingCounts.HARD} />
+                  <CardStat title="Good" value={sessionRecap.ratingCounts.GOOD} />
+                  <CardStat title="Easy" value={sessionRecap.ratingCounts.EASY} />
+                  <CardStat
+                    title="Avg Response"
+                    value={sessionRecap.averageResponseTimeMs === undefined ? "-" : sessionRecap.averageResponseTimeMs}
+                    suffix={sessionRecap.averageResponseTimeMs === undefined ? "" : "ms"}
+                  />
+                  <CardStat title="Duration" value={formatDurationMs(sessionRecap.sessionDurationMs)} />
+                  <CardStat title="Requeue" value={sessionRecap.requeueCount} />
+                  <CardStat title="Weak Added" value={sessionRecap.weakAddedCount} />
+                </div>
+                <Space wrap>
+                  <Button type="primary" onClick={() => navigate("/dashboard")}>
+                    回工作台
+                  </Button>
+                  <Button onClick={() => handleNextLearningAction("NOTE")}>知识点复习</Button>
+                  <Button onClick={() => navigate("/weak-items")}>薄弱项</Button>
+                  <Button onClick={openClosureExport}>导出复盘材料</Button>
+                </Space>
+              </div>
+            </PageSection>
+          ) : null}
+
           <div className="review-session-support-grid">
             <PageSection title="Queue Assistant">
               <Table<SessionCardTableRow>
@@ -695,6 +785,7 @@ export function TodayCardsPage() {
                 onRow={(record) => ({
                   onClick: () => {
                     setCurrentRowKey(record.rowKey);
+                    currentItemStartedAtRef.current = Date.now();
                     reviewForm.resetFields();
                   }
                 })}
@@ -785,7 +876,7 @@ export function TodayCardsPage() {
 
 interface CardStatProps {
   title: string;
-  value: number;
+  value: number | string;
   suffix?: string;
 }
 
