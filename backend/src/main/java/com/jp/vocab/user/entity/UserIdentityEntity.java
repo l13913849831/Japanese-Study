@@ -11,6 +11,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import java.time.Duration;
+import java.time.OffsetDateTime;
+
 @Entity
 @Table(name = "user_identity")
 public class UserIdentityEntity extends AuditableEntity {
@@ -27,6 +30,15 @@ public class UserIdentityEntity extends AuditableEntity {
 
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
+
+    @Column(name = "failed_login_count", nullable = false)
+    private int failedLoginCount;
+
+    @Column(name = "last_failed_login_at")
+    private OffsetDateTime lastFailedLoginAt;
+
+    @Column(name = "locked_until")
+    private OffsetDateTime lockedUntil;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "user_id", nullable = false)
@@ -48,6 +60,32 @@ public class UserIdentityEntity extends AuditableEntity {
         return entity;
     }
 
+    public void recordFailedLogin(OffsetDateTime failedAt, int maxFailedAttempts, Duration lockDuration) {
+        failedLoginCount += 1;
+        lastFailedLoginAt = failedAt;
+        if (failedLoginCount >= Math.max(1, maxFailedAttempts)) {
+            lockedUntil = failedAt.plus(lockDuration == null ? Duration.ofMinutes(15) : lockDuration);
+        }
+    }
+
+    public void clearLoginFailureState() {
+        failedLoginCount = 0;
+        lastFailedLoginAt = null;
+        lockedUntil = null;
+    }
+
+    public boolean hasLoginFailureState() {
+        return failedLoginCount > 0 || lastFailedLoginAt != null || lockedUntil != null;
+    }
+
+    public boolean isLoginLocked(OffsetDateTime now) {
+        return lockedUntil != null && lockedUntil.isAfter(now);
+    }
+
+    public boolean hasExpiredLoginLock(OffsetDateTime now) {
+        return lockedUntil != null && !lockedUntil.isAfter(now);
+    }
+
     public void updatePasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
     }
@@ -66,6 +104,18 @@ public class UserIdentityEntity extends AuditableEntity {
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public int getFailedLoginCount() {
+        return failedLoginCount;
+    }
+
+    public OffsetDateTime getLastFailedLoginAt() {
+        return lastFailedLoginAt;
+    }
+
+    public OffsetDateTime getLockedUntil() {
+        return lockedUntil;
     }
 
     public UserAccountEntity getUserAccount() {

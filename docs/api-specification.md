@@ -74,6 +74,9 @@
 - 所有写请求 `POST / PUT / PATCH / DELETE` 都要求带有效 CSRF token
 - 前端应先调用 `GET /api/auth/csrf`
 - 再把返回的 `headerName` / `token` 带到后续写请求中
+- 本地账号默认连续 5 次登录失败后临时锁定 15 分钟
+- 锁定期间登录返回 `FORBIDDEN`，成功登录会清零失败状态
+- 后端会记录认证安全审计事件：登录成功、登录失败、账号锁定、账号禁用、登出
 
 ## 3. 核心对象
 
@@ -277,6 +280,11 @@ Markdown 模板关键字段：
 ### `POST /api/auth/login`
 
 使用本地账号登录，成功后建立 session。
+
+失败行为：
+
+- 用户名或密码错误返回 `UNAUTHORIZED`
+- 账号被禁用或处于临时锁定期返回 `FORBIDDEN`
 
 ### `POST /api/auth/register`
 

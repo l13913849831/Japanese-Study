@@ -21,6 +21,6 @@
   "children": [],
   "parent": "04-29-account-system-and-admin-backend-evolution",
   "relatedFiles": [],
-  "notes": "Session cookie baseline, CSRF endpoint/client wiring, bootstrap default-off policy, and first security regression tests are implemented. Login failure throttling remains open.",
+  "notes": "Session cookie baseline, CSRF endpoint/client wiring, bootstrap default-off policy, first security regression tests, login failure lockout, and auth security audit events are implemented. Alerting and audit admin query remain open.",
   "meta": {}
 }

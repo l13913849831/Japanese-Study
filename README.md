@@ -83,6 +83,8 @@ Important environment variables:
 - `JP_DB_USERNAME`
 - `JP_DB_PASSWORD`
 - `APP_CORS_ALLOWED_ORIGINS`
+- `APP_AUTH_LOGIN_MAX_FAILED_ATTEMPTS`
+- `APP_AUTH_LOGIN_LOCK_DURATION`
 - `APP_AUTH_BOOTSTRAP_ENABLED`
 - `APP_SESSION_COOKIE_SECURE`
 - `APP_SESSION_COOKIE_SAME_SITE`
@@ -93,6 +95,8 @@ Security baseline:
 
 - login state uses session cookie
 - write requests require CSRF token
+- local login is temporarily locked after repeated failures
+- auth security events are persisted for login/logout outcomes
 - bootstrap demo account is disabled by default and must be explicitly enabled
 
 Backend currently runs Flyway `V1` to `V11`.

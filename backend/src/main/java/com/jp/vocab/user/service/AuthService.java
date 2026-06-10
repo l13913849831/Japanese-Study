@@ -1,6 +1,8 @@
 package com.jp.vocab.user.service;
 
+import com.jp.vocab.shared.auth.AppUserPrincipal;
 import com.jp.vocab.shared.auth.AuthProvider;
+import com.jp.vocab.shared.config.AuthLoginProperties;
 import com.jp.vocab.shared.exception.BusinessException;
 import com.jp.vocab.shared.exception.ErrorCode;
 import com.jp.vocab.user.dto.CurrentUserResponse;
@@ -28,7 +30,9 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class AuthService {
@@ -40,6 +44,8 @@ public class AuthService {
     private final UserIdentityRepository userIdentityRepository;
     private final UserSettingRepository userSettingRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthLoginProperties authLoginProperties;
+    private final SecurityAuditService securityAuditService;
 
     public AuthService(
             AuthenticationManager authenticationManager,
@@ -48,7 +54,9 @@ public class AuthService {
             UserAccountRepository userAccountRepository,
             UserIdentityRepository userIdentityRepository,
             UserSettingRepository userSettingRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            AuthLoginProperties authLoginProperties,
+            SecurityAuditService securityAuditService
     ) {
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
@@ -57,28 +65,87 @@ public class AuthService {
         this.userIdentityRepository = userIdentityRepository;
         this.userSettingRepository = userSettingRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authLoginProperties = authLoginProperties;
+        this.securityAuditService = securityAuditService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CurrentUserResponse login(LoginRequest request, HttpServletRequest servletRequest, HttpServletResponse servletResponse) {
+        String username = request.username().trim();
+        OffsetDateTime now = OffsetDateTime.now();
+        Optional<UserIdentityEntity> localIdentity = userIdentityRepository.findByProviderAndProviderSubject(AuthProvider.LOCAL, username);
+        localIdentity.ifPresent(identity -> validateLoginLock(identity, now, servletRequest, username));
+
         try {
             Authentication authentication = authenticationManager.authenticate(
                     UsernamePasswordAuthenticationToken.unauthenticated(
-                            request.username().trim(),
+                            username,
                             request.password()
                     )
             );
+
+            localIdentity.ifPresent(this::clearLoginFailureState);
 
             SecurityContext context = SecurityContextHolder.createEmptyContext();
             context.setAuthentication(authentication);
             SecurityContextHolder.setContext(context);
             securityContextRepository.saveContext(context, servletRequest, servletResponse);
             servletRequest.getSession(true);
-            return userProfileService.getCurrentUserProfile();
+            CurrentUserResponse response = userProfileService.getCurrentUserProfile();
+            securityAuditService.recordLoginSuccess(servletRequest, response.id(), response.username());
+            return response;
         } catch (BadCredentialsException ex) {
+            localIdentity.ifPresent(identity -> recordLoginFailure(identity, now));
+            recordFailedLoginAudit(servletRequest, localIdentity, username, now);
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid username or password");
         } catch (DisabledException ex) {
+            securityAuditService.recordLoginDisabled(servletRequest, localIdentity.orElse(null), username);
             throw new BusinessException(ErrorCode.FORBIDDEN, "User account is disabled");
+        }
+    }
+
+    private void validateLoginLock(
+            UserIdentityEntity identity,
+            OffsetDateTime now,
+            HttpServletRequest servletRequest,
+            String username
+    ) {
+        if (identity.isLoginLocked(now)) {
+            securityAuditService.recordLoginLocked(servletRequest, identity, username);
+            throw new BusinessException(ErrorCode.FORBIDDEN, "User account is temporarily locked");
+        }
+        if (identity.hasExpiredLoginLock(now)) {
+            identity.clearLoginFailureState();
+            userIdentityRepository.save(identity);
+        }
+    }
+
+    private void recordFailedLoginAudit(
+            HttpServletRequest servletRequest,
+            Optional<UserIdentityEntity> localIdentity,
+            String username,
+            OffsetDateTime now
+    ) {
+        if (localIdentity.isPresent() && localIdentity.get().isLoginLocked(now)) {
+            securityAuditService.recordLoginLocked(servletRequest, localIdentity.get(), username);
+            return;
+        }
+        securityAuditService.recordLoginFailure(servletRequest, localIdentity.orElse(null), username);
+    }
+
+    private void recordLoginFailure(UserIdentityEntity identity, OffsetDateTime failedAt) {
+        identity.recordFailedLogin(
+                failedAt,
+                authLoginProperties.getMaxFailedAttempts(),
+                authLoginProperties.getLockDuration()
+        );
+        userIdentityRepository.save(identity);
+    }
+
+    private void clearLoginFailureState(UserIdentityEntity identity) {
+        if (identity.hasLoginFailureState()) {
+            identity.clearLoginFailureState();
+            userIdentityRepository.save(identity);
         }
     }
 
@@ -108,6 +175,11 @@ public class AuthService {
     }
 
     public LogoutResponse logout(HttpServletRequest servletRequest, HttpServletResponse servletResponse) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = authenticatedUserId(authentication);
+        String username = authentication == null ? null : authentication.getName();
+        securityAuditService.recordLogout(servletRequest, userId, username);
+
         HttpSession session = servletRequest.getSession(false);
         if (session != null) {
             session.invalidate();
@@ -115,6 +187,13 @@ public class AuthService {
         SecurityContextHolder.clearContext();
         securityContextRepository.saveContext(SecurityContextHolder.createEmptyContext(), servletRequest, servletResponse);
         return new LogoutResponse(true);
+    }
+
+    private Long authenticatedUserId(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AppUserPrincipal principal)) {
+            return null;
+        }
+        return principal.getUserId();
     }
 
     private String normalizeUsername(String username) {

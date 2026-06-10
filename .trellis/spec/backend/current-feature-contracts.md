@@ -43,6 +43,10 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
   - `token`
 - Frontend obtains a fresh CSRF token before write requests and sends it through the returned header name.
 - Bootstrap local account is disabled by default and must be explicitly enabled by configuration.
+- Local login tracks failed attempts per local identity.
+- Default lock policy is 5 failed attempts followed by a 15-minute temporary lock.
+- Successful login clears the local identity's failed-login state.
+- Authentication security audit persists events for login success, login failure, temporary lock, disabled-account block, and logout.
 
 ### 4. Validation & Error Matrix
 
@@ -50,6 +54,7 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 |---------|-------------------|
 | missing or invalid CSRF token on write request | reject with standard `FORBIDDEN` envelope |
 | login with bad credentials | reject with standard `UNAUTHORIZED` envelope |
+| login during temporary lock | reject with standard `FORBIDDEN` envelope |
 | login for disabled account | reject with standard `FORBIDDEN` envelope |
 | bootstrap enabled with blank password | fail startup rather than creating an unsafe account |
 
@@ -65,6 +70,8 @@ When Trellis, `docs/api-specification.md`, and code disagree, prefer current cod
 - auth write request rejection when CSRF token is missing
 - login success path with CSRF token present
 - bootstrap default-off and blank-password guard coverage
+- login failure counting, lockout rejection, and success reset coverage
+- auth security audit event coverage
 
 ### 7. Wrong vs Correct
 
