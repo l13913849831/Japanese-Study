@@ -9,6 +9,7 @@ import { getErrorMessage } from "@/shared/errors";
 import { useAuthGuard } from "@/shared/hooks/use-auth-guard";
 import { useRouteParams } from "@/shared/hooks/use-route-params";
 import { relaunchDashboard } from "@/shared/routes";
+import { listLearningLinksByNote } from "@/features/learning-links/api";
 import {
   getTodayNoteReviews,
   submitNoteReview,
@@ -105,6 +106,11 @@ export default function NotesReviewPage() {
   );
   const currentRow = resolvedCurrentIndex === -1 ? undefined : activeQueue[resolvedCurrentIndex];
   const currentNote = currentRow ? sessionNotesById[currentRow.noteId] : undefined;
+  const learningLinksQuery = useQuery({
+    queryKey: ["learningLinks", "note", currentNote?.id],
+    queryFn: () => listLearningLinksByNote(currentNote!.id),
+    enabled: authenticated && Boolean(currentNote?.id)
+  });
   const pendingWeakCount = weakQueue.filter((item) => !completedRowKeySet.has(item.rowKey)).length;
   const shouldPromptWeakRound = !weakRoundStarted && !weakRoundSkipped && sessionSummary.pendingCount === 0 && weakQueue.length > 0;
 
@@ -299,6 +305,22 @@ export default function NotesReviewPage() {
               ))}
             </View>
           ) : null}
+        </View>
+      ) : null}
+
+      {currentNote ? (
+        <View className="app-card">
+          <Text className="app-card__title">关联词条</Text>
+          {(learningLinksQuery.data ?? []).length > 0 ? (
+            (learningLinksQuery.data ?? []).map((item) => (
+              <Text className="app-card__body" key={item.linkId}>
+                {item.expression}
+                {item.reading ? ` / ${item.reading}` : ""}
+              </Text>
+            ))
+          ) : (
+            <Text className="app-card__body">当前知识卡还没有关联词条。</Text>
+          )}
         </View>
       ) : null}
     </AppPage>

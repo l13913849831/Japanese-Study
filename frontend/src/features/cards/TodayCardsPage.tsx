@@ -15,7 +15,8 @@ import {
   type TodayCard
 } from "@/features/cards/api";
 import { getLongTermDashboard, getStudyDashboard } from "@/features/dashboard/api";
-import { getNoteDashboard } from "@/features/notes/api";
+import { createLearningLink, listLearningLinksByWordEntry, type LearningLink } from "@/features/learning-links/api";
+import { getNoteDashboard, listNotes, type Note } from "@/features/notes/api";
 import {
   getLearningLineSessionLabel,
   getLearningPathRiskColor,
@@ -41,6 +42,10 @@ interface SearchFormValues {
 interface ReviewFormValues {
   responseTimeMs?: number;
   note?: string;
+}
+
+interface LinkFormValues {
+  noteId?: number;
 }
 
 type SessionRowMode = "MAIN" | "REQUEUE" | "WEAK";
@@ -139,6 +144,7 @@ export function TodayCardsPage() {
   const setCurrentPlanId = useUiStore((state) => state.setCurrentPlanId);
   const [searchForm] = Form.useForm<SearchFormValues>();
   const [reviewForm] = Form.useForm<ReviewFormValues>();
+  const [linkForm] = Form.useForm<LinkFormValues>();
   const [search, setSearch] = useState<{ planId?: number; date: string }>(() => ({
     planId: parsePlanId(searchParams.get("planId")) ?? currentPlanId,
     date: normalizeDate(searchParams.get("date"))
@@ -180,6 +186,10 @@ export function TodayCardsPage() {
   const weakItemSummaryQuery = useQuery({
     queryKey: ["weakItemSummary"],
     queryFn: getWeakItemSummary
+  });
+  const linkNoteOptionsQuery = useQuery({
+    queryKey: ["notes", "link-options"],
+    queryFn: () => listNotes({ page: 1, pageSize: 100 })
   });
 
   const allPlans = studyPlansQuery.data?.items ?? [];
@@ -339,6 +349,11 @@ export function TodayCardsPage() {
     queryFn: () => getCardReviews(currentCard!.id),
     enabled: Boolean(currentCard?.id)
   });
+  const learningLinksQuery = useQuery({
+    queryKey: ["learningLinks", "word", currentCard?.wordEntryId],
+    queryFn: () => listLearningLinksByWordEntry(currentCard!.wordEntryId),
+    enabled: Boolean(currentCard?.wordEntryId)
+  });
 
   const reviewMutation = useMutation({
     mutationFn: ({
@@ -400,6 +415,23 @@ export function TodayCardsPage() {
     }
   });
 
+  const learningLinkMutation = useMutation({
+    mutationFn: (values: { wordEntryId: number; noteId: number }) =>
+      createLearningLink({
+        wordEntryId: values.wordEntryId,
+        noteId: values.noteId,
+        source: "REVIEW"
+      }),
+    onSuccess: async (_, variables) => {
+      message.success("已关联知识点。");
+      linkForm.resetFields();
+      await queryClient.invalidateQueries({ queryKey: ["learningLinks", "word", variables.wordEntryId] });
+    },
+    onError: (error) => {
+      message.error((error as ApiClientError).message);
+    }
+  });
+
   const latestReview = reviewsQuery.data?.[0];
   const planOptions = allPlans.map((plan) => ({
     label: buildPlanLabel(plan),
@@ -447,6 +479,18 @@ export function TodayCardsPage() {
     setCurrentRowKey(nextRow.rowKey);
     currentItemStartedAtRef.current = Date.now();
     reviewForm.resetFields();
+  }
+
+  function handleCreateLearningLink(values: LinkFormValues) {
+    if (!currentCard || !values.noteId) {
+      message.warning("请选择要关联的知识点。");
+      return;
+    }
+
+    learningLinkMutation.mutate({
+      wordEntryId: currentCard.wordEntryId,
+      noteId: values.noteId
+    });
   }
 
   function handleNextLearningAction(line: LearningLine) {
@@ -738,6 +782,47 @@ export function TodayCardsPage() {
                     />
                   ) : currentCard ? (
                     <Typography.Text type="secondary">No review has been submitted for this card yet.</Typography.Text>
+                  ) : null}
+
+                  {currentCard ? (
+                    <div className="review-session-side-stack">
+                      <Typography.Title level={5} style={{ margin: 0 }}>
+                        关联知识点
+                      </Typography.Title>
+                      {learningLinksQuery.isLoading ? (
+                        <Typography.Text type="secondary">正在读取关联知识点...</Typography.Text>
+                      ) : learningLinksQuery.isError ? (
+                        <Typography.Text type="danger">{(learningLinksQuery.error as Error).message}</Typography.Text>
+                      ) : (learningLinksQuery.data ?? []).length ? (
+                        <Space direction="vertical" size={4}>
+                          {(learningLinksQuery.data ?? []).map((item: LearningLink) => (
+                            <Typography.Text key={item.linkId}>
+                              {item.noteTitle}
+                              {item.noteTags.length ? ` / ${item.noteTags.join(", ")}` : ""}
+                            </Typography.Text>
+                          ))}
+                        </Space>
+                      ) : (
+                        <Typography.Text type="secondary">当前单词还没有关联知识点。</Typography.Text>
+                      )}
+                      <Form<LinkFormValues> form={linkForm} layout="vertical" onFinish={handleCreateLearningLink}>
+                        <Form.Item label="选择知识点" name="noteId">
+                          <Select
+                            loading={linkNoteOptionsQuery.isLoading}
+                            placeholder="选择已有知识点"
+                            options={(linkNoteOptionsQuery.data?.items ?? []).map((item: Note) => ({
+                              label: item.title,
+                              value: item.id
+                            }))}
+                            showSearch
+                            optionFilterProp="label"
+                          />
+                        </Form.Item>
+                        <Button type="primary" htmlType="submit" loading={learningLinkMutation.isPending}>
+                          关联到当前单词
+                        </Button>
+                      </Form>
+                    </div>
                   ) : null}
                 </div>
               </PageSection>

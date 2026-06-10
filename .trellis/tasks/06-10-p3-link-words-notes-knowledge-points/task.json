@@ -1,13 +1,13 @@
 {
-  "id": "learning-review-route-enhancements",
-  "name": "learning-review-route-enhancements",
-  "title": "roadmap: learning review route enhancements",
+  "id": "p3-link-words-notes-knowledge-points",
+  "name": "p3-link-words-notes-knowledge-points",
+  "title": "P3: link words notes and knowledge points",
   "description": "",
   "status": "planning",
   "dev_type": null,
   "scope": null,
   "package": null,
-  "priority": "P2",
+  "priority": "P3",
   "creator": "codex",
   "assignee": "codex",
   "createdAt": "2026-06-10",
@@ -18,12 +18,8 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "06-10-p2-weak-item-focused-review-mode",
-    "06-10-p2-new-word-load-auto-adjustment",
-    "06-10-p3-link-words-notes-knowledge-points"
-  ],
-  "parent": null,
+  "children": [],
+  "parent": "06-10-learning-review-route-enhancements",
   "relatedFiles": [],
   "notes": "",
   "meta": {}

@@ -11,6 +11,8 @@ public record WeakWordItemResponse(
         String expression,
         String reading,
         String meaning,
+        String exampleJp,
+        String exampleZh,
         LocalDate dueDate,
         String lastReviewRating,
         OffsetDateTime weakMarkedAt

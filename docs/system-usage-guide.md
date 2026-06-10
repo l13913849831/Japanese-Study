@@ -23,6 +23,7 @@
 
 - `backend/`: Spring Boot 3 + Java 21 + PostgreSQL + Flyway
 - `frontend/`: React 18 + TypeScript + Vite + Ant Design
+- `miniapp/`: Taro + React + TypeScript + WeChat mini program
 - `docs/`: 使用说明、接口文档、路线文档
 - `.trellis/`: 工作流、规范、任务记录
 
@@ -58,6 +59,8 @@
 - `/backups`
 - `/export-jobs`
 - `/admin`
+
+Web 和小程序都要同步维护上面的学习路由。除非文档单独说明，改动时默认两端一起检查。
 
 ## 4. 运行前准备
 

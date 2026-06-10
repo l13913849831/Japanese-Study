@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getMe } from "@/features/auth/api";
 import { getLongTermDashboard, getStudyDashboard } from "@/features/dashboard/api";
+import { listLearningLinksByNote, type LearningLink } from "@/features/learning-links/api";
 import { getNoteDashboard } from "@/features/notes/api";
 import { buildReviewSessionSummary, resolveCurrentSessionIndex } from "@/features/review/session";
 import {
@@ -267,6 +268,11 @@ export function NoteReviewPage() {
   const reviewLogsQuery = useQuery({
     queryKey: ["noteReviewLogs", currentNote?.id],
     queryFn: () => getNoteReviews(currentNote!.id),
+    enabled: Boolean(currentNote?.id)
+  });
+  const learningLinksQuery = useQuery({
+    queryKey: ["learningLinks", "note", currentNote?.id],
+    queryFn: () => listLearningLinksByNote(currentNote!.id),
     enabled: Boolean(currentNote?.id)
   });
 
@@ -656,6 +662,30 @@ export function NoteReviewPage() {
                 />
               ) : currentNote ? (
                 <Typography.Text type="secondary">No review history for the current note yet.</Typography.Text>
+              ) : null}
+
+              {currentNote ? (
+                <div className="review-session-side-stack">
+                  <Typography.Title level={5} style={{ margin: 0 }}>
+                    关联词条
+                  </Typography.Title>
+                  {learningLinksQuery.isLoading ? (
+                    <Typography.Text type="secondary">正在读取关联词条...</Typography.Text>
+                  ) : learningLinksQuery.isError ? (
+                    <Typography.Text type="danger">{(learningLinksQuery.error as Error).message}</Typography.Text>
+                  ) : (learningLinksQuery.data ?? []).length ? (
+                    <Space direction="vertical" size={4}>
+                      {(learningLinksQuery.data ?? []).map((item: LearningLink) => (
+                        <Typography.Text key={item.linkId}>
+                          {item.expression}
+                          {item.reading ? ` / ${item.reading}` : ""}
+                        </Typography.Text>
+                      ))}
+                    </Space>
+                  ) : (
+                    <Typography.Text type="secondary">当前知识点还没有关联词条。</Typography.Text>
+                  )}
+                </div>
               ) : null}
             </div>
           </PageSection>

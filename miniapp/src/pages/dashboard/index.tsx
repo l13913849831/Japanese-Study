@@ -9,6 +9,7 @@ import { useAuthGuard } from "@/shared/hooks/use-auth-guard";
 import { openAccount, openCards, openNotesReview, openWeakItems } from "@/shared/routes";
 import { getLongTermDashboard, getStudyDashboard } from "@/features/dashboard/api";
 import { getNoteDashboard } from "@/features/notes/api";
+import { resolveNewWordLoadAdvice } from "@/features/review/newWordLoadAdvice";
 import { getWeakItemSummary } from "@/features/weak-items/api";
 
 definePageConfig({
@@ -51,6 +52,15 @@ export default function DashboardPage() {
   const firstPlan = dashboard?.activePlans.find((plan) => plan.pendingToday > 0) ?? dashboard?.activePlans[0];
   const loading = dashboardQuery.isLoading || noteDashboardQuery.isLoading;
   const error = dashboardQuery.error ?? noteDashboardQuery.error;
+  const newWordLoadAdvice = resolveNewWordLoadAdvice({
+    plans: dashboard?.activePlans ?? [],
+    todayWordPendingCount: dashboard?.overview.pendingDueToday ?? 0,
+    todayNotePendingCount: noteDashboard?.overview.dueToday ?? 0,
+    next7DayTotalDue: longTerm?.loadForecast.next7Days.totalDue ?? 0,
+    next14DayTotalDue: longTerm?.loadForecast.next14Days.totalDue ?? 0,
+    next30DayTotalDue: longTerm?.loadForecast.next30Days.totalDue ?? 0,
+    reviewedLast7Days: longTerm?.summary.reviewedLast7Days
+  });
 
   return (
     <AppPage title="今日学习" subtitle={`${date} 的学习入口。先处理到期内容，再看弱项。`}>
@@ -93,6 +103,13 @@ export default function DashboardPage() {
                 ? `连续 ${longTerm.summary.currentStreakDays} 天，近 30 天完成 ${longTerm.summary.reviewedLast30Days} 次复习。未来 7 天预计 ${longTerm.loadForecast.next7Days.totalDue} 项到期。`
                 : "长期指标加载中或暂不可用，不影响今天复习。"}
             </Text>
+          </View>
+
+          <View className="app-card">
+            <Text className="app-card__title">新词负载建议</Text>
+            <Text className="app-card__body">{newWordLoadAdvice.title}</Text>
+            <Text className="app-card__body">{newWordLoadAdvice.reason}</Text>
+            <Text className="app-card__body">{newWordLoadAdvice.detail}</Text>
           </View>
 
           <View className="app-card">

@@ -6,6 +6,7 @@ import java.util.List;
 public record WeakNoteItemResponse(
         Long noteId,
         String title,
+        String content,
         List<String> tags,
         String masteryStatus,
         String lastReviewRating,

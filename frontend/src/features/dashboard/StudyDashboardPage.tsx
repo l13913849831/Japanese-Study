@@ -27,6 +27,7 @@ import {
   resolveLearningPathState,
   type LearningLine
 } from "@/features/review/learningPath";
+import { getNewWordLoadAdviceAlertType, resolveNewWordLoadAdvice } from "@/features/review/newWordLoadAdvice";
 import { getWeakItemSummary } from "@/features/weak-items/api";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageSection } from "@/shared/components/PageSection";
@@ -200,6 +201,27 @@ export function StudyDashboardPage() {
   const longTermPeakDay = findPeakItem(longTermTrendRows, (item) => item.totalReviews);
   const longTermSummary = longTermDashboard?.summary;
   const longTermLoadForecast = longTermDashboard?.loadForecast;
+  const newWordLoadAdvice = useMemo(
+    () =>
+      resolveNewWordLoadAdvice({
+        plans: activePlans,
+        todayWordPendingCount: dashboard?.overview.pendingDueToday ?? 0,
+        todayNotePendingCount: noteDueToday,
+        next7DayTotalDue: longTermLoadForecast?.next7Days.totalDue ?? 0,
+        next14DayTotalDue: longTermLoadForecast?.next14Days.totalDue ?? 0,
+        next30DayTotalDue: longTermLoadForecast?.next30Days.totalDue ?? 0,
+        reviewedLast7Days: longTermSummary?.reviewedLast7Days
+      }),
+    [
+      activePlans,
+      dashboard?.overview.pendingDueToday,
+      longTermLoadForecast?.next14Days.totalDue,
+      longTermLoadForecast?.next30Days.totalDue,
+      longTermLoadForecast?.next7Days.totalDue,
+      longTermSummary?.reviewedLast7Days,
+      noteDueToday
+    ]
+  );
   const atRiskPlanCount = activePlans.filter((plan) => plan.pendingToday > 0 && plan.reviewedToday === 0).length;
   const recommendedLine = learningPathState.recommendedLine;
   const followUpLine = learningPathState.followUpLine;
@@ -586,8 +608,15 @@ export function StudyDashboardPage() {
                     description={
                       longTermLoadForecast
                         ? `30 天窗口内共 ${longTermLoadForecast.next30Days.totalDue} 个待复习项。`
-                        : "开始积累复习后，这里会显示未来负载。"
+                      : "开始积累复习后，这里会显示未来负载。"
                     }
+                  />
+                  <Alert
+                    style={{ marginTop: 16 }}
+                    type={getNewWordLoadAdviceAlertType(newWordLoadAdvice.action)}
+                    showIcon
+                    message={newWordLoadAdvice.title}
+                    description={`${newWordLoadAdvice.reason} ${newWordLoadAdvice.detail}`}
                   />
                 </Card>
               </div>

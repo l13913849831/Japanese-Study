@@ -9,6 +9,7 @@
 Use this file when the change touches a learner-facing page, route, query key, or mutation flow.
 
 This file absorbs the retired OpenSpec route and interaction notes for bootstrap, core workflows, and `.apkg` import.
+These workflows apply to both `frontend/` and `miniapp/` unless a scenario explicitly says otherwise.
 
 When this file, `docs/system-usage-guide.md`, and the page code disagree, prefer the page code first, then update the docs.
 

@@ -3,6 +3,8 @@ import { Alert, App, Button, Card, Space, Statistic, Table, Tabs, Tag, Typograph
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { submitCardReview, type ReviewRating } from "@/features/cards/api";
+import { submitNoteReview } from "@/features/notes/api";
 import { ApiClientError } from "@/shared/api/errors";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageSection } from "@/shared/components/PageSection";
@@ -19,8 +21,33 @@ import {
 
 type ActiveTab = "words" | "notes";
 
+type FocusedReviewSession =
+  | {
+      mode: "words";
+      items: WeakWordItem[];
+      currentIndex: number;
+      completedCount: number;
+      startedAtMs: number;
+    }
+  | {
+      mode: "notes";
+      items: WeakNoteItem[];
+      currentIndex: number;
+      completedCount: number;
+      startedAtMs: number;
+    };
+
+const reviewRatings: Array<{ rating: ReviewRating; label: string; danger?: boolean }> = [
+  { rating: "AGAIN", label: "Again", danger: true },
+  { rating: "HARD", label: "Hard" },
+  { rating: "GOOD", label: "Good" },
+  { rating: "EASY", label: "Easy" }
+];
+
 export function WeakItemsPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("words");
+  const [focusedSession, setFocusedSession] = useState<FocusedReviewSession | null>(null);
+  const [noteAnswerRevealed, setNoteAnswerRevealed] = useState(false);
   const navigate = useNavigate();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -64,8 +91,117 @@ export function WeakItemsPage() {
     onError: (error) => message.error((error as ApiClientError).message)
   });
 
+  const focusedWordReviewMutation = useMutation({
+    mutationFn: ({ item, rating, startedAtMs }: { item: WeakWordItem; rating: ReviewRating; startedAtMs: number }) =>
+      submitCardReview(item.cardId, {
+        rating,
+        responseTimeMs: Date.now() - startedAtMs,
+        sessionAgainCount: rating === "AGAIN" ? 1 : 0,
+        note: "Focused weak-item review"
+      }),
+    onSuccess: async () => {
+      message.success("已记录易错词补强结果。");
+      advanceFocusedSession();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["weakItemSummary"] }),
+        queryClient.invalidateQueries({ queryKey: ["weakWords"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      ]);
+    },
+    onError: (error) => message.error((error as ApiClientError).message)
+  });
+
+  const focusedNoteReviewMutation = useMutation({
+    mutationFn: ({ item, rating, startedAtMs }: { item: WeakNoteItem; rating: ReviewRating; startedAtMs: number }) =>
+      submitNoteReview(item.noteId, {
+        rating,
+        responseTimeMs: Date.now() - startedAtMs,
+        sessionAgainCount: rating === "AGAIN" ? 1 : 0,
+        note: "Focused weak-item review"
+      }),
+    onSuccess: async () => {
+      message.success("已记录易错知识点补强结果。");
+      advanceFocusedSession();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["weakItemSummary"] }),
+        queryClient.invalidateQueries({ queryKey: ["weakNotes"] }),
+        queryClient.invalidateQueries({ queryKey: ["noteDashboard"] })
+      ]);
+    },
+    onError: (error) => message.error((error as ApiClientError).message)
+  });
+
   const words = weakWordsQuery.data?.items ?? [];
   const notes = weakNotesQuery.data?.items ?? [];
+  const focusedSessionDone = focusedSession ? focusedSession.currentIndex >= focusedSession.items.length : false;
+  const currentFocusedWord =
+    focusedSession && focusedSession.mode === "words" && !focusedSessionDone
+      ? focusedSession.items[focusedSession.currentIndex]
+      : undefined;
+  const currentFocusedNote =
+    focusedSession && focusedSession.mode === "notes" && !focusedSessionDone
+      ? focusedSession.items[focusedSession.currentIndex]
+      : undefined;
+
+  function startFocusedSession(mode: ActiveTab) {
+    const items = mode === "words" ? words : notes;
+    if (!items.length) {
+      message.info(mode === "words" ? "当前没有易错词可补强。" : "当前没有易错知识点可补强。");
+      return;
+    }
+
+    setActiveTab(mode);
+    setFocusedSession({
+      mode,
+      items,
+      currentIndex: 0,
+      completedCount: 0,
+      startedAtMs: Date.now()
+    } as FocusedReviewSession);
+    setNoteAnswerRevealed(false);
+  }
+
+  function advanceFocusedSession() {
+    setFocusedSession((previous) =>
+      previous
+        ? {
+            ...previous,
+            currentIndex: previous.currentIndex + 1,
+            completedCount: previous.completedCount + 1,
+            startedAtMs: Date.now()
+          }
+        : previous
+    );
+    setNoteAnswerRevealed(false);
+  }
+
+  function stopFocusedSession() {
+    setFocusedSession(null);
+    setNoteAnswerRevealed(false);
+  }
+
+  function submitFocusedReview(rating: ReviewRating) {
+    if (currentFocusedWord && focusedSession?.mode === "words") {
+      focusedWordReviewMutation.mutate({
+        item: currentFocusedWord,
+        rating,
+        startedAtMs: focusedSession.startedAtMs
+      });
+      return;
+    }
+
+    if (currentFocusedNote && focusedSession?.mode === "notes") {
+      if (!noteAnswerRevealed) {
+        message.warning("先显示知识点内容，再评分。");
+        return;
+      }
+      focusedNoteReviewMutation.mutate({
+        item: currentFocusedNote,
+        rating,
+        startedAtMs: focusedSession.startedAtMs
+      });
+    }
+  }
 
   return (
     <div className="page-stack">
@@ -115,6 +251,12 @@ export function WeakItemsPage() {
                   回工作台
                 </Button>
                 <Button onClick={() => navigate("/notes/review")}>知识点复习</Button>
+                <Button onClick={() => startFocusedSession("words")} disabled={!words.length}>
+                  练易错词
+                </Button>
+                <Button onClick={() => startFocusedSession("notes")} disabled={!notes.length}>
+                  练易错知识点
+                </Button>
               </Space>
             </Space>
           </Card>
@@ -128,6 +270,94 @@ export function WeakItemsPage() {
           </Card>
         </div>
       </PageSection>
+
+      {focusedSession ? (
+        <PageSection title="专题补强会话">
+          {focusedSessionDone ? (
+            <Alert
+              type="success"
+              showIcon
+              message="本轮补强已完成。"
+              description={`本轮共处理 ${focusedSession.completedCount} 个${
+                focusedSession.mode === "words" ? "易错词" : "易错知识点"
+              }。GOOD / EASY 会从弱项列表毕业，AGAIN / HARD 会继续保留。`}
+              action={
+                <Space wrap>
+                  <Button size="small" onClick={() => startFocusedSession("words")} disabled={!words.length}>
+                    再练易错词
+                  </Button>
+                  <Button size="small" onClick={() => startFocusedSession("notes")} disabled={!notes.length}>
+                    再练知识点
+                  </Button>
+                  <Button size="small" type="primary" onClick={stopFocusedSession}>
+                    结束
+                  </Button>
+                </Space>
+              }
+            />
+          ) : currentFocusedWord ? (
+            <Card size="small" title={`易错词 ${focusedSession.currentIndex + 1} / ${focusedSession.items.length}`}>
+              <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                <Typography.Title level={4} style={{ margin: 0 }}>
+                  {currentFocusedWord.expression}
+                </Typography.Title>
+                <Typography.Text type="secondary">{currentFocusedWord.reading || "无 reading"}</Typography.Text>
+                <Typography.Text>{currentFocusedWord.meaning || "暂无释义"}</Typography.Text>
+                {currentFocusedWord.exampleJp ? <Typography.Text>{currentFocusedWord.exampleJp}</Typography.Text> : null}
+                {currentFocusedWord.exampleZh ? (
+                  <Typography.Text type="secondary">{currentFocusedWord.exampleZh}</Typography.Text>
+                ) : null}
+                <Space wrap>
+                  {reviewRatings.map((item) => (
+                    <Button
+                      key={item.rating}
+                      danger={item.danger}
+                      type={item.rating === "GOOD" ? "primary" : "default"}
+                      loading={focusedWordReviewMutation.isPending}
+                      onClick={() => submitFocusedReview(item.rating)}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
+                  <Button onClick={stopFocusedSession}>退出</Button>
+                </Space>
+              </Space>
+            </Card>
+          ) : currentFocusedNote ? (
+            <Card size="small" title={`易错知识点 ${focusedSession.currentIndex + 1} / ${focusedSession.items.length}`}>
+              <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                <Typography.Title level={4} style={{ margin: 0 }}>
+                  {currentFocusedNote.title}
+                </Typography.Title>
+                <Space wrap>
+                  {currentFocusedNote.tags.length ? currentFocusedNote.tags.map((tag) => <Tag key={tag}>{tag}</Tag>) : <Tag>无标签</Tag>}
+                </Space>
+                {noteAnswerRevealed ? (
+                  <Typography.Paragraph style={{ whiteSpace: "pre-wrap" }}>{currentFocusedNote.content}</Typography.Paragraph>
+                ) : (
+                  <Button type="primary" onClick={() => setNoteAnswerRevealed(true)}>
+                    显示内容
+                  </Button>
+                )}
+                <Space wrap>
+                  {reviewRatings.map((item) => (
+                    <Button
+                      key={item.rating}
+                      danger={item.danger}
+                      type={item.rating === "GOOD" ? "primary" : "default"}
+                      loading={focusedNoteReviewMutation.isPending}
+                      onClick={() => submitFocusedReview(item.rating)}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
+                  <Button onClick={stopFocusedSession}>退出</Button>
+                </Space>
+              </Space>
+            </Card>
+          ) : null}
+        </PageSection>
+      ) : null}
 
       <PageSection title="Items">
         <Tabs

@@ -9,6 +9,7 @@
 Use this file when the change touches any implemented learner-facing backend flow.
 
 This file absorbs the retired OpenSpec feature contracts for bootstrap, core workflows, and `.apkg` import.
+These contracts are consumed by both the Web app and the miniapp, so response shapes must stay compatible for both clients.
 
 When Trellis, `docs/api-specification.md`, and code disagree, prefer current code first, then update both docs.
 

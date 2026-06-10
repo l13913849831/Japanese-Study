@@ -1,4 +1,5 @@
 import { getJson, postJson } from "@/shared/api/http";
+import type { PageResponse } from "@/shared/api/types";
 
 export type NoteMasteryStatus = "UNSTARTED" | "LEARNING" | "CONSOLIDATING" | "MASTERED";
 export type NoteReviewRating = "AGAIN" | "HARD" | "GOOD" | "EASY";
@@ -12,6 +13,25 @@ export interface NoteReviewQueueItem {
   reviewCount: number;
   dueAt: string;
   lastReviewedAt?: string;
+}
+
+export interface NoteItem {
+  id: number;
+  title: string;
+  content: string;
+  tags: string[];
+  reviewCount: number;
+  masteryStatus: NoteMasteryStatus;
+  dueAt: string;
+  lastReviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NoteFilters {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
 }
 
 export interface ReviewNotePayload {
@@ -67,6 +87,16 @@ export interface NoteDashboard {
 
 export function getTodayNoteReviews(date: string) {
   return getJson<NoteReviewQueueItem[]>(`/notes/reviews/today?date=${date}`);
+}
+
+export function listNotes(filters: NoteFilters = {}) {
+  const params = new URLSearchParams();
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
+  if (filters.keyword) {
+    params.set("keyword", filters.keyword);
+  }
+  return getJson<PageResponse<NoteItem>>(`/notes?${params.toString()}`);
 }
 
 export function submitNoteReview(noteId: number, payload: ReviewNotePayload) {

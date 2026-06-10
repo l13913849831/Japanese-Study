@@ -10,7 +10,9 @@ import { useAuthGuard } from "@/shared/hooks/use-auth-guard";
 import { useRouteParams } from "@/shared/hooks/use-route-params";
 import { relaunchDashboard } from "@/shared/routes";
 import { getStudyDashboard } from "@/features/dashboard/api";
+import { createLearningLink, listLearningLinksByWordEntry } from "@/features/learning-links/api";
 import { getTodayCards, submitCardReview, type ReviewRating, type TodayCard } from "@/features/cards/api";
+import { listNotes } from "@/features/notes/api";
 import { buildReviewSessionSummary, resolveCurrentSessionIndex } from "@/features/review/session";
 
 definePageConfig({
@@ -114,6 +116,11 @@ export default function CardsPage() {
     enabled: authenticated && Boolean(selectedPlanId),
     refetchOnWindowFocus: false
   });
+  const noteOptionsQuery = useQuery({
+    queryKey: ["notes", "link-options"],
+    queryFn: () => listNotes({ page: 1, pageSize: 20 }),
+    enabled: authenticated
+  });
 
   const orderedCards = useMemo(() => sortCards(cardsQuery.data ?? []), [cardsQuery.data]);
   const completedRowKeySet = useMemo(() => new Set(completedRowKeys), [completedRowKeys]);
@@ -128,6 +135,11 @@ export default function CardsPage() {
   );
   const currentRow = resolvedCurrentIndex === -1 ? undefined : activeQueue[resolvedCurrentIndex];
   const currentCard = currentRow ? sessionCardsById[currentRow.cardId] : undefined;
+  const learningLinksQuery = useQuery({
+    queryKey: ["learningLinks", "word", currentCard?.wordEntryId],
+    queryFn: () => listLearningLinksByWordEntry(currentCard!.wordEntryId),
+    enabled: authenticated && Boolean(currentCard?.wordEntryId)
+  });
   const pendingWeakCount = weakQueue.filter((item) => !completedRowKeySet.has(item.rowKey)).length;
   const shouldPromptWeakRound = !weakRoundStarted && !weakRoundSkipped && sessionSummary.pendingCount === 0 && weakQueue.length > 0;
 
@@ -224,6 +236,22 @@ export default function CardsPage() {
     }
   });
 
+  const learningLinkMutation = useMutation({
+    mutationFn: ({ wordEntryId, noteId }: { wordEntryId: number; noteId: number }) =>
+      createLearningLink({
+        wordEntryId,
+        noteId,
+        source: "REVIEW"
+      }),
+    onSuccess: async (_, variables) => {
+      void Taro.showToast({ title: "已关联知识卡", icon: "success" });
+      await queryClient.invalidateQueries({ queryKey: ["learningLinks", "word", variables.wordEntryId] });
+    },
+    onError: (error) => {
+      void Taro.showToast({ title: getErrorMessage(error), icon: "none" });
+    }
+  });
+
   function submitReview(rating: ReviewRating) {
     if (!currentCard || !currentRow) {
       void Taro.showToast({ title: "当前没有可提交的单词卡", icon: "none" });
@@ -243,6 +271,17 @@ export default function CardsPage() {
     setWeakRoundStarted(true);
     setCurrentRowKey(undefined);
     startedAtRef.current = Date.now();
+  }
+
+  function linkCurrentCardToNote(noteId: number) {
+    if (!currentCard) {
+      void Taro.showToast({ title: "当前没有单词卡", icon: "none" });
+      return;
+    }
+    learningLinkMutation.mutate({
+      wordEntryId: currentCard.wordEntryId,
+      noteId
+    });
   }
 
   if (!authenticated) {
@@ -305,6 +344,34 @@ export default function CardsPage() {
                 onClick={() => submitReview(item.rating)}
               >
                 {item.label}
+              </Button>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {currentCard ? (
+        <View className="app-card">
+          <Text className="app-card__title">关联知识卡</Text>
+          {(learningLinksQuery.data ?? []).length > 0 ? (
+            (learningLinksQuery.data ?? []).map((item) => (
+              <Text className="app-card__body" key={item.linkId}>
+                {item.noteTitle}
+              </Text>
+            ))
+          ) : (
+            <Text className="app-card__body">当前单词还没有关联知识卡。</Text>
+          )}
+          <View className="action-row">
+            {(noteOptionsQuery.data?.items ?? []).slice(0, 3).map((item) => (
+              <Button
+                key={item.id}
+                className="secondary-button"
+                loading={learningLinkMutation.isPending}
+                disabled={learningLinkMutation.isPending}
+                onClick={() => linkCurrentCardToNote(item.id)}
+              >
+                {item.title}
               </Button>
             ))}
           </View>

@@ -100,6 +100,8 @@ public class WeakItemService {
                     we.expression,
                     we.reading,
                     we.meaning,
+                    we.example_jp,
+                    we.example_zh,
                     ci.due_date,
                     ci.last_review_rating,
                     ci.weak_marked_at
@@ -120,6 +122,8 @@ public class WeakItemService {
                 rs.getString("expression"),
                 rs.getString("reading"),
                 rs.getString("meaning"),
+                rs.getString("example_jp"),
+                rs.getString("example_zh"),
                 rs.getDate("due_date").toLocalDate(),
                 rs.getString("last_review_rating"),
                 rs.getObject("weak_marked_at", java.time.OffsetDateTime.class)
@@ -153,6 +157,7 @@ public class WeakItemService {
                 select
                     note.id,
                     note_source.title,
+                    note_source.content,
                     note_source.tags,
                     note.mastery_status,
                     note.last_review_rating,
@@ -168,6 +173,7 @@ public class WeakItemService {
         List<WeakNoteItemResponse> items = jdbcTemplate.query(sql, parameters, (rs, rowNum) -> new WeakNoteItemResponse(
                 rs.getLong("id"),
                 rs.getString("title"),
+                rs.getString("content"),
                 NoteDashboardJdbcSupport.parseTags(rs.getString("tags")),
                 rs.getString("mastery_status"),
                 rs.getString("last_review_rating"),

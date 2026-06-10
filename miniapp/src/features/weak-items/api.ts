@@ -14,6 +14,8 @@ export interface WeakWordItem {
   expression: string;
   reading?: string;
   meaning?: string;
+  exampleJp?: string;
+  exampleZh?: string;
   dueDate: string;
   lastReviewRating?: string;
   weakMarkedAt?: string;
@@ -22,6 +24,7 @@ export interface WeakWordItem {
 export interface WeakNoteItem {
   noteId: number;
   title: string;
+  content: string;
   tags: string[];
   masteryStatus: string;
   lastReviewRating?: string;

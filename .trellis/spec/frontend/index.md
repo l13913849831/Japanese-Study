@@ -6,7 +6,7 @@
 
 ## Overview
 
-Frontend code lives under `frontend/` and uses:
+Frontend code lives under `frontend/` and `miniapp/` and uses:
 
 - React 18
 - TypeScript with `strict: true`
