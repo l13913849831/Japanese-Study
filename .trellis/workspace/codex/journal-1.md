@@ -151,3 +151,36 @@ Completed miniapp review-session parity, learning path recommender v2, and Web r
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Finish learning review route enhancements
+
+**Date**: 2026-06-11
+**Task**: Finish learning review route enhancements
+**Branch**: `main`
+
+### Summary
+
+Completed and archived learning review route enhancement tasks across Web and miniapp, including weak-item focused review, new-word load advice, learning links, dual-frontend rules, and quality verification.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e16db7d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
